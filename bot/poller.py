@@ -1,0 +1,438 @@
+"""Runs every few minutes: reads Telegram button presses / commands and publishes approved products."""
+import time
+import traceback
+
+import requests
+
+from . import assets, config, etsy, storage, telegram
+from .telegram import esc
+
+HELP = """🤖 <b>Etsy Bot komutları</b>
+/durum – ürün sayıları ve Etsy bağlantısı
+/bekleyen – onay bekleyen ürünleri tekrar gönder
+/uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün)
+/etsy – Etsy mağazanı bağla / yeniden bağla
+/pinterest – Pinterest hesabını bağla (otomatik pin)
+/kod &lt;adres&gt; – Etsy/Pinterest onayından sonra çıkan adresi gönder
+/sosyal – son yayınlanan ürün için Pinterest pini + video (/sosyal 3 → son 3 ürün, /sosyal &lt;id&gt; → o ürün)
+/pin – sıradaki 3 Pinterest pinini hemen gönder (her gün 17:00'de otomatik)
+/pinler – yeni haftanın pin listesini hazırla (her pazartesi otomatik)
+/panel – web panel adresi
+/yardim – bu mesaj"""
+
+
+def _status_line(p):
+    icons = {"pending": "⏳", "approved": "🟡", "publishing": "🟡", "published": "✅", "rejected": "❌", "failed": "⚠️"}
+    return f"{icons.get(p['status'], '•')} <code>{p['id']}</code> {esc(p['title'][:60])}"
+
+
+def publish_product(p: dict) -> str:
+    """Publish one product to Etsy. Returns a Turkish status text."""
+    p["status"] = "publishing"
+    storage.save_product(p)
+    delivery = [(f["name"], assets.download(p["id"], "file__" + f["name"])) for f in p["files"]]
+    photos = [(n, assets.download(p["id"], "photo__" + n)) for n in p["photos"]]
+    mode = config.settings().get("publish_mode", "active")
+    res = etsy.publish(p, delivery, photos, p["build"], mode=mode)
+    p["status"] = "published"
+    p["etsy"] = {**p.get("etsy", {}), **res, "published_at": int(time.time())}
+    storage.add_event(p, f"Etsy'de yayınlandı ({res['state']})")
+    storage.save_product(p)
+    return res
+
+
+def _auto_pin(p: dict, pack: dict):
+    """Publish the pin on Pinterest automatically when the account is connected."""
+    from . import pinterest
+    if not (pinterest.configured() and pinterest.connected()) or p.get("pinterest"):
+        return
+    try:
+        res = pinterest.create_pin(p["type"], pack["pin"], pack["pin_title"], pack["pin_desc"], pack["link"], p["title"])
+        p["pinterest"] = {**res, "at": int(time.time())}
+        storage.add_event(p, "Pinterest'e pinlendi")
+        storage.save_product(p)
+        note = storage.load_meta().get("pinterest_note", "")
+        telegram.send(f"📌 <b>Pinterest'e otomatik pinlendi</b>\n{esc(res['url'])}{note}")
+    except Exception as e:
+        traceback.print_exc()
+        telegram.send(f"⚠️ Pinterest'e pinlenemedi: <code>{esc(str(e)[:300])}</code>")
+
+
+def send_social(p: dict) -> bool:
+    """Pinterest pin + vertical video + captions for a published product, sent to Telegram."""
+    from . import social
+    try:
+        photos = [(n, assets.download(p["id"], "photo__" + n)) for n in p["photos"]]
+        pack = social.send_pack(p, photos)
+        p["social_sent"] = int(time.time())
+        storage.save_product(p)
+        _auto_pin(p, pack)
+        return True
+    except Exception as e:
+        traceback.print_exc()
+        telegram.send(f"⚠️ Sosyal medya paketi hazırlanamadı ({esc(p['id'])}): <code>{esc(str(e)[:300])}</code>")
+        return False
+
+
+def _handle_callback(cb, meta):
+    data = cb.get("data", "")
+    msg = cb.get("message", {})
+    chat_id = msg.get("chat", {}).get("id")
+    mid = msg.get("message_id")
+    action, _, pid = data.partition(":")
+    p = storage.load_product(pid)
+    if not p:
+        telegram.answer(cb["id"], "Ürün bulunamadı")
+        return False
+    base_text = msg.get("text", p["title"])
+    for marker in ("\n\n✅", "\n\n⚠️", "\n\n🟡", "\n\n❌"):
+        base_text = base_text.split(marker)[0]
+    base_html = esc(base_text)
+    if action == "desc":
+        telegram.answer(cb["id"])
+        telegram.send(f"<b>{esc(p['title'])}</b>\n\n{esc(p['description'])[:3800]}")
+        return False
+    if action == "files":
+        telegram.answer(cb["id"], "Dosyalar gönderiliyor…")
+        try:
+            for f in p["files"]:
+                data = assets.download(pid, "file__" + f["name"])
+                telegram.document(f["name"], data, f"📦 {esc(p['title'][:80])}")
+        except Exception as e:
+            telegram.send(f"⚠️ Dosyalar gönderilemedi: <code>{esc(str(e)[:300])}</code>")
+        return False
+    if action == "no":
+        if p["status"] == "published":
+            telegram.answer(cb["id"], "Bu ürün zaten yayınlandı")
+            return False
+        p["status"] = "rejected"
+        storage.add_event(p, "reddedildi")
+        storage.save_product(p)
+        try:
+            assets.delete_all(pid)
+        except Exception as e:
+            print(f"[poll] dosyalar silinemedi: {e}")
+        telegram.answer(cb["id"], "Reddedildi")
+        telegram.edit(chat_id, mid, base_html + "\n\n❌ <b>Reddedildi</b>")
+        return True
+    if action in ("ok", "retry"):
+        if p["status"] == "published":
+            telegram.answer(cb["id"], "Zaten yayınlandı")
+            return False
+        if p["status"] == "rejected":
+            telegram.answer(cb["id"], "Bu ürün reddedilmişti")
+            return False
+        telegram.answer(cb["id"], "Etsy'ye gönderiliyor…")
+        telegram.edit(chat_id, mid, base_html + "\n\n🟡 <b>Etsy'ye yükleniyor…</b>")
+        p["status"] = "approved"
+        storage.add_event(p, "onaylandı")
+        storage.save_product(p)
+        try:
+            res = publish_product(p)
+            state_tr = "yayında" if res["state"] == "active" else "taslak olarak kaydedildi"
+            telegram.edit(chat_id, mid, base_html + f"\n\n✅ <b>Etsy'de {state_tr}</b> – {res['price']} {res['currency']}",
+                          [[("🔗 Etsy'de aç", res["url"])]])
+            send_social(storage.load_product(pid))
+        except Exception as e:
+            traceback.print_exc()
+            p = storage.load_product(pid)
+            p["status"] = "failed"
+            p.setdefault("etsy", {})["error"] = str(e)[:500]
+            storage.add_event(p, f"yayın hatası: {str(e)[:200]}")
+            storage.save_product(p)
+            telegram.edit(chat_id, mid, base_html + f"\n\n⚠️ <b>Yayınlanamadı:</b> <code>{esc(str(e)[:600])}</code>",
+                          [[("🔁 Tekrar dene", f"retry:{pid}"), ("❌ Reddet", f"no:{pid}")]])
+        return True
+    telegram.answer(cb["id"])
+    return False
+
+
+def _dispatch_generate(count=None):
+    if not (config.GITHUB_TOKEN and config.GITHUB_REPOSITORY):
+        raise RuntimeError("GitHub ortamı yok")
+    inputs = {"count": str(count)} if count else {}
+    r = requests.post(
+        f"https://api.github.com/repos/{config.GITHUB_REPOSITORY}/actions/workflows/daily.yml/dispatches",
+        headers={"Authorization": f"Bearer {config.GITHUB_TOKEN}", "Accept": "application/vnd.github+json"},
+        json={"ref": config.env("GITHUB_REF_NAME", "main"), "inputs": inputs}, timeout=30)
+    if r.status_code >= 300:
+        raise RuntimeError(f"HTTP {r.status_code} {r.text[:200]}")
+
+
+def _handle_message(m, meta):
+    text = (m.get("text") or "").strip()
+    cmd, _, arg = text.partition(" ")
+    cmd = cmd.split("@")[0].lower()
+    changed = False
+    if cmd in ("/start", "/yardim", "/help"):
+        telegram.send(HELP)
+    elif cmd == "/durum":
+        ps = storage.all_products()
+        counts = {}
+        for p in ps:
+            counts[p["status"]] = counts.get(p["status"], 0) + 1
+        tok = storage.load_etsy()
+        etsy_line = (f"🟢 Etsy bağlı: {esc(tok.get('shop_name') or str(tok.get('shop_id')))}" if tok.get("refresh_token")
+                     else "🔴 Etsy bağlı değil – /etsy yazın")
+        lines = [f"📊 Toplam {len(ps)} ürün", *(f"• {k}: {v}" for k, v in sorted(counts.items())), etsy_line]
+        last = [p for p in ps][-8:]
+        if last:
+            lines += ["", "Son ürünler:"] + [_status_line(p) for p in last]
+        telegram.send("\n".join(lines))
+    elif cmd == "/bekleyen":
+        from .generator import approval_buttons, product_caption
+        pend = [p for p in storage.all_products() if p["status"] in ("pending", "failed")]
+        if not pend:
+            telegram.send("Onay bekleyen ürün yok 👍")
+        for p in pend[-10:]:
+            telegram.send(product_caption(p), approval_buttons(p["id"]) if p["status"] == "pending"
+                          else [[("🔁 Tekrar dene", f"retry:{p['id']}"), ("❌ Reddet", f"no:{p['id']}")]])
+    elif cmd == "/uret":
+        try:
+            n = int(arg) if arg.strip().isdigit() else 1  # extra production: 1 product by default
+            _dispatch_generate(n)
+            telegram.send(f"🚀 {n} ürünlük ek üretim başlatıldı. Hazır olunca buraya gelecek (ürün başına ~5-8 dk).")
+        except Exception as e:
+            telegram.send(f"⚠️ Üretim başlatılamadı: <code>{esc(str(e))}</code>")
+    elif cmd == "/etsy":
+        try:
+            url = etsy.auth_url()
+            telegram.send(
+                "🔗 <b>Etsy bağlantısı</b>\n\n1) Aşağıdaki butona basın ve Etsy'de <b>Allow access</b> deyin.\n"
+                "2) Açılan sayfadaki <b>kopyala</b> butonuyla adresi kopyalayın.\n"
+                "3) Buraya <code>/kod </code> yazıp yapıştırın ve gönderin.\n\n"
+                "Daha hızlısı: GitHub'da <i>Etsy bağla</i> işini çalıştırıp adresi oraya yapıştırabilirsiniz.",
+                [[("Etsy'de izin ver", url)]])
+        except Exception as e:
+            telegram.send(f"⚠️ {esc(str(e))}")
+    elif cmd == "/pinterest":
+        from . import pinterest
+        try:
+            url = pinterest.auth_url()
+            telegram.send("📌 <b>Pinterest bağlantısı</b>\n\n1) Butona basıp <b>İzin ver</b> deyin.\n"
+                          "2) Açılan sayfadaki <b>kopyala</b> butonuyla adresi kopyalayın.\n"
+                          "3) Buraya <code>/kod </code> yazıp yapıştırın.", [[("Pinterest'e izin ver", url)]])
+        except Exception as e:
+            telegram.send(f"⚠️ {esc(str(e))}")
+    elif cmd == "/kod" and "state=pin" in arg:
+        from . import pinterest
+        try:
+            tok = pinterest.exchange(arg)
+            telegram.send(f"🟢 Pinterest bağlandı: <b>@{esc(tok.get('username') or '?')}</b>\n"
+                          "Bundan sonra yayınlanan her ürün otomatik pinlenecek.")
+            changed = True
+        except Exception as e:
+            telegram.send(f"⚠️ Pinterest bağlanamadı: <code>{esc(str(e)[:500])}</code>\n/pinterest ile tekrar deneyin.")
+    elif cmd == "/kod":
+        try:
+            tok = etsy.exchange(arg)
+            telegram.send(f"🟢 Etsy bağlandı: <b>{esc(tok.get('shop_name') or str(tok['shop_id']))}</b> ({tok.get('currency')})")
+            changed = True
+        except Exception as e:
+            telegram.send(f"⚠️ Etsy bağlanamadı: <code>{esc(str(e)[:500])}</code>\nKod birkaç dakikada geçersiz olabilir; /etsy ile tekrar deneyin.")
+    elif cmd == "/sosyal":
+        pub = [p for p in storage.all_products() if p["status"] == "published"]
+        pub.sort(key=lambda p: p.get("etsy", {}).get("published_at", 0))
+        a = arg.strip()
+        if a and not a.isdigit():
+            targets = [p for p in pub if p["id"] == a]
+        else:
+            targets = pub[-min(int(a or 1), 5):]
+        if not targets:
+            telegram.send("Yayınlanmış ürün bulunamadı. Ürün kodunu /bekleyen veya /durum ile görebilirsin.")
+        for p in targets:
+            telegram.send(f"🎬 <b>{esc(p['title'])}</b> için sosyal medya paketi hazırlanıyor (~1 dk)…")
+            changed |= send_social(p)
+    elif cmd == "/pin":
+        from . import pinweek
+        try:
+            n = int(arg) if arg.strip().isdigit() else 3
+            pinweek.send_daily(min(n, 10))
+            changed = True
+        except Exception as e:
+            telegram.send(f"⚠️ <code>{esc(str(e))}</code>")
+    elif cmd == "/pinler":
+        try:
+            n = int(arg) if arg.strip().isdigit() else None
+            _dispatch("pinweek.yml", {"count": str(n)} if n else {})
+            telegram.send("📌 Yeni haftanın pin listesi hazırlanıyor (~5 dk).")
+        except Exception as e:
+            telegram.send(f"⚠️ Başlatılamadı: <code>{esc(str(e))}</code>")
+    elif cmd == "/panel":
+        telegram.send(f"🌐 Panel: {config.pages_url() or 'henüz yok'}")
+    return changed
+
+
+DAILY_AT = (9, 20)  # local time the daily production starts
+
+
+def _maybe_start_daily():
+    """GitHub's own cron is unreliable, so the always-running listener starts the
+    daily production itself once per day after 09:20 (Turkey time)."""
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    now = dt.datetime.now(ZoneInfo(config.settings()["timezone"]))
+    if (now.hour, now.minute) < DAILY_AT:
+        return False
+    today = now.date().isoformat()
+    meta = storage.load_meta()
+    if meta.get("daily_started") == today:
+        return False
+    if any(p.get("day") == today for p in storage.all_products()):
+        meta["daily_started"] = today  # already produced today (manual run / old cron)
+        storage.save_meta(meta)
+        return True
+    try:
+        _dispatch_generate()
+        print(f"[poll] günlük üretim başlatıldı ({today})", flush=True)
+    except Exception as e:
+        print(f"[poll] günlük üretim başlatılamadı: {e}", flush=True)
+        return False
+    meta["daily_started"] = today
+    storage.save_meta(meta)
+    return True
+
+
+def _dispatch(workflow, inputs=None):
+    r = requests.post(
+        f"https://api.github.com/repos/{config.GITHUB_REPOSITORY}/actions/workflows/{workflow}/dispatches",
+        headers={"Authorization": f"Bearer {config.GITHUB_TOKEN}", "Accept": "application/vnd.github+json"},
+        json={"ref": config.env("GITHUB_REF_NAME", "main"), "inputs": inputs or {}}, timeout=30)
+    if r.status_code >= 300:
+        raise RuntimeError(f"HTTP {r.status_code} {r.text[:200]}")
+
+
+def _maybe_start_pinweek():
+    """Every Monday after 10:00 (Turkey time) prepare the week's Pinterest bulk file."""
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    now = dt.datetime.now(ZoneInfo(config.settings()["timezone"]))
+    if now.weekday() != 0 or now.hour < 10:
+        return False
+    week = now.strftime("%G-W%V")
+    meta = storage.load_meta()
+    if meta.get("pinweek_started") == week:
+        return False
+    try:
+        _dispatch("pinweek.yml")
+    except Exception as e:
+        print(f"[poll] pin haftası başlatılamadı: {e}", flush=True)
+        return False
+    meta["pinweek_started"] = week
+    storage.save_meta(meta)
+    return True
+
+
+PINS_AT = 17  # local hour the day's ready-to-post pins are sent
+
+
+def _maybe_send_pins():
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    now = dt.datetime.now(ZoneInfo(config.settings()["timezone"]))
+    if now.hour < PINS_AT:
+        return False
+    today = now.date().isoformat()
+    meta = storage.load_meta()
+    if meta.get("pins_sent_day") == today:
+        return False
+    meta["pins_sent_day"] = today
+    storage.save_meta(meta)
+    try:
+        from . import pinweek
+        pinweek.send_daily()
+    except Exception as e:
+        print(f"[poll] günlük pinler gönderilemedi: {e}", flush=True)
+    return True
+
+
+def run(loop_seconds=0):
+    """Process Telegram updates. With loop_seconds>0 keep long-polling so buttons react
+    within seconds; state is pushed to git after every batch of changes."""
+    deadline = time.time() + loop_seconds
+    any_change = False
+    if loop_seconds:
+        try:
+            if _maybe_start_daily():
+                any_change = True
+            if _maybe_start_pinweek():
+                any_change = True
+            if _maybe_send_pins():
+                any_change = True
+                storage.commit_and_push("Günlük üretim başlatıldı")
+        except Exception as e:
+            print(f"[poll] günlük kontrol hatası: {e}", flush=True)
+    while True:
+        remaining = deadline - time.time()
+        changed = _run_once(wait=max(0, min(25, remaining)) if loop_seconds else 0)
+        if changed:
+            any_change = True
+            if loop_seconds:
+                storage.commit_and_push("Telegram işlemleri")
+        if time.time() >= deadline:
+            break
+    n = telegram.conflicts()
+    print(f"[poll] çakışma sayısı: {n}", flush=True)
+    if n >= 3:
+        meta = storage.load_meta()
+        if meta.get("conflict_warned", 0) < time.time() - 6 * 3600:
+            meta["conflict_warned"] = int(time.time())
+            storage.save_meta(meta)
+            any_change = True
+            try:
+                telegram.send("⚠️ <b>Bu bota başka bir program da bağlı</b> (muhtemelen eski Abacus otomasyonu). "
+                              "Mesajlarınızı ve buton basışlarınızı o alıyor, bu yüzden ben cevap veremiyorum.\n\n"
+                              "Çözüm: Abacus'taki eski görevi/agent'ı durdurun veya silin.")
+            except Exception as e:
+                print(f"[poll] uyarı gönderilemedi: {e}")
+    return any_change
+
+
+def _run_once(wait=0):
+    meta = storage.load_meta()
+    offset = meta.get("tg_offset", 0)
+    changed = False
+    ups = telegram.updates(offset, wait)
+    for u in ups:
+        offset = max(offset, u["update_id"] + 1)
+        meta["tg_offset"] = offset
+        storage.save_meta(meta)  # never process the same update twice
+        changed = True
+        try:
+            src = u.get("callback_query") or u.get("message") or {}
+            chat = (src.get("message", {}).get("chat", {}) if "callback_query" in u else src.get("chat", {}))
+            if str(chat.get("id")) != str(config.TELEGRAM_CHAT_ID):
+                print(f"[poll] yabancı sohbet yok sayıldı: {chat.get('id')}")
+                continue
+            if "callback_query" in u:
+                changed |= _handle_callback(u["callback_query"], meta)
+            elif "message" in u:
+                changed |= _handle_message(u["message"], meta)
+        except Exception as e:
+            traceback.print_exc()
+            try:
+                telegram.send(f"⚠️ Hata: <code>{esc(str(e)[:500])}</code>")
+            except Exception:
+                pass
+    if meta.get("last_keepalive", 0) > time.time() - 3600:
+        return changed
+    meta["last_keepalive"] = int(time.time())
+    storage.save_meta(meta)
+    try:
+        from . import pinterest
+        if pinterest.configured() and pinterest.keepalive():
+            changed = True
+    except Exception as e:
+        print(f"[poll] Pinterest oturum yenileme: {e}")
+    try:
+        if etsy.keepalive():
+            changed = True
+            if meta.pop("etsy_warned", None):
+                storage.save_meta(meta)
+    except Exception as e:
+        print(f"[poll] Etsy oturum yenileme: {e}")
+        if not meta.get("etsy_warned"):
+            telegram.send(f"⚠️ Etsy oturumu yenilenemedi, /etsy ile yeniden bağlayın.\n<code>{esc(str(e)[:300])}</code>")
+            meta["etsy_warned"] = int(time.time())
+            storage.save_meta(meta)
+    return changed
