@@ -248,7 +248,7 @@ def _strip_text_claims(p: dict) -> dict:
     return q
 
 
-def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="active") -> dict:
+def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="active", video=None) -> dict:
     """delivery: [(name, bytes)] files, photos: [(name, bytes)] jpgs. Returns {listing_id, url, state}."""
     p = _strip_text_claims(p)
     tok = token()
