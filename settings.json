@@ -11,24 +11,24 @@
   "max_same_type_per_day": 2,
   "price_ranges_usd": {
     "wall_art": [
-      1.5,
-      2.0
+      1.0,
+      1.5
     ],
     "coloring": [
-      1.5,
-      2.5
+      1.0,
+      1.5
     ],
     "clipart": [
-      1.5,
-      2.5
+      1.0,
+      1.5
     ],
     "pattern": [
-      1.5,
-      2.5
+      1.0,
+      1.5
     ],
     "tumbler": [
-      1.5,
-      2.5
+      1.0,
+      1.5
     ]
   },
   "niche_memory_days": 60,
