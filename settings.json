@@ -4,8 +4,8 @@
   "product_types": {
     "clipart": 4,
     "coloring": 5,
-    "wall_art": 3,
-    "tumbler": 2
+    "wall_art": 3
+    
   },
   "max_same_type_per_day": 2,
   "price_ranges_usd": {
@@ -20,11 +20,8 @@
     "wall_art": [
       1.0,
       2.0
-    ],
-    "tumbler": [
-      1.0,
-      2.0
     ]
+    
   },
   "niche_memory_days": 60,
   "timezone": "Europe/Istanbul"
