@@ -253,7 +253,7 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
     p = _strip_text_claims(p)
     tok = token()
     shop_id = tok.get("shop_id") or get_shop(tok)["shop_id"]
-    price = usd_to(tok.get("currency", "USD"), float(p["price_usd"]))
+    price = round(float(p["price_usd"]), 2)
     data = {
         "quantity": 999,
         "title": p["title"][:140],
