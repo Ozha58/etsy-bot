@@ -32,8 +32,19 @@ def publish_product(p: dict) -> str:
     storage.save_product(p)
     delivery = [(f["name"], assets.download(p["id"], "file__" + f["name"])) for f in p["files"]]
     photos = [(n, assets.download(p["id"], "photo__" + n)) for n in p["photos"]]
+    video_bytes = None
+    try:
+        import io
+        from PIL import Image
+        from . import social
+        ims = [Image.open(io.BytesIO(b)) for _, b in photos[:4]]
+        vb = social.video(p, ims)
+        if isinstance(vb, (bytes, bytearray)):
+            video_bytes = bytes(vb)
+    except Exception as e:
+        print(f"[publish] video üretilemedi, videosuz devam: {e}")
     mode = config.settings().get("publish_mode", "active")
-    res = etsy.publish(p, delivery, photos, p["build"], mode=mode)
+    res = etsy.publish(p, delivery, photos, p["build"], mode=mode, video=video_bytes)
     p["status"] = "published"
     p["etsy"] = {**p.get("etsy", {}), **res, "published_at": int(time.time())}
     storage.add_event(p, f"Etsy'de yayınlandı ({res['state']})")
