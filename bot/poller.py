@@ -36,9 +36,9 @@ def publish_product(p: dict) -> str:
     try:
         import io
         from PIL import Image
-        from . import social
-        ims = [Image.open(io.BytesIO(b)) for _, b in photos[:4]]
-        vb = social.video(p, ims)
+        from . import etsy_video
+        ims = [Image.open(io.BytesIO(b)) for _, b in photos[:5]]
+        vb = etsy_video.make(ims)
         if isinstance(vb, (bytes, bytearray)):
             video_bytes = bytes(vb)
     except Exception as e:
