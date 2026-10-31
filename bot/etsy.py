@@ -1,4 +1,4 @@
-have"""Etsy Open API v3: OAuth 2.0 (PKCE), shop info, public search, listing publishing."""
+"""Etsy Open API v3: OAuth 2.0 (PKCE), shop info, public search, listing publishing."""
 import base64
 import hashlib
 import hmac
