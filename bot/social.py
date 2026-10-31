@@ -14,8 +14,8 @@ from . import config
 from .imgutil import fit_text, font, wrap_text
 from .mockups import _mix, palette_colors
 
-SHOP_NAME = "NuviraStudioDigital"
-HANDLE = "@nuvirastudiodigital"  # same handle on Pinterest, TikTok and Instagram
+SHOP_NAME = "Sebasteia"
+HANDLE = "@Sebasteia"  # same handle on Pinterest, TikTok and Instagram
 FPS = 30
 
 HOOKS = {
