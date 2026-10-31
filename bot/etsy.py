@@ -1,4 +1,4 @@
-"""Etsy Open API v3: OAuth 2.0 (PKCE), shop info, public search, listing publishing."""
+have"""Etsy Open API v3: OAuth 2.0 (PKCE), shop info, public search, listing publishing."""
 import base64
 import hashlib
 import hmac
@@ -289,6 +289,14 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
         for rank, (name, data_bytes) in enumerate(photos[:10], 1):
             _req("POST", f"/shops/{shop_id}/listings/{lid}/images", tok,
                  files={"image": (name, data_bytes, "image/jpeg")}, data={"rank": rank}, timeout=300)
+    if video:
+        try:
+            have_video = _req("GET", f"/shops/{shop_id}/listings/{lid}/videos", tok).get("count", 0)
+            if not have_video:
+                _req("POST", f"/shops/{shop_id}/listings/{lid}/videos", tok,
+                     files={"video": ("video.mp4", video, "video/mp4")}, data={"name": "video.mp4"}, timeout=600)
+        except Exception as e:
+            print(f"[etsy] video yüklenemedi, devam: {e}")
     have_files = _req("GET", f"/shops/{shop_id}/listings/{lid}/files", tok).get("count", 0)
     if not have_files:
         for rank, (name, data_bytes) in enumerate(delivery[:5], 1):
