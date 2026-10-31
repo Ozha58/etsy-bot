@@ -78,7 +78,7 @@ kitchen prints"). Never copy the original. For these ideas add "variation_of": "
 def _candidates(n_ideas, used, today):
     types_desc = "\n".join(f'- "{k}": {m.LABEL_TR}' for k, m in TYPES.items() if k in config.settings()["product_types"])
     prompt = f"""You are an expert Etsy digital-products researcher.
-Today is {today.isoformat()}. Buyers shop 3-8 weeks ahead, so focus on: {season_hint(today)}, plus some evergreen ideas.
+Today is {today.isoformat()}. Buyers shop 3-8 weeks ahead. Focus ONLY on Christmas, Santa Claus and New Year themes..
 
 Propose {n_ideas} DIFFERENT digital product ideas that sell well on Etsy right now and that our system can produce.
 Our system can only make these product types (AI generated artwork):
@@ -91,6 +91,9 @@ Rules:
 - The artwork is AI generated and CANNOT contain readable text: never propose quotes, sayings, typography, lettering, names, monograms, calendars or anything that depends on words. Focus on illustration, painting, pattern and character based designs.
 - Avoid these niches we already used recently: {', '.join(used) or 'none'}.
 - Mix product types.
+- EVERY idea must be about Christmas, Santa Claus, reindeer, Christmas trees, nativity, advent, winter holiday scenes or New Year's Eve. No other themes and no evergreen ideas.
+- Use generic original Santa designs only. No Coca-Cola Santa, Grinch, Elf on the Shelf, Rudolph films or any other protected character.
+- Vary the sub-theme: vintage, rustic cabin, watercolor, cozy, kids, religious nativity, minimalist, Scandinavian.
 {_winner_block(winners(), n_ideas)}
 Return JSON: {{"ideas": [{{"niche": "...", "type": "one of {list(TYPES)}", "search_query": "2-4 words a buyer types into Etsy search", "why": "short reason", "variation_of": "optional"}}]}}"""
     data = llm.ask_json(prompt, temperature=1.0)
