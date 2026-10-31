@@ -291,7 +291,10 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
                  files={"image": (name, data_bytes, "image/jpeg")}, data={"rank": rank}, timeout=300)
     if video:
         try:
-            have_video = _req("GET", f"/shops/{shop_id}/listings/{lid}/videos", tok).get("count", 0)
+            try:
+                have_video = _req("GET", f"/listings/{lid}/videos", tok).get("count", 0)
+            except Exception:
+                have_video = 0
             if not have_video:
                 _req("POST", f"/shops/{shop_id}/listings/{lid}/videos", tok,
                      files={"video": ("video.mp4", video, "video/mp4")}, data={"name": "video.mp4"}, timeout=600)
