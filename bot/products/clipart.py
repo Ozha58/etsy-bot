@@ -5,10 +5,10 @@ from PIL import Image, ImageDraw
 from .. import images, mockups
 from ..imgutil import color_to_alpha_background, fit_text, jpeg_bytes, make_zips, png_bytes, thumb_b64, trim_alpha
 
-LABEL_TR = "Clipart paketi (12 şeffaf PNG)"
+LABEL_TR = "Clipart paketi (15 şeffaf PNG)"
 SPEC_FIELDS = """
   "bundle_name": "short collection name, 2-4 words",
-  "elements": [ exactly 12 objects {"name": "short element name", "prompt": "English prompt describing ONE single isolated object/character (e.g. 'a cozy pumpkin with a knitted scarf')"} ]
+  "elements": [ exactly 15 objects {"name": "short element name", "prompt": "English prompt describing ONE single isolated object/character (e.g. 'a cozy pumpkin with a knitted scarf')"} ]
 """
 
 SUFFIX = ("single isolated clipart illustration, one object only, centered with empty space around it, "
@@ -19,7 +19,7 @@ def build(spec, slug):
     style = spec.get("style", "watercolor")
     palette = spec.get("palette", [])
     els = []
-    for e in spec["elements"][:12]:
+    for e in spec["elements"][:15]:
         raw = images.generate(f"{e['prompt']}, {style}, color palette {', '.join(palette)}, {SUFFIX}", 1024, 1024)
         cut = trim_alpha(color_to_alpha_background(raw))
         s = min(2400 / cut.width, 2400 / cut.height, 2.4)
@@ -38,7 +38,7 @@ def build(spec, slug):
     thumbs = [im for _, im in els]
     mock = [
         ("01-cover.jpg", _scatter(thumbs, name, f"{len(els)} PNG Clipart  •  Transparent Background", palette)),
-        ("02-all.jpg", mockups.grid(thumbs, f"{len(els)} Clipart Elements Included", palette, cols=4)),
+        ("02-all.jpg", mockups.grid(thumbs, f"{len(els)} Clipart Elements Included", palette, cols=5)),
         ("03-transparent.jpg", mockups.grid(thumbs[:6], "Transparent Background PNG", palette, cols=3, checker=True)),
         ("04-info.jpg", mockups.info_card("WHAT YOU GET", [
             f"{len(els)} separate PNG files",
