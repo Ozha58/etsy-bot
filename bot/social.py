@@ -174,7 +174,7 @@ def _overlay(p, pal):
         f_s = fit_text(d, sub, "sans", VW - 180, 38, 26)
         _center_text(d, y + 8, sub, f_s, _mix(pal["text"], pal["bg"], 0.25), VW)
     f_b = font("sans_medium", 40)
-    _pill(d, VW / 2, VH - 330, "INSTANT DOWNLOAD  •  LINK IN BIO", f_b, pal["text"] + (255,), pal["bg"] + (255,))
+    _pill(d, VW / 2, VH - 330, "INSTANT DOWNLOAD", f_b, pal["text"] + (255,), pal["bg"] + (255,))
     return ov
 
 
@@ -190,7 +190,7 @@ def _end_card(p, pal):
         y += f_t.size * 1.2
     _center_text(d, y + 60, "Shop the full set on Etsy", font("sans", 46), _mix(pal["text"], pal["bg"], 0.2), VW)
     _pill(d, VW / 2, y + 170, SHOP_NAME, font("sans_bold", 48), pal["text"], pal["bg"])
-    _center_text(d, y + 330, "link in bio", font("sans_light", 40), _mix(pal["text"], pal["bg"], 0.3), VW)
+    
     return img
 
 
