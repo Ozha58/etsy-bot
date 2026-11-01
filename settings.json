@@ -2,26 +2,24 @@
   "products_per_day": 2,
   "publish_mode": "active",
   "product_types": {
-    "clipart": 4,
-    "coloring": 5,
-    "wall_art": 3
-    
+    "scenes": 5,
+    "wall_art": 3,
+    "coloring": 3
   },
-  "max_same_type_per_day": 2,
+  "max_same_type_per_day": 1,
   "price_ranges_usd": {
-    "clipart": [
+    "scenes": [
+      2.0,
+      3.5
+    ],
+    "wall_art": [
       1.5,
       2.5
     ],
     "coloring": [
       1.0,
       2.0
-    ],
-    "wall_art": [
-      1.0,
-      2.0
     ]
-    
   },
   "niche_memory_days": 60,
   "timezone": "Europe/Istanbul"
