@@ -91,9 +91,9 @@ Rules:
 - The artwork is AI generated and CANNOT contain readable text: never propose quotes, sayings, typography, lettering, names, monograms, calendars or anything that depends on words. Focus on illustration, painting, pattern and character based designs.
 - Avoid these niches we already used recently: {', '.join(used) or 'none'}.
 - Mix product types.
-- EVERY idea must be about Santa Claus, Christmas, winter or reindeer with a child-friendly feel: Santa Claus scenes, reindeer, snowmen, gingerbread, Christmas animals, kids in winter clothes, Christmas morning, cozy winter cabins, snowy forests. No New Year party items such as disco balls, masks, champagne or confetti. No other themes.
+- EVERY idea must feature Santa Claus (Father Christmas) as the main subject, together with reindeer, sleigh, Christmas tree, gifts, snowy village or happy children in winter. No gnomes, no tomte, no elves, no snowmen-only ideas, no New Year party items. Every idea must state its art style in the niche text: soft watercolor illustration, or a poster style scene.
 - Use generic original Santa designs only. No Coca-Cola Santa, Grinch, Elf on the Shelf, Rudolph films or any other protected character.
-- Vary the sub-theme: vintage Santa, watercolor reindeer, cute cartoon kids and snow, cozy cabin, rustic, Scandinavian winter.
+- Vary the sub-theme: vintage watercolor Santa, Santa with reindeer and sleigh, Santa delivering gifts to children, cozy Christmas Eve village, Santa on rooftops under snowy night sky, children and Santa at the Christmas tree.
 {_winner_block(winners(), n_ideas)}
 Return JSON: {{"ideas": [{{"niche": "...", "type": "one of {list(TYPES)}", "search_query": "2-4 words a buyer types into Etsy search", "why": "short reason", "variation_of": "optional"}}]}}"""
     data = llm.ask_json(prompt, temperature=1.0)
