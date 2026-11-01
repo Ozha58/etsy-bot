@@ -13,6 +13,7 @@ TYPES = {
     "clipart": clipart,
     "pattern": pattern,
     "tumbler": tumbler,
+    "scenes": scenes,
 }
 
 
