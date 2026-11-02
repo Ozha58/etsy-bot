@@ -36,18 +36,60 @@ def build(spec, slug):
 
     name = spec.get("bundle_name", "Clipart Bundle")
     thumbs = [im for _, im in els]
-    mock = [
-        ("01-cover.jpg", _scatter(thumbs, name, f"{len(els)} PNG Clipart  •  Transparent Background", palette)),
-        ("02-all.jpg", mockups.grid(thumbs, f"{len(els)} Clipart Elements Included", palette, cols=5)),
-        ("03-transparent.jpg", mockups.grid(thumbs[:6], "Transparent Background PNG", palette, cols=3, checker=True)),
-        ("04-info.jpg", mockups.info_card("WHAT YOU GET", [
-            f"{len(els)} separate PNG files",
-            "Transparent background, 300 DPI",
-            "Great for cards, invitations, stickers, scrapbooking and crafts",
-            "Commercial use for small businesses (up to 500 items)",
-        ], palette, thumbs[0])),
-        ("05-how.jpg", mockups.how_it_works(palette)),
-    ]
+    
+    mock = []
+    
+    # 1. GÖRSEL: GERÇEKÇİ MASA TASARIMI (Lifestyle Mockup)
+    desk_prompt = ("Top-down view of a cozy wooden desk, scattered colored paper, scissors, a cup of coffee, "
+                   "soft natural sunlight casting beautiful shadows. Photorealistic, highly detailed, 8k resolution.")
+    try:
+        desk_bg = images.generate(desk_prompt, 1920, 1440).convert("RGBA")
+        w, h = desk_bg.size
+        # Masanın üzerine 3 adet klipartı çıkartma gibi yerleştirelim
+        for i in range(3):
+            clip = thumbs[i].copy()
+            clip.thumbnail((350, 350), Image.LANCZOS)
+            # Rastgele bir konum (merkeze yakın)
+            x = int(w/2 - 400 + (i * 350))
+            y = int(h/2 - 150 + (i % 2 * 200))
+            # Çıkartma gibi durması için beyaz bir çerçeve ekleyelim
+            sticker_bg = Image.new("RGBA", (clip.width + 40, clip.height + 40), (255, 255, 255, 255))
+            sticker_bg.paste(clip, (20, 20), clip)
+            desk_bg.paste(sticker_bg, (x, y), sticker_bg)
+        mock.append(("01-lifestyle.jpg", desk_bg.convert("RGB")))
+    except Exception as e:
+        print(f"[clipart] Masa görseli üretilemedi: {e}")
+
+    # 2. GÖRSEL: Grafik Kapak (Çelenk/Daire şeklinde)
+    mock.append(("02-cover.jpg", _scatter(thumbs, name, f"{len(els)} PNG Clipart  •  Transparent Background", palette)))
+    
+    # 3. GÖRSEL: Tüm öğelerin grid görünümü
+    mock.append(("03-all.jpg", mockups.grid(thumbs, f"{len(els)} Clipart Elements Included", palette, cols=5)))
+    
+    # 4. GÖRSEL: Şeffaflık göstergesi (Damalı arka plan)
+    mock.append(("04-transparent.jpg", mockups.grid(thumbs[:6], "Transparent Background PNG", palette, cols=3, checker=True)))
+    
+    # 5. GÖRSEL: Yakın çekim / Kalite göstergesi
+    mock.append(("05-closeup.jpg", mockups.info_card("HIGH RESOLUTION DETAIL", [
+        "300 DPI",
+        "Crisp transparent edges",
+        "Perfect for print on demand"
+    ], palette, thumbs[0])))
+    
+    # 6. GÖRSEL: Bilgi Kartı
+    mock.append(("06-info.jpg", mockups.info_card("WHAT YOU GET", [
+        f"{len(els)} separate PNG files",
+        "Transparent background, 300 DPI",
+        "Great for cards, invitations, stickers, scrapbooking and crafts",
+        "Commercial use for small businesses (up to 500 items)",
+    ], palette, thumbs[1])))
+    
+    # 7. GÖRSEL: Başka bir öğenin yakın çekimi
+    mock.append(("07-preview.jpg", mockups.info_card("DESIGN PREVIEW", ["Perfect for sublimation"], palette, thumbs[2])))
+
+    # 8. GÖRSEL: Nasıl çalışır?
+    mock.append(("08-how.jpg", mockups.how_it_works(palette)))
+    
     return {
         "delivery": delivery,
         "mockups": [(n, jpeg_bytes(im, 88, dpi=72)) for n, im in mock],
