@@ -49,6 +49,9 @@ def settings() -> dict:
             s.update(json.loads(p.read_text(encoding="utf-8")))
         except Exception as e:  # never let a typo stop the bot
             print(f"[config] settings.json okunamadı: {e}")
+    only = os.environ.get("ONLY_TYPE", "").strip()
+    if only and only in s.get("product_types", {}):
+        s["product_types"] = {only: s["product_types"][only]} 
     return s
 
 
