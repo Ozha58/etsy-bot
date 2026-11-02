@@ -33,6 +33,8 @@ BASE_TAGS = {
     "clipart": ["clipart", "pngclipart", "crafting"],
     "pattern": ["digitalpaper", "scrapbooking", "seamlesspattern"],
     "tumbler": ["tumblerwrap", "sublimation", "tumblerdesign"],
+    "scenes": ["christmasart", "santaclaus", "vintagechristmas"],
+    "wallpaper": ["phonewallpaper", "christmaswallpaper", "iphonewallpaper"],
 }
 
 
