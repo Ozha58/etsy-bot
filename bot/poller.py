@@ -158,10 +158,12 @@ def _handle_callback(cb, meta):
     return False
 
 
-def _dispatch_generate(count=None):
+def _dispatch_generate(count=None, only=None):
     if not (config.GITHUB_TOKEN and config.GITHUB_REPOSITORY):
         raise RuntimeError("GitHub ortamı yok")
     inputs = {"count": str(count)} if count else {}
+    if only:
+        inputs["only"] = only
     r = requests.post(
         f"https://api.github.com/repos/{config.GITHUB_REPOSITORY}/actions/workflows/daily.yml/dispatches",
         headers={"Authorization": f"Bearer {config.GITHUB_TOKEN}", "Accept": "application/vnd.github+json"},
