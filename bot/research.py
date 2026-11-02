@@ -78,23 +78,19 @@ kitchen prints"). Never copy the original. For these ideas add "variation_of": "
 def _candidates(n_ideas, used, today):
     types_desc = "\n".join(f'- "{k}": {m.LABEL_TR}' for k, m in TYPES.items() if k in config.settings()["product_types"])
     prompt = f"""You are an expert Etsy digital-products researcher.
-Today is {today.isoformat()}. Buyers shop 3-8 weeks ahead. Focus ONLY on Christmas, Santa Claus and New Year themes..
+Today is {today.isoformat()}. Buyers shop 3-8 weeks ahead. Focus on {season_hint(today)}.
 
 Propose {n_ideas} DIFFERENT digital product ideas that sell well on Etsy right now and that our system can produce.
 Our system can only make these product types (AI generated artwork):
 {types_desc}
 
 Rules:
-- Each idea must be a specific, buyer-oriented niche (style + theme), not generic. e.g. "vintage botanical mushroom prints", "cute kawaii Christmas animals coloring pages for kids".
+- Each idea must be a specific, buyer-oriented niche (style + theme), not generic. e.g. "vintage botanical mushroom prints", "cute kawaii animals coloring pages for kids".
 - No trademarks, brands, celebrities, characters, sports teams, franchises, logos, or copyrighted styles.
 - No AI prompt products, no SVG/cut files, no templates that need Canva.
-- The artwork is AI generated and CANNOT contain readable text: never propose quotes, sayings, typography, lettering, names, monograms, calendars or anything that depends on words. Focus on illustration, painting, pattern and character based designs.
+- The artwork is AI generated and CANNOT contain readable text: never propose quotes, sayings, typography, lettering, names, monograms, calendars or anything that depends on words.
 - Avoid these niches we already used recently: {', '.join(used) or 'none'}.
 - Mix product types.
-- EVERY idea must feature Santa Claus (Father Christmas) as the main subject, together with reindeer, sleigh, Christmas tree, gifts, snowy village or happy children in winter. No gnomes, no tomte, no elves, no snowmen-only ideas, no New Year party items. Every idea must state its art style in the niche text: soft watercolor illustration, or a poster style scene.
-- Use generic original Santa designs only. No Coca-Cola Santa, Grinch, Elf on the Shelf, Rudolph films or any other protected character.
-- Vary the sub-theme: vintage watercolor Santa, Santa with reindeer and sleigh, Santa delivering gifts to children, cozy Christmas Eve village, Santa on rooftops under snowy night sky, children and Santa at the Christmas tree.
-- Preferred niches, rotate between them: vintage retro Santa Claus with reindeer in a snowy forest as a nursery or kids room Christmas poster set; cozy winter woodland animals such as fox, deer, owl and rabbit in snow; Santa with happy children and gifts; Christmas morning by the fireplace. Always use the words Vintage, Retro or Cozy Winter in the title and tags.
 {_winner_block(winners(), n_ideas)}
 Return JSON: {{"ideas": [{{"niche": "...", "type": "one of {list(TYPES)}", "search_query": "2-4 words a buyer types into Etsy search", "why": "short reason", "variation_of": "optional"}}]}}"""
     data = llm.ask_json(prompt, temperature=1.0)
