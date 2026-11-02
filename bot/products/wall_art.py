@@ -52,24 +52,47 @@ def build(spec, slug):
         delivery += make_zips(f"{slug}-{tag}", files, readme)
 
     frame_rgb = hex2rgb(spec.get("frame_color") or "#2b2b2b")
+    
+    # GELİŞMİŞ GERÇEKÇİ ODA PROMPTU (İlk görsel için)
     room_prompt = (
-        f"Interior design photograph of a {spec.get('room', 'living room')} with {style} decor, "
-        "a large empty plain painted wall filling the upper half of the image, furniture only along the bottom edge, "
-        "soft natural daylight, realistic, high detail, eye level. Absolutely nothing hanging on the wall: no pictures, no frames, no art, no shelves, no text."
+        f"Photorealistic interior design photography of a beautiful {spec.get('room', 'living room')} with {style} decor. "
+        "Cinematic lighting, soft natural shadows, highly detailed, 8k resolution, architectural magazine style, "
+        "a large empty plain painted wall filling the upper half of the image, modern elegant furniture only along the bottom edge, "
+        "eye level. Absolutely nothing hanging on the wall: no pictures, no frames, no art, no shelves, no text."
     )
+    
     mock = []
     try:
         room = images.generate(room_prompt, 1920, 1440)
         mock.append(("01-room.jpg", mockups.room_mockup(room, arts, frame_rgb)))
     except Exception as e:
         print(f"[wall_art] oda görseli üretilemedi, sade duvar kullanılıyor: {e}")
+        
     pal = mockups.palette_colors(palette)
     wall = mockups._mix(pal["bg"], (200, 196, 188), 0.35)
+    
+    # 2. Grafik Kapak
     mock.append(("02-cover.jpg", mockups.cover(arts, spec.get("set_name", "Wall Art Set"), "Set of 3 Printable Wall Art  •  5 Ratios  •  300 DPI", palette)))
+    
+    # 3, 4, 5. Tekli Duvar Mockup'ları
     for i, art in enumerate(arts, 1):
         mock.append((f"0{2 + i}-print{i}.jpg", mockups.wall_mockup(art, wall, frame_rgb)))
+        
+    # 6. Bilgi Kartı (Oranlar)
     mock.append(("06-sizes.jpg", mockups.info_card("5 RATIOS • 15 FILES", [r[3] for r in RATIOS] + ["High resolution 300 DPI JPG"], palette, arts[0])))
+    
+    # 7. Nasıl Çalışır?
     mock.append(("07-how.jpg", mockups.how_it_works(palette)))
+
+    # 8. EKSTRA: Farklı Çerçeve Rengiyle 2. Bir Duvar Görseli (Daha fazla görsel için)
+    alt_frame_rgb = (242, 242, 242) # Beyaz çerçeve
+    mock.append(("08-print1-alt.jpg", mockups.wall_mockup(arts[0], wall, alt_frame_rgb)))
+
+    # 9. EKSTRA: Tüm setin düz bir masada yan yana duruşu (Mockup)
+    try:
+        mock.append(("09-flatlay.jpg", mockups.mosaic(arts, spec.get("set_name", "Wall Art Set"), 3, palette)))
+    except Exception:
+        pass
 
     return {
         "delivery": delivery,
