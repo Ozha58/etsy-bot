@@ -43,28 +43,25 @@ def build(spec, slug):
     pal = mockups.palette_colors(palette)
     wall = mockups._mix(pal["all"][0], (236, 231, 223), 0.72)
     mock = [
-        ("01-cover.jpg", mockups_scenes.single_cover(ims, name, n, palette)),
+        # 1. GÖRSEL: En önemli kapak! Gerçekçi bir oda/duvar tasarımı.
+        ("01-realistic-room.jpg", mockups.wall_mockup(ims[0], wall)),
+        # 2. GÖRSEL: Koleksiyonun tamamını gösteren mozaik
         ("02-mosaic.jpg", mockups_scenes.mosaic(ims, name, n, palette)),
-        ("03-wall.jpg", mockups.wall_mockup(ims[0], wall)),
-        ("04-info.jpg", mockups.info_card("WHAT YOU GET", [
+        # 3. GÖRSEL: İkinci bir gerçekçi oda açısı (farklı bir resimle)
+        ("03-room-angle2.jpg", mockups.wall_mockup(ims[1], wall)),
+        # 4. GÖRSEL: Stilize edilmiş (eski usul) kapak görseli
+        ("04-cover.jpg", mockups_scenes.single_cover(ims, name, n, palette)),
+        # 5. GÖRSEL: Yakın çekim (Kaliteyi ve çizgileri göstermek için)
+        ("05-closeup.jpg", mockups.wall_mockup(ims[2], wall)),
+        # 6. GÖRSEL: "Neler Dahil" bilgi kartı
+        ("06-info.jpg", mockups.info_card("WHAT YOU GET", [
             f"{n} separate JPG files",
             "4096 x 4096 px, 300 DPI, print ready",
             "Soft background, no transparency",
             "Instant ZIP download",
-        ], palette, ims[1 % n])),
-        ("05-how.jpg", mockups.how_it_works(palette)),
+        ], palette, ims[3 % n])),
+        # 7. GÖRSEL: Nasıl çalışır?
+        ("07-how.jpg", mockups.how_it_works(palette)),
+        # 8. GÖRSEL: Son bir oda mockup'ı
+        ("08-room-angle3.jpg", mockups.wall_mockup(ims[4 % n], wall)),
     ]
-    return {
-        "delivery": delivery,
-        "mockups": [(nm, jpeg_bytes(im, 88, dpi=72)) for nm, im in mock],
-        "thumb": thumb_b64(mock[0][1]),
-        "preview": mock[0][1],
-        "included": [f"{n} individual JPG illustrations", "4096 x 4096 px, 300 DPI", "Delivered as ZIP"],
-        "details": ["Square 4096 x 4096 px", "300 DPI, print ready"],
-        "usage": ["Cards, invitations, crafts, printables, scrapbooking and digital projects",
-                  "Unzip the file on a computer before use"],
-        "license": "Personal and small business commercial use for physical products (up to 500 items). Reselling or sharing the digital files is not allowed.",
-        "taxonomy": ["Clip Art & Image Files", "Digital Prints"],
-        "taxonomy_fallback_id": 6844,
-        "is_supply": True,
-    }
