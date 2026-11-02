@@ -2,7 +2,7 @@ import io
 
 from PIL import Image
 
-from .. import images, mockups
+from .. import images, mockups, mockups_coloring
 from ..imgutil import jpeg_bytes, thumb_b64
 
 LABEL_TR = "Boyama sayfaları (8 sayfa, PDF)"
@@ -60,7 +60,7 @@ def build(spec, slug):
     name = spec.get("book_name", "Coloring Pages")
     colored = mockups.colored_preview(letter[0], palette, seed=len(slug))
     mock = [
-        ("01-cover.jpg", mockups.cover(previews[:4], name, f"{len(letter)} Printable Coloring Pages  •  Letter & A4 PDF", palette)),
+        ("01-cover.jpg", mockups_coloring.cover(previews, colored, name, len(letter), palette)),
         ("02-all.jpg", mockups.grid(previews, f"{len(letter)} Coloring Pages Included", palette, cols=4)),
         ("03-example.jpg", mockups.info_card("COLOR YOUR WAY", [
             "Use colored pencils, markers or crayons",
