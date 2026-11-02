@@ -24,6 +24,8 @@ HOOKS = {
     "clipart": "Ready-to-use clipart for your next project",
     "pattern": "Seamless papers for scrapbooking and crafts",
     "tumbler": "Your next tumbler design is ready to press",
+    "scenes": "Instant festive art - just download and enjoy",
+    "wallpaper": "Instant phone makeover - download and set",
 }
 BASE_TAGS = {
     "wall_art": ["wallart", "printableart", "homedecor"],
