@@ -20,6 +20,8 @@ BOARDS = {
     "clipart": "Clipart & PNG Graphics",
     "pattern": "Digital Paper & Scrapbook Patterns",
     "tumbler": "Tumbler Wrap Designs",
+    "scenes": "Vintage Christmas Art",
+    "wallpaper": "Christmas Phone Wallpapers",
 }
 BOARD_DESC = "Instant digital downloads from Nuvira Studio (NuviraStudioDigital on Etsy)."
 
