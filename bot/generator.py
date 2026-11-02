@@ -127,11 +127,10 @@ def run(count=None, force=False):
         print("[generate] Bugünün ürünleri zaten hazır.")  # (no Telegram message: avoid duplicates from backup triggers)
         return []
     notify(f"🔎 Günlük üretim başladı: {target} ürün hazırlanıyor… (genellikle 15-30 dk)")
-    try:
-        chosen, reserve = research.pick_niches(target, used_niches(s["niche_memory_days"]), day)
-    except Exception as e:
-        notify(f"⚠️ Araştırma adımı başarısız: <code>{esc(str(e)[:500])}</code>\n{config.GITHUB_RUN_URL}")
-        raise
+    from .smart_niche import find_trending_niches
+    notify(f"🧠 Yapay Zeka {target} adet mikro-niş fikri üretiyor...")
+    chosen = find_trending_niches(target)
+    reserve = []
     queue = chosen + reserve
     made, failed = [], []
     while queue and len(made) < target:
