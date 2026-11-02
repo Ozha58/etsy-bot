@@ -202,8 +202,11 @@ def _handle_message(m, meta):
                           else [[("🔁 Tekrar dene", f"retry:{p['id']}"), ("❌ Reddet", f"no:{p['id']}")]])
     elif cmd == "/uret":
         try:
-            n = int(arg) if arg.strip().isdigit() else 1  # extra production: 1 product by default
-            _dispatch_generate(n)
+            a = arg.strip().lower()
+            kinds = {"wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes"}
+            only = kinds.get(a)
+            n = int(a) if a.isdigit() else 1
+            _dispatch_generate(n, only)
             telegram.send(f"🚀 {n} ürünlük ek üretim başlatıldı. Hazır olunca buraya gelecek (ürün başına ~5-8 dk).")
         except Exception as e:
             telegram.send(f"⚠️ Üretim başlatılamadı: <code>{esc(str(e))}</code>")
