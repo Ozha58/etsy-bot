@@ -2,23 +2,40 @@ import google.generativeai as genai
 import os
 import json
 import random
+import requests # Telegram'a bağlanmak için eklendi
 
-# API Anahtarını ayarla (GitHub Secrets üzerinden çekiyoruz)
+# API Anahtarlarını ayarla
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-else:
-    print("HATA: GEMINI_API_KEY bulunamadı. Lütfen GitHub Secrets ayarlarını kontrol et.")
+
+def send_telegram_message(text):
+    """Bulunan nişi Telegram botuna gönderir."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ Telegram token veya chat_id eksik, mesaj gönderilemedi.")
+        return
+        
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            print("✅ Telegram'a mesaj başarıyla gönderildi!")
+        else:
+            print(f"❌ Telegram hatası: {response.text}")
+    except Exception as e:
+        print(f"❌ Telegram bağlantı hatası: {e}")
 
 def find_trending_niche():
-    """
-    Yapay zekayı kullanarak Etsy için en karlı ve düşük rekabetli 
-    mikro-niş (micro-niche) fikirlerini bulur.
-    """
     print("🕵️‍♂️ Yapay Zeka pazar araştırması yapıyor, trendler analiz ediliyor...")
     
-    # Botun ilham alması için rastgele kategoriler
     categories = ["Hayvanlar", "Mevsimler", "Hobiler", "Fantastik", "Moda", "Yemek", "Uzay", "Bitkiler"]
     random_category = random.choice(categories)
     
@@ -42,13 +59,10 @@ def find_trending_niche():
     """
 
     try:
-        # Gemini modelini başlat
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         
-        # Gelen cevabı JSON olarak temizle ve oku
         text_response = response.text.strip()
-        # Bazen AI ```json ... ``` şeklinde cevap verebilir, onu temizleyelim
         if text_response.startswith("```json"):
             text_response = text_response[7:-3]
         elif text_response.startswith("```"):
@@ -56,21 +70,33 @@ def find_trending_niche():
              
         niche_data = json.loads(text_response)
         
+        # Telegram'a gönderilecek mesaj formatı
+        telegram_msg = f"""
+🎯 <b>YENİ NİŞ BULUNDU!</b>
+            
+🏷️ <b>Niş Adı:</b> {niche_data.get('niche_name')}
+💡 <b>Neden Satar?:</b> {niche_data.get('reasoning')}
+🎯 <b>Hedef Kitle:</b> {niche_data.get('target_audience')}
+🖼️ <b>Görsel Promptu:</b>
+<code>{niche_data.get('prompt_for_ai')}</code>
+
+👉 <i>Onaylıyor musun? (Onay sistemini bir sonraki adımda ekleyeceğiz)</i>
+        """
+        
         print("\n" + "="*50)
-        print("🎯 YENİ NİŞ BULUNDU!")
-        print("="*50)
-        print(f"🏷️  Niş Adı: {niche_data.get('niche_name')}")
-        print(f"💡 Neden Satar?: {niche_data.get('reasoning')}")
-        print(f"🎯 Hedef Kitle: {niche_data.get('target_audience')}")
-        print(f"🖼️  Görsel Promptu: {niche_data.get('prompt_for_ai')}")
+        print(telegram_msg)
         print("="*50 + "\n")
+        
+        # Telegram'a gönder
+        send_telegram_message(telegram_msg)
         
         return niche_data
         
     except Exception as e:
-        print(f"❌ Niş aranırken bir hata oluştu: {e}")
+        error_msg = f"❌ Niş aranırken bir hata oluştu: {e}"
+        print(error_msg)
+        send_telegram_message(error_msg)
         return None
 
-# Bu dosya doğrudan çalıştırıldığında test etmek için:
 if __name__ == "__main__":
     find_trending_niche()
