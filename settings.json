@@ -4,7 +4,8 @@
   "product_types": {
     "scenes": 5,
     "wall_art": 3,
-    "coloring": 3
+    "coloring": 3,
+    "wallpaper": 3
   },
   "max_same_type_per_day": 1,
   "price_ranges_usd": {
@@ -17,6 +18,10 @@
       2.5
     ],
     "coloring": [
+      1.0,
+      2.0
+    ],
+    "wallpaper": [
       1.0,
       2.0
     ]
