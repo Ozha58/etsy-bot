@@ -1,5 +1,4 @@
 import io
-
 from PIL import Image
 
 from .. import images, mockups, mockups_coloring
@@ -59,19 +58,54 @@ def build(spec, slug):
     previews = [p.convert("L").convert("RGB") for p in letter]
     name = spec.get("book_name", "Coloring Pages")
     colored = mockups.colored_preview(letter[0], palette, seed=len(slug))
-    mock = [
-        ("01-cover.jpg", mockups_coloring.cover(previews, colored, name, len(letter), palette)),
-        ("02-all.jpg", mockups.grid(previews, f"{len(letter)} Coloring Pages Included", palette, cols=4)),
-        ("03-example.jpg", mockups.info_card("COLOR YOUR WAY", [
-            "Use colored pencils, markers or crayons",
-            "Print as many times as you like",
-            "US Letter and A4 PDFs included",
-            "Single-sided pages, 300 DPI",
-        ], palette, colored)),
-    ]
-    for i, pv in enumerate(previews[1:3], 4):
+    
+    mock = []
+    
+    # 1. GÖRSEL: GERÇEKÇİ MASA TASARIMI (Realistic Hero Shot)
+    # Yapay zekadan boş bir ahşap masa ve kalemler çizmesini istiyoruz
+    desk_prompt = ("Top-down view of a cozy wooden desk, scattered colored pencils and markers, a cup of coffee, "
+                   "soft natural sunlight casting beautiful shadows. Photorealistic, highly detailed, 8k resolution. "
+                   "Empty white space in the exact center for a piece of paper.")
+    try:
+        desk_bg = images.generate(desk_prompt, 1920, 1920)
+        # Çizdiğimiz boyama sayfasını (renklendirilmiş halini) masanın ortasına yerleştiriyoruz
+        p_w, p_h = int(1920 * 0.55), int(1920 * 0.55 * 1.29) # A4 oranı
+        page_img = colored.resize((p_w, p_h), Image.LANCZOS)
+        # Hafif bir gölge efekti için masayı biraz karartıp sayfayı koyabiliriz ama şimdilik direkt koyalım
+        desk_bg.paste(page_img, ((1920 - p_w) // 2, (1920 - p_h) // 2))
+        mock.append(("01-lifestyle.jpg", desk_bg))
+    except Exception as e:
+        print(f"[coloring] Masa görseli üretilemedi: {e}")
+        
+    # 2. GÖRSEL: Grafik Kapak
+    mock.append(("02-cover.jpg", mockups_coloring.cover(previews, colored, name, len(letter), palette)))
+    
+    # 3. GÖRSEL: Tüm sayfaların grid görünümü (Müşteri ne alacağını görsün)
+    mock.append(("03-all.jpg", mockups.grid(previews, f"{len(letter)} Coloring Pages Included", palette, cols=4)))
+    
+    # 4. GÖRSEL: Renklendirme örneği (Color Your Way)
+    mock.append(("04-example.jpg", mockups.info_card("COLOR YOUR WAY", [
+        "Use colored pencils, markers or crayons",
+        "Print as many times as you like",
+        "US Letter and A4 PDFs included",
+        "Single-sided pages, 300 DPI",
+    ], palette, colored)))
+    
+    # 5, 6, 7. GÖRSEL: Rastgele sayfa önizlemeleri
+    for i, pv in enumerate(previews[1:4], 5):
         mock.append((f"0{i}-page.jpg", mockups.info_card(name.upper(), [p["name"] for p in spec["pages"][:8]][:6], palette, pv)))
-    mock.append(("06-how.jpg", mockups.how_it_works(palette)))
+        
+    # 8. GÖRSEL: Kağıt boyutları ve detaylar
+    mock.append(("08-sizes.jpg", mockups.info_card("WHAT YOU GET", [
+        "1 PDF in US Letter size (8.5x11 in)",
+        "1 PDF in A4 size",
+        "Crisp black line art, 300 DPI",
+        "Instant Download"
+    ], palette, previews[4])))
+    
+    # 9. GÖRSEL: Nasıl çalışır?
+    mock.append(("09-how.jpg", mockups.how_it_works(palette)))
+    
     return {
         "delivery": delivery,
         "mockups": [(n, jpeg_bytes(im, 88, dpi=72)) for n, im in mock],
