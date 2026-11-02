@@ -8,6 +8,10 @@ on:
         description: "Kaç ürün üretilsin? (boş = ayarlardaki sayı)"
         required: false
         default: ""
+only:
+        description: "Sadece bu türü üret (scenes, wallpaper, coloring, wall_art; boş = hepsi)"
+        required: false
+        default: ""
 concurrency:
   group: daily
   cancel-in-progress: false
@@ -34,6 +38,7 @@ jobs:
       STATE_KEY: ${{ secrets.STATE_KEY }}
       PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ONLY_TYPE: ${{ github.event.inputs.only }}
     steps:
       - uses: actions/checkout@v4
         with:
