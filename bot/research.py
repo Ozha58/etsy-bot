@@ -195,6 +195,7 @@ def product_spec(idea: dict) -> dict:
     prompt = f"""Create a complete Etsy digital product listing plan.
 Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
+CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack".
 Main search phrase: {idea.get('search_query', '')}
 Price must be between {lo} and {hi} USD (end with .99 or .49 is fine).
 Never use trademarks, brand names, characters, celebrities or copyrighted styles in any field.
