@@ -59,7 +59,7 @@ def find_trending_niche():
     """
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.6-flash')
         response = model.generate_content(prompt)
         
         text_response = response.text.strip()
