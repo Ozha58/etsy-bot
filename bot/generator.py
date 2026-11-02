@@ -82,6 +82,8 @@ def build_one(idea: dict, day: dt.date) -> dict:
     mod = TYPES[idea["type"]]
     t0 = time.time()
     built = mod.build(spec, slug)
+    if not built or "included" not in built:
+        raise Exception(f"HATA: {mod.__name__} dosyası görselleri üretirken çöktü ve boş döndü.")
     p = {
         "id": pid,
         "created_at": int(time.time()),
