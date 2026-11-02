@@ -8,7 +8,7 @@ on:
         description: "Kaç ürün üretilsin? (boş = ayarlardaki sayı)"
         required: false
         default: ""
-only:
+      only:
         description: "Sadece bu türü üret (scenes, wallpaper, coloring, wall_art; boş = hepsi)"
         required: false
         default: ""
