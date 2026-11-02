@@ -60,7 +60,7 @@ def product_caption(p: dict) -> str:
     ]
     if p.get("research", {}).get("etsy_results") is not None:
         r = p["research"]
-        lines.append(f"📊 Etsy: {r['etsy_results']:,} rakip ilan, ilk 25'te ortanca {int(r.get('etsy_median_favs', 0))} favori")
+        lines.append(f"📊 Etsy: {r['etsy_results']:,} rakip ilan, ilk 25'te ortanca {int(r.get('etsy_median_favs') or 0)} favori")
     if p.get("research", {}).get("variation_of"):
         lines.append(f"🏆 Çok satan ürünün varyasyonu: {esc(p['research']['variation_of'][:80])}")
     lines.append(f"🏷 {esc(', '.join(p['tags']))}")
