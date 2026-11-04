@@ -79,6 +79,11 @@ def find(n=4, used=(), today=None, seeds=3, probe=10) -> list:
     allowed = [t for t in config.settings().get("product_types", {}) if t in TYPE_SEED] or list(TYPE_SEED)
     christmas = theme.angle(today).startswith("Christmas")
     used_l = {u.lower() for u in used}
+    try:
+        from .smart_niche import _used_queries
+        used_l |= _used_queries()
+    except Exception:
+        pass
     tag_weight, tag_hits = {}, {}
     for _ in range(seeds):
         subj = random.choice(SEED_SUBJECTS)

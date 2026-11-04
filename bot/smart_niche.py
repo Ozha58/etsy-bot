@@ -47,6 +47,16 @@ def _used(today):
         return []
 
 
+def _used_queries(days=None):
+    """Search phrases of products made recently (so the same scan phrase is not picked twice)."""
+    import time
+    from . import storage
+    days = days or config.settings().get("niche_memory_days", 60)
+    cutoff = time.time() - days * 86400
+    return {str(p.get("research", {}).get("search_query") or "").lower() for p in storage.all_products()
+            if p.get("created_at", 0) >= cutoff and p.get("status") != "rejected"} - {""}
+
+
 def _slots(n_cand, today):
     """One slot per candidate: product type + theme instruction."""
     types = _weighted_types(n_cand)
@@ -134,7 +144,7 @@ def find_trending_niches(count=1):
     try:
         from . import niche_scan
         allowed = set(s.get("product_types", {})) or set(TYPES)
-        seen = {i["search_query"].lower() for i in ideas}
+        seen = {i["search_query"].lower() for i in ideas} | _used_queries()
         for v in niche_scan.best(n=12):
             ph = v["phrase"]
             if v.get("type") not in allowed or ph in seen or ph in [u.lower() for u in used] or _too_similar(ph, used):

@@ -190,7 +190,7 @@ def title_problems(title: str) -> list:
 SPEC_COMMON = """
   "title": "TITLE_RULE",
   "intro": "2 short persuasive paragraphs (English). The FIRST sentence must contain the main search phrase naturally (Google shows it). Describe the style, the feeling, who it is for and how they will use it (gift, decor, crafts); no file details, no emojis, no trademarks",
-  "tags": [exactly 13 Etsy tags, each 2-3 words and max 20 characters, phrases real buyers type. Cover different angles: product type, subject, art style, occasion/holiday, room or use, recipient/gift, color. Tag 1 = the main search phrase. Do not repeat the same tag idea, English],
+  "tags": [exactly 13 Etsy tags, each 2-3 words and max 20 characters, phrases real buyers type. Cover different angles: product type, subject, art style, occasion/holiday, room or use, recipient/gift, color. Tag 1 = the main search phrase. Do not repeat the same tag idea. Count characters: a tag longer than 20 characters is invalid. Never use tags about our art style (no "realistic illustration", "vintage style"), English],
   "styles": [2 short Etsy style words for this artwork, e.g. "Vintage", "Watercolor", "Minimalist", "Boho", "Rustic"],
   "price_usd": number,
   "style": "visual style description used for every image of this product (medium, technique, mood), e.g. 'soft watercolor with loose ink outlines'",
@@ -207,6 +207,26 @@ TYPE_WORDS = {
     "coloring": "coloring pages, printable coloring, coloring book, for kids, for adults, pdf",
     "pattern": "digital paper, seamless pattern, scrapbook paper, background",
 }
+
+
+STYLE_TAG_WORDS = {"realistic", "illustration", "detailed", "storybook", "style", "high quality", "aesthetic art"}
+
+
+def fit_tag(t):
+    """Etsy tags are max 20 characters: drop words from the end instead of cutting a word in half.
+    Tags that only describe our art style (not what buyers search) are dropped."""
+    words = str(t).strip().split()
+    if len(" ".join(words)) > 20:
+        # English puts the main noun last ("honey bee junk journal kit"), so drop words from the front first
+        front = next((words[i:] for i in range(len(words)) if len(" ".join(words[i:])) <= 20), [])
+        back = next((words[:j] for j in range(len(words), 0, -1) if len(" ".join(words[:j])) <= 20), [])
+        words = front if len(front) >= max(2, len(back)) else back
+    tag = " ".join(words)
+    if len(words) < 2 and len(tag) < 4:
+        return ""
+    if all(w.lower() in STYLE_TAG_WORDS or w.lower() in ("vintage", "style") for w in words):
+        return ""
+    return tag
 
 
 def market_price(idea, lo, hi, ai_price):
@@ -249,7 +269,11 @@ Return JSON with these fields:
             if ptype != "coloring" and theme.style()[:30].lower() not in str(spec.get("style", "")).lower():
                 spec["style"] = f"{theme.style()}, {str(spec.get('style', ''))[:80]}".strip(", ")
             spec["price_usd"] = market_price(idea, lo, hi, float(spec["price_usd"]))
-            tags = [t[:20].strip() for t in spec["tags"] if not is_banned(t)]
+            tags = []
+            for t in spec["tags"]:
+                t = fit_tag(t)
+                if t and not is_banned(t) and t.lower() not in [x.lower() for x in tags]:
+                    tags.append(t)
             q = (idea.get("search_query") or "").strip().lower()
             if q and len(q) <= 20 and q not in [t.lower() for t in tags]:
                 tags.insert(0, q)  # the phrase we researched must be a tag
