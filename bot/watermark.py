@@ -35,8 +35,13 @@ def _mark(im: Image.Image, text=TEXT) -> Image.Image:
     return base.convert("RGB")
 
 
+ENABLED = False  # filigran kapali (True yaparsan geri gelir)
+
+
 def apply_all(mockups):
     """mockups = [(name, jpeg bytes)] -> same list with a light watermark added."""
+    if not ENABLED:
+        return list(mockups)
     out = []
     for name, data in mockups:
         if any(s in name.lower() for s in SKIP):
