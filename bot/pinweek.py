@@ -175,6 +175,22 @@ def _x(t):
     return html.escape(str(t or ""), quote=True)
 
 
+def _sample(key):
+    site = config.pages_url()
+    img, title, link = "", "Sebasteia Digital Planners" if key == "planner" else "Sebasteia Printables", "https://www.etsy.com/shop/Sebasteia"
+    f = PINS_DIR / "latest.csv"
+    if f.exists():
+        for r in csv.DictReader(io.StringIO(f.read_text(encoding="utf-8"))):
+            if (r["Pinterest board"] == FEEDS["planner"][2]) == (key == "planner"):
+                img, title, link = r["Media URL"], r["Title"], r["Link"]
+                break
+    if not img:
+        jpgs = sorted(PINS_DIR.glob("*.jpg"))
+        img = site + "pins/" + jpgs[-1].name if jpgs else site + "icon.png"
+    return {"feed": key, "title": title, "desc": "Instant digital downloads from Sebasteia on Etsy.", "link": link,
+            "image": img, "guid": img + "#sample", "at": int(time.time()) - 30 * 86400, "size": 200000}
+
+
 def write_feeds():
     """Write both RSS feeds from meta['pin_feed'] (always valid, even when empty)."""
     PINS_DIR.mkdir(parents=True, exist_ok=True)
@@ -182,6 +198,8 @@ def write_feeds():
     site = config.pages_url()
     for key, (fname, title, board) in FEEDS.items():
         mine = [i for i in items if i.get("feed") == key][-FEED_KEEP:][::-1]
+        if not mine:  # an empty feed is refused by IFTTT: show one sample (old date, own guid, never posted again)
+            mine = [_sample(key)]
         out = ['<?xml version="1.0" encoding="UTF-8"?>',
                '<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">',
                "<channel>", f"<title>{_x(title)}</title>", "<link>https://www.etsy.com/shop/Sebasteia</link>",
@@ -191,7 +209,7 @@ def write_feeds():
         for i in mine:
             out += ["<item>", f"<title>{_x(i['title'])}</title>", f"<link>{_x(i['link'])}</link>",
                     f"<description>{_x(i['desc'])}</description>",
-                    f'<guid isPermaLink="false">{_x(i["image"])}</guid>', f"<pubDate>{_rfc822(i['at'])}</pubDate>",
+                    f'<guid isPermaLink="false">{_x(i.get("guid") or i["image"])}</guid>', f"<pubDate>{_rfc822(i['at'])}</pubDate>",
                     f'<enclosure url="{_x(i["image"])}" type="image/jpeg" length="{int(i.get("size", 200000))}"/>',
                     f'<media:content url="{_x(i["image"])}" medium="image" type="image/jpeg" width="1000" height="1500"/>',
                     f'<media:thumbnail url="{_x(i["image"])}"/>', "</item>"]

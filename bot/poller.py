@@ -383,6 +383,12 @@ def _maybe_release_pins():
     try:
         from . import pinweek
         rel = pinweek.release_due()
+        if not rel:  # a feed without items (IFTTT refuses it): rewrite once with a sample item
+            for fname, _, _ in pinweek.FEEDS.values():
+                f = pinweek.PINS_DIR / fname
+                if (pinweek.PINS_DIR / "latest.csv").exists() and (not f.exists() or "<item>" not in f.read_text(encoding="utf-8")):
+                    pinweek.write_feeds()
+                    return True
     except Exception as e:
         print(f"[poll] pinler yayınlanamadı: {e}", flush=True)
         return False
