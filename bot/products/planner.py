@@ -75,7 +75,7 @@ def _badge(c, cx, cy, big, small, col):
     d.text((cx - d.textlength(small, font=sf) / 2, cy + 18), small, font=sf, fill=(255, 255, 255, 255))
 
 
-def _cover_mock(front, backs, accent, n_pages, n_tpl, n_cov, n_st):
+def _cover_mock(front, backs, accent, badges):
     """First listing photo, like the best sellers: stacked tablets + big feature badges, all inside the centre square."""
     c = _bg(accent)
     _title(c, "DIGITAL PLANNER", "undated  •  hyperlinked  •  iPad & Android", accent, y=50)
@@ -86,8 +86,7 @@ def _cover_mock(front, backs, accent, n_pages, n_tpl, n_cov, n_st):
     paste_with_shadow(c, t, ((MW - t.width) // 2, 520), radius=30, offset=(0, 22), opacity=140)
     cols = [accent, (200, 120, 110), (110, 140, 120), (100, 130, 170), (160, 120, 170)]
     spots = [(470, 430), (1930, 430), (420, 1080), (1980, 1080), (MW // 2, 1500)]
-    for (big, small), (x, y), col in zip([(f"{n_pages}+", "LINKED PAGES"), ("6", "COLOR THEMES"), (f"{n_tpl}", "TEMPLATES"),
-                                           (f"{n_st}+", "STICKERS"), (f"{n_cov}+", "COVERS")], spots, cols):
+    for (big, small), (x, y), col in zip(badges, spots, cols):
         _badge(c, min(max(x, 430), MW - 430), y, big, small, col)
     return c.convert("RGB")
 
@@ -282,7 +281,9 @@ def build(spec, slug):
              "12 months, 60 weeks, 420 daily pages", f"{n_tpl} templates: goals, health, money, life",
              "12 custom notebooks + 8 note papers", f"{n_st}+ stickers & {n_cov}+ covers", "How-to page + index on every tab"]
     mock = [
-        ("01-cover.jpg", _cover_mock(sig["cover"], [previews["Sage"]["m0"], dk["m0w0d0"]], accent, n_pages // 50 * 50, n_tpl, n_cov, n_st)),
+        ("01-cover.jpg", _cover_mock(sig["cover"], [previews["Sage"]["m0"], dk["m0w0d0"]], accent,
+                                     [(f"{n_pages // 50 * 50}+", "LINKED PAGES"), ("6", "COLOR THEMES"), (f"{n_tpl}", "TEMPLATES"),
+                                      (f"{n_st}+", "STICKERS"), (f"{n_cov}+", "COVERS")])),
         ("02-features.jpg", _features_mock(accent, feats, sig["index"])),
         ("03-navigation.jpg", _grid_mock([sig["index"], sig["guide"]], "EASY NAVIGATION", "index, top tabs, month tabs and arrows on every page", accent)),
         ("04-monthly.jpg", _grid_mock([sig["m0"], sig["m0g"], sig["m0h"], sig["m0b"]], "MONTHLY PAGES", "calendar • at a glance • habits & mood • budget", accent)),

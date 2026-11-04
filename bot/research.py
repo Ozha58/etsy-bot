@@ -16,6 +16,8 @@ BANNED = [
     "peanuts", "sesame", "paw patrol", "spongebob", "lego", "nike", "louis vuitton", "chanel", "gucci", "coca",
     "starbucks", "barbie", "labubu", "stitch", "wednesday addams", "beetlejuice", "jack skellington", "nightmare before",
     "studio ghibli", "ghibli", "anime character", "goodnotes", "notability", "svg", "cut file",
+    # note-taking app brands: never in titles or tags
+    "xodo", "noteshelf", "penly", "kilonotes", "onenote", "samsung notes", "noteful", "zoomnotes", "flexcil",
 ]
 
 SEASONS = [

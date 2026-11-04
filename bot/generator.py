@@ -94,7 +94,8 @@ def build_one(idea: dict, day: dt.date) -> dict:
         raise Exception(f"HATA: {mod.__name__} dosyası görselleri üretirken çöktü ve boş döndü.")
     try:
         from . import watermark
-        built["mockups"] = watermark.apply_all(built["mockups"])
+        if idea["type"] != "planner":  # planner photos only show empty templates: a watermark just hurts the look
+            built["mockups"] = watermark.apply_all(built["mockups"])
     except Exception as e:
         print(f"[watermark] eklenemedi: {e}")
     p = {
