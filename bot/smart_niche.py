@@ -78,7 +78,8 @@ Rules:
 - Every idea MUST stay inside our shop theme: {shop.theme()}. Our art style is always: {shop.style()}.
 - Be specific: subject + scene + season, never generic like "Christmas" or "animals". Ideas must differ clearly from each other.
 - Each idea must suit its product type (coloring = clear black line art scenes; wallpaper = vertical phone wallpaper scenes;
-  wall_art = art prints for a room; scenes = full illustrated scenes; clipart = separate objects; pattern = seamless papers).
+  wall_art = art prints for a room; scenes = full illustrated scenes; clipart = separate objects; pattern = seamless papers;
+  junk_journal = a printable vintage junk journal kit about ONE charming subject, e.g. honey bees, lighthouses, mushrooms).
 - No trademarks, brands, celebrities, characters, franchises or copyrighted styles.
 - The artwork is AI generated and CANNOT contain readable text: no quotes, words, names, monograms or lettering.
 - Avoid these niches we already used recently: {', '.join(used[-40:]) or 'none'}.
@@ -129,10 +130,28 @@ def find_trending_niches(count=1):
                 ideas.append(m)
     except Exception as e:
         print(f"[smart_niche] Etsy madenciliği atlandı: {e}")
+    # best phrases from the /nis niche scan database (real Etsy data, last 21 days)
+    try:
+        from . import niche_scan
+        allowed = set(s.get("product_types", {})) or set(TYPES)
+        seen = {i["search_query"].lower() for i in ideas}
+        for v in niche_scan.best(n=12):
+            ph = v["phrase"]
+            if v.get("type") not in allowed or ph in seen or ph in [u.lower() for u in used] or _too_similar(ph, used):
+                continue
+            ideas.append({"type": v["type"], "niche": f"{ph} in vintage storybook style", "search_query": ph, "source": "scan",
+                          "why": (f"Niş taramasından: {v['results']:,} ilan, ortanca {int(v['favs'])} favori, "
+                                  f"ilk 25'te %{int(v['fresh'] * 100)} yeni ilan"),
+                          "etsy_results": v["results"], "etsy_median_favs": v["favs"], "etsy_median_price": v.get("price"),
+                          "etsy_velocity": v.get("speed"), "score": v["score"]})
+    except Exception as e:
+        print(f"[smart_niche] niş taraması verisi kullanılamadı: {e}")
     cap = int(s.get("max_competition", 8000) or 0)
-    crowded = [i for i in ideas if cap and (i.get("etsy_results") or 0) > cap]
+    floor = int(s.get("min_results", 150) or 0)
+    crowded = [i for i in ideas if (cap and (i.get("etsy_results") or 0) > cap)
+               or (floor and i.get("etsy_results") is not None and i["etsy_results"] < floor)]
     for i in crowded:
-        print(f"[smart_niche] Çok rekabetli, sona atıldı: {i['niche']} ({i['etsy_results']} ilan)")
+        print(f"[smart_niche] Çok kalabalık ya da aranmıyor, sona atıldı: {i['niche']} ({i['etsy_results']} ilan)")
     # not-crowded ideas first (best score first), crowded ones only if we run out
     ideas.sort(key=lambda i: (i in crowded, -i["score"]))
 

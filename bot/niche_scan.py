@@ -40,13 +40,13 @@ SEASONAL = {
 }
 FORMATS = [  # (phrase word, our product type)
     ("clipart", "clipart"), ("wall art", "wall_art"), ("phone wallpaper", "wallpaper"),
-    ("coloring pages", "coloring"), ("digital paper", "pattern"), ("junk journal", "scenes"),
+    ("coloring pages", "coloring"), ("digital paper", "pattern"), ("junk journal", "junk_journal"),
 ]
 TYPE_WORDS = [
     ("coloring", ("coloring", "colouring", "line art")),
     ("wallpaper", ("wallpaper", "lock screen", "lockscreen", "phone background")),
     ("pattern", ("digital paper", "seamless", "pattern", "scrapbook paper")),
-    ("scenes", ("junk journal", "ephemera", "journal")),
+    ("junk_journal", ("junk journal", "ephemera", "journal", "junk journaling")),
     ("clipart", ("clipart", "clip art", "png", "sublimation", "transparent")),
     ("wall_art", ("print", "wall art", "poster", "decor", "painting")),
 ]

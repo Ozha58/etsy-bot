@@ -26,6 +26,7 @@ HOOKS = {
     "tumbler": "Your next tumbler design is ready to press",
     "scenes": "Instant festive art - just download and enjoy",
     "wallpaper": "Instant phone makeover - download and set",
+    "junk_journal": "Print, cut and build your dream journal",
 }
 BASE_TAGS = {
     "wall_art": ["wallart", "printableart", "homedecor"],
@@ -35,6 +36,7 @@ BASE_TAGS = {
     "tumbler": ["tumblerwrap", "sublimation", "tumblerdesign"],
     "scenes": ["christmasart", "santaclaus", "vintagechristmas"],
     "wallpaper": ["phonewallpaper", "christmaswallpaper", "iphonewallpaper"],
+    "junk_journal": ["junkjournal", "junkjournalkit", "ephemera"],
 }
 
 

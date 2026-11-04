@@ -233,7 +233,8 @@ def _alt_text(title, photo_name):
 
 SECTIONS = {"scenes": "Illustration Packs", "wall_art": "Printable Wall Art",
             "wallpaper": "Phone Wallpapers", "coloring": "Coloring Pages",
-            "clipart": "Clipart", "pattern": "Digital Paper", "tumbler": "Tumbler Wraps"}
+            "clipart": "Clipart", "pattern": "Digital Paper", "tumbler": "Tumbler Wraps",
+            "junk_journal": "Junk Journal Kits"}
 
 
 def section_for(ptype, tok, shop_id):

@@ -19,9 +19,11 @@ from . import config, etsy, research, theme
 SEED_SUBJECTS = ["reindeer", "winter fox", "snowy owl", "woodland animals", "winter bunny", "snowy forest",
                  "christmas deer", "winter cardinal", "bear cub", "winter cottage", "winter birds", "forest animals",
                  "christmas village", "winter hedgehog", "moose"]
-TYPE_SEED = {"scenes": "clipart", "wall_art": "print", "wallpaper": "phone wallpaper", "coloring": "coloring page"}
+TYPE_SEED = {"scenes": "clipart", "wall_art": "print", "wallpaper": "phone wallpaper", "coloring": "coloring page",
+             "junk_journal": "junk journal"}
 TYPE_WORDS = [  # phrase words -> our product type
     ("coloring", ("coloring", "colouring", "line art")),
+    ("junk_journal", ("junk journal", "ephemera", "journal kit", "journaling")),
     ("wallpaper", ("wallpaper", "lock screen", "lockscreen", "phone background", "iphone")),
     ("scenes", ("clipart", "clip art", "png", "junk journal", "illustration", "scrapbook", "card making", "sublimation")),
     ("wall_art", ("print", "wall art", "poster", "decor", "painting", "art")),

@@ -198,6 +198,17 @@ SPEC_COMMON = """
 """
 
 
+TYPE_WORDS = {
+    "junk_journal": "junk journal kit, printable junk journal, ephemera, collage sheet, journaling cards, scrapbook, junk journal supplies",
+    "scenes": "clipart, illustrations, commercial use, junk journal, card making, sublimation, digital download",
+    "clipart": "clipart, png, transparent background, commercial use, sublimation, scrapbook, card making",
+    "wall_art": "printable wall art, digital download, home decor, gallery wall, set of 3, art print",
+    "wallpaper": "phone wallpaper, iphone wallpaper, lock screen, aesthetic wallpaper, background",
+    "coloring": "coloring pages, printable coloring, coloring book, for kids, for adults, pdf",
+    "pattern": "digital paper, seamless pattern, scrapbook paper, background",
+}
+
+
 def market_price(idea, lo, hi, ai_price):
     """Price a bit under the market (median price of the top Etsy results), inside the settings range."""
     med = idea.get("etsy_median_price")
@@ -217,8 +228,9 @@ def product_spec(idea: dict) -> dict:
     prompt = f"""Create a complete Etsy digital product listing plan.
 Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
-CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack".
+CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Vintage Ephemera".
 Main search phrase: {idea.get('search_query', '')}
+Buyer words for this product type (use the fitting ones in title/tags): {TYPE_WORDS.get(ptype, '')}
 The title must START with the main search phrase (or a very close natural wording of it), then add the most important second keyword.
 Price must be between {lo} and {hi} USD (end with .99 or .49 is fine).
 Never use trademarks, brand names, characters, celebrities or copyrighted styles in any field.
@@ -248,7 +260,8 @@ Return JSON with these fields:
     raise RuntimeError(f"Ürün planı oluşturulamadı: {problems}")
 
 
-_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 10),"wall_art": ("prints", 3), "coloring": ("pages", 8), "clipart": ("elements", 15), "pattern": ("papers", 10), "tumbler": ("designs", 2)}
+_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 10),"wall_art": ("prints", 3), "coloring": ("pages", 8), "clipart": ("elements", 15), "pattern": ("papers", 10), "tumbler": ("designs", 2),
+               "junk_journal": [("scenes", 6), ("objects", 8)]}
 
 
 def _validate(spec, ptype):
@@ -259,15 +272,16 @@ def _validate(spec, ptype):
     probs += title_problems(spec.get("title", "")) if spec.get("title") else []
     if is_banned(spec.get("title", "")) or any(is_banned(t) for t in spec.get("tags", [])):
         probs.append("contains a banned/trademark word (remove words like prompt, svg, brand names)")
-    f, n = _LIST_FIELD[ptype]
-    items = spec.get(f) or []
-    items = [i for i in items if isinstance(i, dict) and i.get("prompt")]
-    if len(items) < n:
-        probs.append(f"'{f}' must have exactly {n} items with 'name' and 'prompt'")
-    else:
-        for i in items:
-            i.setdefault("name", "design")
-        spec[f] = items[:n]
+    lists = _LIST_FIELD[ptype]
+    for f, n in (lists if isinstance(lists, list) else [lists]):
+        items = spec.get(f) or []
+        items = [i for i in items if isinstance(i, dict) and i.get("prompt")]
+        if len(items) < n:
+            probs.append(f"'{f}' must have exactly {n} items with 'name' and 'prompt'")
+        else:
+            for i in items:
+                i.setdefault("name", "design")
+            spec[f] = items[:n]
     if len(spec.get("tags", [])) < 10:
         probs.append("need 13 tags")
     try:

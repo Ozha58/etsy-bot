@@ -9,14 +9,16 @@ import random
 
 from . import config
 
-SHOP_THEME = ("vintage storybook illustrations of snowy forests and winter woodland animals "
-              "(reindeer, deer, red foxes, owls, bunnies, bear cubs, robins, cardinals, squirrels, hedgehogs) "
-              "and cozy Christmas in the forest")
+SHOP_THEME = ("vintage storybook printables, each product about ONE charming subject "
+              "(honey bees, lighthouses and the seaside, mushrooms, unicorns, dogs, birds, botanicals, cottages, "
+              "tea time, butterflies, woodland animals), aged antique paper look")
 
 HOUSE_STYLE = ("vintage storybook illustration, soft gouache and watercolor texture, fine detailed brushwork, "
                "warm muted palette of forest green, deep red, cream and soft gold, gentle cozy light")
 
 SUBJECTS = [
+    "honey bees and beehives", "lighthouse by the sea", "seaside and shells", "mushrooms in the forest", "unicorns",
+    "dogs", "garden birds", "vintage botanicals", "tea time", "butterflies and moths", "country cottage garden",
     "reindeer in a snowy pine forest", "deer family in falling snow", "red fox curled up in the snow",
     "snowy owl on a frosted branch", "winter bunnies under pine trees", "bear cub in a snowy clearing",
     "robins and cardinals on snowy branches", "squirrel with pinecones in winter", "hedgehog in a winter forest",

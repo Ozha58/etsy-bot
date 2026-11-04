@@ -22,8 +22,9 @@ BOARDS = {
     "tumbler": "Tumbler Wrap Designs",
     "scenes": "Vintage Christmas Art",
     "wallpaper": "Christmas Phone Wallpapers",
+    "junk_journal": "Junk Journal Kits & Ephemera",
 }
-BOARD_DESC = "Instant digital downloads from Nuvira Studio (NuviraStudioDigital on Etsy)."
+BOARD_DESC = "Instant digital downloads from Sebasteia on Etsy."
 
 
 class PinterestError(Exception):

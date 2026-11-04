@@ -65,6 +65,8 @@ def product_caption(p: dict) -> str:
             lines.append(f"💡 {esc(str(r['why'])[:200])}")
         if r.get("source") == "etsy":
             lines.append("🔎 Kaynak: Etsy araması (rakiplerin gerçek etiketlerinden)")
+        elif r.get("source") == "scan":
+            lines.append("🔭 Kaynak: niş taraması (/nis)")
         if r.get("etsy_median_price"):
             lines.append(f"💲 Piyasa ortanca fiyatı: ${r['etsy_median_price']:.2f}")
     if p.get("research", {}).get("variation_of"):

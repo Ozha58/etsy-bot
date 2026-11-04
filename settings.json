@@ -2,18 +2,35 @@
   "products_per_day": 2,
   "publish_mode": "active",
   "product_types": {
-    "scenes": 5,
-    "wall_art": 3,
-    "coloring": 3,
-    "wallpaper": 4
+    "junk_journal": 6,
+    "coloring": 2,
+    "wallpaper": 1,
+    "wall_art": 1
   },
   "max_same_type_per_day": 1,
   "price_ranges_usd": {
-    "scenes": [1.99, 3.99],
-    "wall_art": [1.49, 3.99],
-    "coloring": [1.99, 3.99],
-    "wallpaper": [1.49, 3.49]
+    "scenes": [
+      1.99,
+      3.99
+    ],
+    "wall_art": [
+      1.49,
+      3.99
+    ],
+    "coloring": [
+      1.99,
+      3.99
+    ],
+    "wallpaper": [
+      1.49,
+      3.49
+    ],
+    "junk_journal": [
+      3.49,
+      5.99
+    ]
   },
   "niche_memory_days": 60,
-  "timezone": "Europe/Istanbul"
+  "timezone": "Europe/Istanbul",
+  "christmas_share": 0.2
 }
