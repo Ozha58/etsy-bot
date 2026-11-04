@@ -201,7 +201,7 @@ def write_feeds():
         if not mine:  # an empty feed is refused by IFTTT: show one sample (old date, own guid, never posted again)
             mine = [_sample(key)]
         out = ['<?xml version="1.0" encoding="UTF-8"?>',
-               '<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">',
+               '<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">',
                "<channel>", f"<title>{_x(title)}</title>", "<link>https://www.etsy.com/shop/Sebasteia</link>",
                f"<description>{_x(board)} - instant digital downloads from Sebasteia on Etsy</description>",
                f'<atom:link href="{_x(site + "pins/" + fname)}" rel="self" type="application/rss+xml"/>',
@@ -209,6 +209,7 @@ def write_feeds():
         for i in mine:
             out += ["<item>", f"<title>{_x(i['title'])}</title>", f"<link>{_x(i['link'])}</link>",
                     f"<description>{_x(i['desc'])}</description>",
+                    f'<content:encoded><![CDATA[<img src="{i["image"]}" alt="{_x(i["title"])}"/><p>{_x(i["desc"])}</p>]]></content:encoded>',
                     f'<guid isPermaLink="false">{_x(i.get("guid") or i["image"])}</guid>', f"<pubDate>{_rfc822(i['at'])}</pubDate>",
                     f'<enclosure url="{_x(i["image"])}" type="image/jpeg" length="{int(i.get("size", 200000))}"/>',
                     f'<media:content url="{_x(i["image"])}" medium="image" type="image/jpeg" width="1000" height="1500"/>',

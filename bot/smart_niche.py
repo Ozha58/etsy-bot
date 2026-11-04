@@ -271,7 +271,8 @@ def find_trending_niches(count=1):
         t = types[j]
         if t == "planner":  # planners: an aesthetic, never an animal
             sub = random.choice(shop.PLANNER_STYLES).split(":")[0]
-            niche = f"{sub} digital planner"
+            ed = random.choice(["", "budget ", "student ", "ADHD ", "wellness ", "small business "])
+            niche = f"{sub} {ed}digital planner"
         else:
             pool = [b for b in backups if not (_subject(b[1]) & recent_by_type.get(t, set()))] or backups
             niche, sub = pool[0]

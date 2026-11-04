@@ -75,8 +75,18 @@ PLANNER_STYLES = [
 ]
 
 
+PLANNER_EDITIONS = {  # what the planner is FOR: every planner in the shop is a different product
+    "life": "an all-in-one life planner", "budget": "a budget / finance planner", "student": "a student / college planner",
+    "adhd": "an ADHD-friendly planner", "wellness": "a health & wellness / fitness planner",
+    "business": "a small business planner",
+}
+
+
 def planner_theme() -> str:
-    return (f"PLANNER STYLE (mandatory): {random.choice(PLANNER_STYLES)}. Make it look like the best-selling aesthetic "
+    ed = random.choice(list(PLANNER_EDITIONS))
+    return (f"PLANNER EDITION (mandatory): {PLANNER_EDITIONS[ed]} (edition '{ed}'); put the edition word in the niche, "
+            f"name and title (e.g. 'boho {ed if ed != 'life' else 'life'} planner'). "
+            f"PLANNER STYLE (mandatory): {random.choice(PLANNER_STYLES)}. Make it look like the best-selling aesthetic "
             "planners on Etsy: calm, pretty, adult. The cover art is a texture, a pattern, flowers or a calm scene. "
             "NO animals, NO characters, NO people, NO Christmas. Name it by the aesthetic "
             "(e.g. 'Neutral Boho Planner', 'Sage Botanical Planner', 'Dark Academia Planner').")

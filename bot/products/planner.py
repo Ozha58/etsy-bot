@@ -16,7 +16,8 @@ from ..mockups import H as MH, W as MW
 
 LABEL_TR = "Dijital yaşam planlayıcısı (750+ linkli sayfa, 6 renk teması, 80 şablon, 1000+ sticker, 50+ kapak)"
 SPEC_FIELDS = """
-  "planner_name": "short planner name, 2-4 words, named by its aesthetic (e.g. 'Neutral Boho', 'Sage Botanical', 'Dark Academia')",
+  "edition": "one of: life, budget, student, adhd, wellness, business (use the one given in the planner theme)",
+  "planner_name": "short planner name, 2-4 words: the aesthetic + the edition (e.g. 'Neutral Boho Budget', 'Sage Student', 'Dark Academia')",
   "cover": {"prompt": "English prompt for ONE beautiful aesthetic horizontal cover image in the planner style (texture, pattern, flowers or a calm scene; NO animals, NO people), calm area in the lower center, no text"},
   "stickers": [ exactly 8 objects {"name": "short name", "prompt": "English prompt for ONE single isolated aesthetic object that fits the style (flower, leaf, cup, candle, book...), no animals, no text"} ]
 """
@@ -196,6 +197,28 @@ def boho_art(palette, w=1536, h=1152, seed=5):
     return im.convert("RGB")
 
 
+def pick_edition_look(spec, slug=""):
+    """Edition from the product's own words (title / niche), else the least used one; look = least used so far."""
+    import zlib
+    text = " ".join(str(spec.get(k, "")) for k in ("edition", "title", "planner_name", "niche"))
+    ed = spec.get("edition") if spec.get("edition") in planner_pdf.EDITIONS else planner_pdf.edition_of(text)
+    used_ed, used_look = {}, {}
+    try:
+        from .. import storage
+        for p in storage.all_products():
+            if p.get("type") == "planner":
+                sp = p.get("spec", {})
+                used_ed[sp.get("edition", "life")] = used_ed.get(sp.get("edition", "life"), 0) + 1
+                if sp.get("look"):
+                    used_look[sp["look"]] = used_look.get(sp["look"], 0) + 1
+    except Exception:
+        pass
+    h = zlib.crc32(slug.encode())
+    look = spec.get("look") if spec.get("look") in planner_pdf.LOOKS else \
+        min(planner_pdf.LOOKS, key=lambda l: (used_look.get(l, 0), (zlib.crc32(l.encode()) ^ h) & 255))
+    return ed, look
+
+
 def _soft_bg(accent):
     """Dreamy soft background like the best sellers: light tinted gradient + a few big blurred light shapes."""
     top = tuple(int(c * 0.10 + 246 * 0.90) for c in accent)
@@ -280,7 +303,7 @@ def _stylus(c, x1, y1, x2, y2):
     c.alpha_composite(st, (int(min(x1, x2)), int(min(y1, y2))))
 
 
-def hero_mock(art, daily, name, accent, swatches, info):
+def hero_mock(art, daily, name, accent, swatches, info, ed=None):
     """First listing photo in the best-seller layout: small black pill, big elegant title, a tablet opened like a book
     (cover art on the left, a real daily page on the right), theme color dots, black call-outs, an INSTANT DOWNLOAD
     burst and a feature strip. All key parts stay inside Etsy's centre-square crop (x 300-2100)."""
@@ -288,7 +311,8 @@ def hero_mock(art, daily, name, accent, swatches, info):
     d = ImageDraw.Draw(c)
     # top pill
     pf = font("sans_medium", 40)
-    pt = "THE ALL-IN-ONE"
+    ed = ed or planner_pdf.EDITIONS["life"]
+    pt = ed["pill"]
     pw = d.textlength(pt, font=pf) + 90
     d.rounded_rectangle((MW / 2 - pw / 2, 52, MW / 2 + pw / 2, 132), 40, fill=(20, 20, 22, 255))
     _center_text(d, 62, pt, pf, (255, 255, 255, 255))
@@ -298,11 +322,11 @@ def hero_mock(art, daily, name, accent, swatches, info):
         tf.set_variation_by_name("Medium")
     except Exception:
         pass
-    tt = "DIGITAL PLANNER"
+    tt = ed["heading"]
     while d.textlength(tt, font=tf) > 1760 and tf.size > 120:
         tf = tf.font_variant(size=tf.size - 6)
     _center_text(d, 140, tt, tf, (24, 22, 22, 255))
-    sub = f"undated digital planner  |  {info['pages']} hyperlinked pages  |  for iPad & Android"
+    sub = f"undated {ed['word']} planner  |  {info['pages']} hyperlinked pages  |  for iPad & Android"
     sf = fit_text(d, sub, "sans_light", 1760, 54, 30)
     _center_text(d, 400, sub, sf, (40, 38, 38, 255))
     # tablet opened like a book
@@ -515,6 +539,10 @@ def assemble(spec, slug, cover, objs, palette=None):
     palette = palette or [hex2rgb(x) for x in spec.get("palette", [])][:4] or [(196, 140, 50), (110, 140, 90), (170, 90, 70)]
     name = spec.get("planner_name", "Digital Planner")
     title = f"{name} Planner" if "planner" not in name.lower() else name
+    edition, look = pick_edition_look(spec, slug)
+    spec["edition"], spec["look"] = edition, look
+    ed = planner_pdf.EDITIONS[edition]
+    showcase = [t[0] for t in ed["extra"][:4]] or ["smart", "budgetyear", "workout", "mood"]
 
     # 6 color themes: the product's own palette (light + dark) and 4 presets
     themes = [("Signature", palette, False), ("Dark", palette, True)] + [(n, THEMES[n], False) for n in ("Sage", "Blush", "Ocean", "Lavender")]
@@ -522,17 +550,17 @@ def assemble(spec, slug, cover, objs, palette=None):
     for tname, pal, dark in themes:
         starts = ("sun", "mon") if tname in ("Signature", "Dark") else ("sun",)
         for start in starts:
-            p = planner_pdf.Planner(title, list(pal), cover, objs, start, dark)
+            p = planner_pdf.Planner(title, list(pal), cover, objs, start, dark, edition, look)
             data = p.build()
             n_pages = p.pages
             pdfs.append((f"{slug}-{tname.lower()}-{'sunday' if start == 'sun' else 'monday'}-start.pdf", data))
             if start == "sun":
-                keys = ["cover", "index", "guide", "m0", "m0g", "m0w0", "m0w0s", "m0w0d0", "m0h", "m0b",
-                        "smart", "budgetyear", "workout", "notes", "nb0p1", "mood"]
+                keys = list(dict.fromkeys(["cover", "index", "guide", "m0", "m0g", "m0w0", "m0w0s", "m0w0d0", "m0h", "m0b",
+                                           "notes", "nb0p1"] + showcase))
                 previews[tname] = dict(zip(keys, planner_pdf.render_pages(data, [p.order.index(k) for k in keys], 1400)))
                 if tname == "Signature":
                     main = p
-    n_tpl = len(planner_pdf.TEMPLATES)
+    n_tpl = len(main.templates)
     all_colors = list(palette) + [c for v in THEMES.values() for c in v]
     stickers = planner_stickers.make_all(all_colors[:12], [E.sticker(o) for o in objs])
     covers = _covers(cover, objs, title, all_colors)
@@ -558,21 +586,24 @@ def assemble(spec, slug, cover, objs, palette=None):
     sig, dk = previews["Signature"], previews["Dark"]
     accent = palette[0]
     n_st, n_cov = len(stickers) // 100 * 100, len(covers) // 10 * 10
-    feats = [f"{n_pages} hyperlinked pages, undated", "6 color themes incl. dark mode", "Sunday & Monday start",
+    feats = ([f"{ed['word'].capitalize()} edition: {', '.join(t[1].lower() for t in ed['extra'][:3])}"] if ed["extra"] else []) + [
+             f"{n_pages} hyperlinked pages, undated", "6 color themes incl. dark mode", "Sunday & Monday start",
              "12 months, 60 weeks, 420 daily pages", f"{n_tpl} templates: goals, health, money, life",
-             "12 custom notebooks + 8 note papers", f"{n_st}+ stickers & {n_cov}+ covers", "How-to page + index on every tab"]
+             "12 custom notebooks + 8 note papers", f"{n_st}+ stickers & {n_cov}+ covers", "How-to page + index on every tab"][:8]
     mock = [
         ("01-cover.jpg", hero_mock(cover, sig["m0w0d0"], name, accent,
                                    [palette[0], (52, 54, 60)] + [THEMES[t][0] for t in ("Sage", "Blush", "Ocean", "Lavender")],
                                    {"pages": n_pages, "templates": n_tpl, "stickers": n_st, "covers": n_cov,
                                     "notebooks": planner_pdf.NOTEBOOKS, "themes": 6,
-                                    "monday": any("monday" in f[0] for f in files)})),
+                                    "monday": any("monday" in f[0] for f in files)}, ed)),
         ("02-features.jpg", _features_mock(accent, feats, sig["index"])),
         ("03-navigation.jpg", _grid_mock([sig["index"], sig["guide"]], "EASY NAVIGATION", "index, top tabs, month tabs and arrows on every page", accent)),
         ("04-monthly.jpg", _grid_mock([sig["m0"], sig["m0g"], sig["m0h"], sig["m0b"]], "MONTHLY PAGES", "calendar • at a glance • habits & mood • budget", accent)),
         ("05-weekly.jpg", _grid_mock([sig["m0w0"], sig["m0w0s"]], "WEEKLY LAYOUTS", "weekly overview + hourly schedule • Sunday & Monday start", accent)),
         ("06-daily.jpg", _grid_mock([sig["m0w0d0"], dk["m0w0d0"]], "DAILY PAGES", "420 linked daily pages • light & dark", accent)),
-        ("07-templates.jpg", _grid_mock([sig["smart"], sig["budgetyear"], sig["workout"], sig["mood"]], f"{n_tpl} BONUS TEMPLATES", "goals • health • finance • life", accent)),
+        ("07-templates.jpg", _grid_mock([sig[k] for k in showcase],
+                                        f"{len(ed['extra'])} {ed['word'].upper()} PAGES + {n_tpl - len(ed['extra'])} TEMPLATES" if ed["extra"] else f"{n_tpl} BONUS TEMPLATES",
+                                        " • ".join(t[1].lower() for t in ed["extra"][:4]) if ed["extra"] else "goals • health • finance • life", accent)),
         ("08-themes.jpg", _themes_mock([previews[t]["m0"] for t in ("Signature", "Dark", "Sage", "Blush", "Ocean", "Lavender")],
                                        ["Signature", "Dark", "Sage", "Blush", "Ocean", "Lavender"], accent)),
         ("09-notes.jpg", _grid_mock([sig["notes"], sig["nb0p1"]], "NOTES & NOTEBOOKS", "12 custom notebooks • lined, dotted, grid, blank, Cornell, music", accent)),
@@ -584,7 +615,8 @@ def assemble(spec, slug, cover, objs, palette=None):
         "thumb": thumb_b64(mock[0][1]),
         "preview": mock[0][1],
         "included": [
-            f"Undated digital planner, {n_pages} hyperlinked pages (landscape PDF)",
+            f"Undated {ed['word']} digital planner, {n_pages} hyperlinked pages (landscape PDF)",
+            *([f"{ed['word'].capitalize()} pages: " + ", ".join(t[1] for t in ed["extra"]) + ", plus a " + ed["word"] + " daily page"] if ed["extra"] else []),
             "6 color themes: Signature, Dark, Sage, Blush, Ocean, Lavender (Sunday and Monday start)",
             "Year at a glance, quarterly plans, 12 monthly calendars, month at a glance, 60 weekly + 60 hourly schedule pages, 420 daily pages",
             "Every month: habit & mood tracker, budget, reflection",

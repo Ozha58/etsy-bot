@@ -140,15 +140,85 @@ TEMPLATES = [
     ("events", "Event Planner", "life", [("lines", "Event", 2), ("check", "To do", 10), ("table", "", ["Guest", "RSVP"], 10)]),
     ("habitsyear", "Yearly Habit Tracker", "goals", [("circles", "One habit, every day of the year", 366)]),
 ]
+# Planner editions: same solid core (year, months, weeks, days, 80 templates) but a different purpose,
+# daily page, 6 own templates and listing wording, so two planners in the shop are never the same product.
+EDITIONS = {
+    "life": {"word": "life", "pill": "THE ALL-IN-ONE", "heading": "DIGITAL PLANNER", "schedule": "Schedule",
+             "daily": [("check", "Top 3", 3), ("check", "To do", 5), ("lines", "Grateful for"), ("mood", "Water · Mood"), ("lines", "Notes")],
+             "extra": []},
+    "budget": {"word": "budget", "pill": "BUDGET & FINANCE", "heading": "BUDGET PLANNER", "schedule": "Schedule",
+               "daily": [("check", "Top 3", 3), ("lines", "Spent today"), ("check", "Bills & payments", 5), ("nospend", "No-spend day?"), ("lines", "Money notes")],
+               "extra": [
+                   ("b_dash", "Money Dashboard", "finance", [("boxes", ["Income goal", "Savings goal", "Debt goal", "Spending limit", "Big purchases", "Notes"])]),
+                   ("b_monthly", "Monthly Budget", "finance", [("table", "", ["Category", "Planned", "Actual", "Difference"], 14), ("table", "", ["Income", "Amount"], 8)]),
+                   ("b_envelope", "100 Envelope Challenge", "finance", [("circles", "Color the envelope you filled", 100), ("lines", "Total saved", 4)]),
+                   ("b_cash", "Cash Envelopes", "finance", [("boxes", ["Groceries", "Gas", "Fun money", "Eating out", "Gifts", "Household"])]),
+                   ("b_networth", "Net Worth Tracker", "finance", [("table", "", ["Month", "Assets", "Debts", "Net worth"], 12)]),
+                   ("b_paycheck", "Paycheck Planner", "finance", [("table", "", ["Payday", "Amount", "Bills", "Savings", "Left over"], 12)])]},
+    "student": {"word": "student", "pill": "FOR STUDENTS", "heading": "STUDENT PLANNER", "schedule": "Schedule & classes",
+                "daily": [("check", "Top 3", 3), ("check", "Assignments", 5), ("lines", "Class notes"), ("check", "Study blocks", 4), ("lines", "Notes")],
+                "extra": [
+                    ("s_semester", "Semester Overview", "goals", [("boxes", ["Courses", "Big deadlines", "Exams", "Goals", "Clubs & events", "Notes"])]),
+                    ("s_classes", "Class Schedule", "goals", [("table", "", ["Time", "Mon", "Tue", "Wed", "Thu", "Fri"], 10)]),
+                    ("s_assign", "Assignment Tracker", "goals", [("table", "", ["Subject", "Assignment", "Due", "Grade", "Done"], 16)]),
+                    ("s_exams", "Exam Planner", "goals", [("table", "", ["Subject", "Date", "Topics", "Ready?"], 12), ("check", "Study checklist", 10)]),
+                    ("s_grades", "Grade Tracker", "goals", [("table", "", ["Subject", "Test", "Score", "Weight", "Notes"], 16)]),
+                    ("s_study", "Study Session Log", "goals", [("table", "", ["Date", "Subject", "Minutes", "What I learned"], 16)])]},
+    "adhd": {"word": "ADHD", "pill": "ADHD FRIENDLY", "heading": "ADHD PLANNER", "schedule": "Time blocks",
+             "daily": [("check", "Just 3 things", 3), ("lines", "Brain dump"), ("check", "Later, not today", 5), ("energy", "Energy · Water"), ("lines", "Small wins")],
+             "extra": [
+                 ("a_dopamine", "Dopamine Menu", "goals", [("boxes", ["Starters (5 min)", "Mains (longer)", "Sides (while working)", "Desserts (treats)"])]),
+                 ("a_dump", "Brain Dump & Sort", "goals", [("lines", "Dump it all here", 14), ("check", "Do today", 6), ("check", "Later", 8)]),
+                 ("a_routine", "Routine Builder", "goals", [("check", "Morning routine", 10), ("check", "Evening routine", 10)]),
+                 ("a_breakdown", "Task Breakdown", "goals", [("lines", "Big scary task", 2), ("check", "Tiny steps", 14), ("lines", "Reward when done", 3)]),
+                 ("a_focus", "Focus Timer Log", "goals", [("table", "", ["Task", "Timer", "Done", "Energy"], 14), ("circles", "Focus blocks", 40)]),
+                 ("a_reset", "Weekly Reset", "goals", [("boxes", ["Clear", "Plan", "Prepare", "Reward"])])]},
+    "wellness": {"word": "wellness", "pill": "HEALTH & WELLNESS", "heading": "WELLNESS PLANNER", "schedule": "Schedule",
+                 "daily": [("check", "Top 3", 3), ("lines", "Meals"), ("check", "Movement", 5), ("mood", "Water · Mood"), ("lines", "Self-care")],
+                 "extra": [
+                     ("w_dash", "Wellness Dashboard", "health", [("boxes", ["Move", "Nourish", "Rest", "Mind", "Hydrate", "Connect"])]),
+                     ("w_prep", "Meal Prep Planner", "health", [("table", "", ["Meal", "Recipe", "Prep day", "Portions"], 10), ("check", "Shopping", 12)]),
+                     ("w_split", "Workout Split", "health", [("table", "", ["Day", "Focus", "Exercises", "Done"], 7), ("lines", "Notes", 6)]),
+                     ("w_habits", "Healthy Habits", "health", [("table", "", ["Habit", "Goal", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], 10)]),
+                     ("w_mind", "Mindfulness Journal", "health", [("lines", "How I feel", 8), ("lines", "What I need", 8)]),
+                     ("w_progress", "Progress Check-in", "health", [("boxes", ["Week 1", "Week 2", "Week 3", "Week 4"])])]},
+    "business": {"word": "small business", "pill": "SMALL BUSINESS", "heading": "BUSINESS PLANNER", "schedule": "Schedule",
+                 "daily": [("check", "Priorities", 3), ("check", "Orders & clients", 5), ("lines", "Content ideas"), ("lines", "Calls & emails"), ("lines", "Notes")],
+                 "extra": [
+                     ("k_dash", "Business Dashboard", "goals", [("boxes", ["Revenue goal", "Launches", "Marketing", "Systems", "Learning", "Notes"])]),
+                     ("k_content", "Content Calendar", "goals", [("table", "", ["Date", "Platform", "Idea", "Status"], 16)]),
+                     ("k_orders", "Order Tracker", "goals", [("table", "", ["Order", "Customer", "Item", "Shipped", "Paid"], 16)]),
+                     ("k_clients", "Client Tracker", "goals", [("table", "", ["Client", "Project", "Due", "Paid"], 16)]),
+                     ("k_money", "Business Income & Expenses", "finance", [("table", "", ["Date", "Description", "In", "Out"], 18)]),
+                     ("k_launch", "Launch Planner", "goals", [("lines", "Product", 2), ("check", "Before launch", 10), ("check", "Launch day", 8)])]},
+}
+LOOKS = ("soft", "minimal", "classic", "pastel")
+
+
+def edition_of(text):
+    """Guess the edition from a title / niche text."""
+    t = (text or "").lower()
+    for ed, words in (("budget", ("budget", "finance", "money", "saving")), ("student", ("student", "college", "school", "study", "academic")),
+                      ("adhd", ("adhd", "neurodivergent")), ("wellness", ("wellness", "fitness", "health", "self care", "self-care")),
+                      ("business", ("business", "entrepreneur", "seller", "etsy shop"))):
+        if any(w in t for w in words):
+            return ed
+    return "life"
+
+
 PAPERS = ["Lined", "Dotted", "Grid", "Blank", "Cornell", "Music", "Lined", "Dotted"]
 NB_PAPERS = ["Lined", "Dotted", "Grid", "Blank"]
 NOTEBOOKS = 12
 
 
 class Planner:
-    def __init__(self, title, palette, cover_img, deco, week_start="sun", dark=False):
+    def __init__(self, title, palette, cover_img, deco, week_start="sun", dark=False, edition="life", look="soft"):
         _fonts()
         self.title = title
+        self.edition = edition if edition in EDITIONS else "life"
+        self.ed = EDITIONS[self.edition]
+        self.look = look if look in LOOKS else "soft"
+        self.templates = list(self.ed["extra"]) + TEMPLATES  # the edition's own pages come first in their section
         self.pal = (palette + [(120, 140, 120), (150, 110, 90), (90, 120, 150)])[:6]
         self.dark = dark
         if dark:
@@ -259,29 +329,75 @@ class Planner:
     def _header(self, title, sub="", col=None, deco_i=0, prev=None, nxt=None):
         col = col or self.pal[0]
         top = H - TOP_H - 12
-        self._fill(col)
-        self.c.roundRect(30, top - 74, W - TAB_W - 60, 74, 18, stroke=0, fill=1)
-        self._text(58, top - 50, title, "Serif", 36, (255, 255, 255))
+        x0, w0 = 30, W - TAB_W - 60
+        if self.look == "minimal":  # no band: big colored title + thin rule
+            self._text(42, top - 50, title, "Serif", 40, col)
+            self._stroke(col, 2)
+            self.c.line(42, top - 72, x0 + w0 - 12, top - 72)
+            tc, bc = col, col
+        elif self.look == "classic":  # square band with a double rule
+            self._fill(_mix(col, self.ink, 0.15))
+            self.c.rect(x0, top - 74, w0, 74, stroke=0, fill=1)
+            self._stroke((255, 255, 255), 1)
+            self.c.rect(x0 + 6, top - 68, w0 - 12, 62, stroke=1, fill=0)
+            self._text(58, top - 50, title.upper() if len(title) < 22 else title, "Serif", 32, (255, 255, 255))
+            tc, bc = (255, 255, 255), (255, 255, 255)
+        elif self.look == "pastel":  # soft tinted pill, dark text
+            self._fill(_mix(col, self.paper, 0.72))
+            self.c.roundRect(x0, top - 74, w0, 74, 37, stroke=0, fill=1)
+            self._text(64, top - 50, title, "Serif", 36, _mix(col, self.ink, 0.55))
+            tc, bc = _mix(col, self.ink, 0.45), col
+        else:  # soft (filled rounded band)
+            self._fill(col)
+            self.c.roundRect(x0, top - 74, w0, 74, 18, stroke=0, fill=1)
+            self._text(58, top - 50, title, "Serif", 36, (255, 255, 255))
+            tc, bc = (255, 255, 255), (255, 255, 255)
         right = W - TAB_W - 54
         if nxt:
-            self._button(right - 52, top - 56, 52, 38, "›", nxt, (255, 255, 255), False, col)
+            self._button(right - 52, top - 56, 52, 38, "›", nxt, bc, False, col)
             right -= 62
         if prev:
-            self._button(right - 52, top - 56, 52, 38, "‹", prev, (255, 255, 255), False, col)
+            self._button(right - 52, top - 56, 52, 38, "‹", prev, bc, False, col)
             right -= 62
         if sub:
-            self._text(right - 6, top - 44, sub, "SansB", 15, (255, 255, 255), "r")
+            self._text(right - 6, top - 44, sub, "SansB", 15, tc, "r")
             right -= self.c.stringWidth(sub, "SansB", 15) + 20
         self._deco(deco_i, right - 96, top - 80, 88)
         return top - 96  # content top
 
     # ---------- content helpers ----------
     def _box(self, x, y, w, h, label=None, col=None):
+        col = col or self.pal[0]
+        if self.look == "minimal":  # open layout: label + colored rule, no card
+            if label:
+                self._text(x + 4, y + h - 26, label.upper(), "SansB", 14, col)
+                self._stroke(col, 1.4)
+                self.c.line(x + 4, y + h - 36, x + w - 4, y + h - 36)
+            else:
+                self._stroke(self.line, 1)
+                self.c.rect(x, y, w, h, stroke=1, fill=0)
+            return y + h - (44 if label else 16)
+        if self.look == "classic":
+            self._fill(self.card)
+            self._stroke(_mix(self.line, self.ink, 0.35), 1.4)
+            self.c.rect(x, y, w, h, stroke=1, fill=1)
+            if label:
+                self._fill(_mix(self.card, col, 0.12))
+                self.c.rect(x, y + h - 42, w, 42, stroke=0, fill=1)
+                self.c.line(x, y + h - 42, x + w, y + h - 42)
+                self._text(x + 16, y + h - 28, label.upper(), "Serif", 15, _mix(col, self.ink, 0.35))
+            return y + h - (52 if label else 16)
+        if self.look == "pastel":
+            self._fill(_mix(col, self.card, 0.88))
+            self.c.roundRect(x, y, w, h, 22, stroke=0, fill=1)
+            if label:
+                self._text(x + 18, y + h - 32, label.upper(), "SansB", 14, _mix(col, self.ink, 0.4))
+            return y + h - (46 if label else 16)
         self._fill(self.card)
         self._stroke(self.line, 1.2)
         self.c.roundRect(x, y, w, h, 14, stroke=1, fill=1)
         if label:
-            self._text(x + 16, y + h - 32, label.upper(), "SansB", 14, col or self.pal[0])
+            self._text(x + 16, y + h - 32, label.upper(), "SansB", 14, col)
         return y + h - (46 if label else 16)
 
     def _lines(self, x, y0, y1, w, step=32):
@@ -404,7 +520,7 @@ class Planner:
         top = self._header("Index", "tap anything to jump there", self.pal[0], 0)
         groups = [("CALENDAR", [("Year at a Glance", "year")] + [(m, f"m{i}") for i, m in enumerate(MONTHS)])]
         for sec, name in (("year", "YEAR"), ("goals", "GOALS"), ("health", "HEALTH"), ("finance", "FINANCE"), ("life", "LIFE")):
-            groups.append((name, [(t[1], t[0]) for t in TEMPLATES if t[2] == sec]))
+            groups.append((name, [(t[1], t[0]) for t in self.templates if t[2] == sec]))
         groups.append(("NOTES", [("How to use", "guide"), ("All notes", "notes")] + [(f"{p} paper", f"note{k}") for k, p in enumerate(PAPERS[:6])]
                        + [(f"Notebook {n + 1}", f"nb{n}") for n in range(NOTEBOOKS)]))
         cols = len(groups)
@@ -496,7 +612,7 @@ class Planner:
         top = self._header(f"{self.days[k]}", f"{MONTHS[i].upper()} · WEEK {w + 1}", col, i + k, prev, nxt)
         self._button(W - TAB_W - 40 - 160, 44, 160, 34, "‹ back to week", f"m{i}w{w}", col)
         mid = 40 + (W - TAB_W - 80) * 0.48
-        t = self._box(40, 40, mid - 52, top - 40, "Schedule", col)
+        t = self._box(40, 40, mid - 52, top - 40, self.ed["schedule"], col)
         step = (t - 52) / 16
         for h in range(16):
             y = t - (h + 1) * step + 6
@@ -505,22 +621,34 @@ class Planner:
             self.c.line(110, y, mid - 30, y)
         x2, w2 = mid, W - TAB_W - 40 - mid
         h3 = (top - 40 - 2 * 16 - 50) / 3
+        boxes = self.ed["daily"]
         y = top - h3
-        t = self._box(x2, y, w2, h3, "Top 3", col)
-        self._check(x2 + 16, t, y + 10, w2 - 32, 3)
         y2 = y - 16 - h3
-        t = self._box(x2, y2, w2 / 2 - 8, h3, "To do", col)
-        self._check(x2 + 16, t, y2 + 10, w2 / 2 - 40, 5)
-        t = self._box(x2 + w2 / 2 + 8, y2, w2 / 2 - 8, h3, "Grateful for", col)
-        self._lines(x2 + w2 / 2 + 24, t, y2 + 8, w2 / 2 - 40)
         y3 = y2 - 16 - h3
-        t = self._box(x2, y3, w2 / 2 - 8, h3, "Water · Mood", col)
-        self._circles(x2 + 16, t, y3 + 50, w2 / 2 - 40, 8, col)
-        for j, mood in enumerate(["great", "good", "ok", "low", "bad"]):
-            self._text(x2 + 30 + j * (w2 / 2 - 40) / 5, y3 + 18, mood, "SansL", 12, self.soft, "c")
-        t = self._box(x2 + w2 / 2 + 8, y3, w2 / 2 - 8, h3, "Notes", col)
-        self._lines(x2 + w2 / 2 + 24, t, y3 + 8, w2 / 2 - 40)
+        spots = [(x2, y, w2, h3), (x2, y2, w2 / 2 - 8, h3), (x2 + w2 / 2 + 8, y2, w2 / 2 - 8, h3),
+                 (x2, y3, w2 / 2 - 8, h3), (x2 + w2 / 2 + 8, y3, w2 / 2 - 8, h3)]
+        for spec, (bx, by, bw, bh) in zip(boxes, spots):
+            self._daybox(spec, bx, by, bw, bh, col)
         self._end()
+
+    def _daybox(self, spec, x, y, w, h, col):
+        kind, label = spec[0], spec[1]
+        t = self._box(x, y, w, h, label, col)
+        if kind == "check":
+            self._check(x + 16, t, y + 10, w - 32, spec[2])
+        elif kind == "lines":
+            self._lines(x + 16, t, y + 8, w - 32)
+        else:
+            labels = {"mood": ["great", "good", "ok", "low", "bad"], "energy": ["high", "good", "ok", "low", "empty"],
+                      "nospend": ["yes", "", "no", "", "almost"]}[kind]
+            if kind == "nospend":
+                self._circles(x + 16, t, y + 50, w - 32, 3, col)
+                for j, lab in enumerate(("yes", "no", "almost")):
+                    self._text(x + 16 + (j + 0.5) * (w - 32) / 3, y + 18, lab, "SansL", 12, self.soft, "c")
+                return
+            self._circles(x + 16, t, y + 50, w - 32, 8, col)
+            for j, lab in enumerate(labels):
+                self._text(x + 30 + j * (w - 40) / 5, y + 18, lab, "SansL", 12, self.soft, "c")
 
     def habits(self, i):
         col = self.pal[i % len(self.pal)]
@@ -730,7 +858,7 @@ class Planner:
             self.reflection(i)
         order = [sec for _, sec in SECTIONS]
         seen = set()
-        for n, (key, title, section, items) in enumerate(sorted(TEMPLATES, key=lambda t: order.index(t[2]))):
+        for n, (key, title, section, items) in enumerate(sorted(self.templates, key=lambda t: order.index(t[2]))):
             self.template(key, title, section, items, n, first=section not in seen)
             seen.add(section)
         self.notes_hub()
