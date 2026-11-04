@@ -173,7 +173,12 @@ def run(keyword="", n_seeds=45, n_tags=25):
 def best(db=None, n=15, makeable=True):
     if db is None:
         db = storage.load_meta().get("niche_scan") or {}
-    rows = [v for v in db.values() if v["results"] >= MIN_RESULTS]
+    rows = []
+    for v in db.values():
+        if v["results"] >= MIN_RESULTS:
+            v = dict(v)
+            v["type"] = _type_of(v["phrase"])  # always use today's type mapping (older scans stored old types)
+            rows.append(v)
     if makeable:
         rows = [v for v in rows if v.get("type")]
     return sorted(rows, key=lambda v: -v["score"])[:n]
