@@ -50,8 +50,11 @@ def settings() -> dict:
         except Exception as e:  # never let a typo stop the bot
             print(f"[config] settings.json okunamadı: {e}")
     only = os.environ.get("ONLY_TYPE", "").strip()
-    if only and only in s.get("product_types", {}):
-        s["product_types"] = {only: s["product_types"][only]} 
+    if only:
+        # /uret <type> works for every product type the bot can make, even ones not in settings.json
+        from .products import TYPES
+        if only in TYPES:
+            s["product_types"] = {only: s.get("product_types", {}).get(only, 1)}
     return s
 
 

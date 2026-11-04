@@ -111,8 +111,8 @@ def _gemini(prompt: str, system: str, temperature: float):
                     break
                 if r.status_code == 429:
                     last = f"{model}: HTTP 429 {r.text[:200]}"
-                    if "per day" in r.text.lower() or "PerDay" in r.text:
-                        break  # daily quota of this model used up
+                    if "per day" in r.text.lower() or "PerDay" in r.text or "exceeded your current quota" in r.text.lower():
+                        break  # quota of this model used up: try the next model (each has its own quota)
                     wait = 20 * (attempt + 1)
                     print(f"[llm] {last} — {wait}s bekleniyor")
                     time.sleep(wait)
@@ -145,7 +145,7 @@ def _cloudflare(prompt: str, system: str, temperature: float):
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": temperature,
-                    "max_tokens": 4096,
+                    "max_tokens": 6000,
                 },
                 timeout=180,
             )
@@ -161,6 +161,32 @@ def _cloudflare(prompt: str, system: str, temperature: float):
     raise LLMError(f"Cloudflare LLM başarısız: {last}")
 
 
+def _pollinations(prompt: str, system: str, temperature: float):
+    """OpenAI-compatible free text API (uses POLLINATIONS_TOKEN when set)."""
+    headers = {"Content-Type": "application/json"}
+    if config.POLLINATIONS_TOKEN:
+        headers["Authorization"] = f"Bearer {config.POLLINATIONS_TOKEN}"
+    last = None
+    for model in ("openai", "openai-fast", "mistral"):
+        try:
+            r = requests.post("https://gen.pollinations.ai/v1/chat/completions", headers=headers, json={
+                "model": model,
+                "messages": [{"role": "system", "content": (system or "") + "\nReply with valid JSON only."},
+                             {"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "response_format": {"type": "json_object"},
+            }, timeout=180)
+            if r.status_code >= 400:
+                last = f"{model}: HTTP {r.status_code} {r.text[:150]}"
+                print(f"[llm] Pollinations {last}")
+                continue
+            return extract_json(r.json()["choices"][0]["message"]["content"])
+        except Exception as e:
+            last = f"{model}: {e}"
+            print(f"[llm] Pollinations {last}")
+    raise LLMError(f"Pollinations metin başarısız: {last}")
+
+
 def ask_json(prompt: str, system: str = "", temperature: float = 0.8):
     errors = []
     if config.GEMINI_API_KEY:
@@ -168,9 +194,13 @@ def ask_json(prompt: str, system: str = "", temperature: float = 0.8):
             return _gemini(prompt, system, temperature)
         except Exception as e:
             errors.append(str(e))
+    try:
+        return _pollinations(prompt, system, temperature)
+    except Exception as e:
+        errors.append(str(e))
     if config.CLOUDFLARE_ACCOUNT_ID and config.CLOUDFLARE_API_TOKEN:
         try:
             return _cloudflare(prompt, system, temperature)
         except Exception as e:
             errors.append(str(e))
-    raise LLMError("Hiçbir metin yapay zekâsı çalışmadı: " + " | ".join(errors or ["anahtar yok"]))
+    raise LLMError("Hiçbir metin yapay zekâsı çalışmadı: " + " | ".join(e[:160] for e in errors))

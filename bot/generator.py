@@ -169,7 +169,7 @@ def run(count=None, force=False):
         summary.append("Onay bekleyen ürünler yukarıda. ✅ ile onaylarsanız Etsy'de yayınlanır.")
     if images.quota_exhausted():
         summary.append("\n⛔ <b>Bugünkü ücretsiz görsel kotası doldu.</b> Kota her gün 03:00'te yenilenir; "
-                       "yarın 09:20'deki otomatik üretim normal çalışır. Ek ürünü yarın /uret ile isteyebilirsin.")
+                       "yarın 11:15'teki otomatik üretim normal çalışır. Ek ürünü yarın /uret ile isteyebilirsin.")
     elif failed:
         summary.append("\n⚠️ Başarısız denemeler:\n" + "\n".join(f"• {esc(f)}" for f in failed[:6]))
     summary.append(f"\n🖼 Görsel: Cloudflare {images.stats['cloudflare']}, Pollinations {images.stats['pollinations']}, hata {images.stats['failed']}")

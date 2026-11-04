@@ -187,6 +187,20 @@ def title_problems(title: str) -> list:
     return probs
 
 
+def fix_title(title: str) -> str:
+    """Drop repeated words and extra separators, cut to 12 words."""
+    seen, out = set(), []
+    for w in (title or "").replace("|", ",").split():
+        key = w.strip(",-").lower()
+        if len(key) > 3 and key in seen:
+            continue
+        seen.add(key)
+        out.append(w)
+    t = " ".join(out[:12]).strip(" ,-")
+    first, _, rest = t.partition(",")
+    return first + ("," + rest.replace(",", "") if rest else "")
+
+
 SPEC_COMMON = """
   "title": "TITLE_RULE",
   "intro": "2 short persuasive paragraphs (English). The FIRST sentence must contain the main search phrase naturally (Google shows it). Describe the style, the feeling, who it is for and how they will use it (gift, decor, crafts); no file details, no emojis, no trademarks",
@@ -249,7 +263,7 @@ def product_spec(idea: dict) -> dict:
     prompt = f"""Create a complete Etsy digital product listing plan.
 Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
-CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'planner', the title must contain "Digital Planner" and "Undated" and the theme, e.g. "Honey Bee Digital Planner, Undated iPad Planner with Stickers"; never name planner apps or brands. If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
+CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'planner', the title must contain "Digital Planner" and "Undated" and the theme, e.g. "Honey Bee Digital Planner, Undated iPad and Android Journal with Stickers"; never name planner apps or brands. If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
 Main search phrase: {idea.get('search_query', '')}
 Buyer words for this product type (use the fitting ones in title/tags): {TYPE_WORDS.get(ptype, '')}
 The title must START with the main search phrase (or a very close natural wording of it), then add the most important second keyword.
@@ -266,6 +280,10 @@ Return JSON with these fields:
     for attempt in range(3):
         spec = llm.ask_json(prompt, temperature=0.9)
         problems = _validate(spec, ptype)
+        if problems and attempt == 2 and spec.get("title"):
+            # last try: small title problems are fixed by us instead of throwing the product away
+            spec["title"] = fix_title(spec["title"])
+            problems = _validate(spec, ptype)
         if not problems:
             if ptype != "coloring" and theme.style()[:30].lower() not in str(spec.get("style", "")).lower():
                 spec["style"] = f"{theme.style()}, {str(spec.get('style', ''))[:80]}".strip(", ")

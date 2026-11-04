@@ -10,7 +10,7 @@ from .telegram import esc
 HELP = """🤖 <b>Etsy Bot komutları</b>
 /durum – ürün sayıları ve Etsy bağlantısı
 /bekleyen – onay bekleyen ürünleri tekrar gönder
-/uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün)
+/uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün; tür seçmek için: /uret junk, planner, coloring, wallpaper, wall_art, scenes, clipart)
 /nis – Etsy verisiyle niş taraması (/nis frog → tek konuyu derin tara)
 /kapak – eski ilanın kapağını yeni tasarımla yenile (/kapak &lt;id&gt; veya /kapak hepsi)
 /etsy – Etsy mağazanı bağla / yeniden bağla
@@ -206,7 +206,8 @@ def _handle_message(m, meta):
     elif cmd == "/uret":
         try:
             a = arg.strip().lower()
-            kinds = {"wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "planner": "planner", "planlayici": "planner", "ajanda": "planner"}
+            kinds = {"wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "planner": "planner", "planlayici": "planner", "ajanda": "planner",
+                     "pattern": "pattern", "kagit": "pattern", "tumbler": "tumbler"}
             only = kinds.get(a)
             n = int(a) if a.isdigit() else 1
             _dispatch_generate(n, only)
@@ -296,12 +297,12 @@ def _handle_message(m, meta):
     return changed
 
 
-DAILY_AT = (9, 20)  # local time the daily production starts
+DAILY_AT = (11, 15)  # local time the daily production starts (after the free Gemini quota resets, ~11:00 TR)
 
 
 def _maybe_start_daily():
     """GitHub's own cron is unreliable, so the always-running listener starts the
-    daily production itself once per day after 09:20 (Turkey time)."""
+    daily production itself once per day after DAILY_AT (Turkey time)."""
     import datetime as dt
     from zoneinfo import ZoneInfo
     now = dt.datetime.now(ZoneInfo(config.settings()["timezone"]))
