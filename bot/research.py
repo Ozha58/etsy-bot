@@ -248,7 +248,7 @@ Return JSON with these fields:
     raise RuntimeError(f"Ürün planı oluşturulamadı: {problems}")
 
 
-_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 10),"wall_art": ("prints", 3), "coloring": ("pages", 8), "clipart": ("elements", 12), "pattern": ("papers", 10), "tumbler": ("designs", 2)}
+_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 10),"wall_art": ("prints", 3), "coloring": ("pages", 8), "clipart": ("elements", 15), "pattern": ("papers", 10), "tumbler": ("designs", 2)}
 
 
 def _validate(spec, ptype):

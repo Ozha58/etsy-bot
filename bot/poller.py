@@ -11,6 +11,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b>
 /durum – ürün sayıları ve Etsy bağlantısı
 /bekleyen – onay bekleyen ürünleri tekrar gönder
 /uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün)
+/nis – Etsy verisiyle niş taraması (/nis frog → tek konuyu derin tara)
 /etsy – Etsy mağazanı bağla / yeniden bağla
 /pinterest – Pinterest hesabını bağla (otomatik pin)
 /kod &lt;adres&gt; – Etsy/Pinterest onayından sonra çıkan adresi gönder
@@ -275,6 +276,13 @@ def _handle_message(m, meta):
             telegram.send("📌 Yeni haftanın pin listesi hazırlanıyor (~5 dk).")
         except Exception as e:
             telegram.send(f"⚠️ Başlatılamadı: <code>{esc(str(e))}</code>")
+    elif cmd == "/nis":
+        try:
+            _dispatch("nis-tarama.yml", {"keyword": arg.strip()[:40]})
+            telegram.send("🔭 Niş taraması başladı" + (f" (<b>{esc(arg.strip())}</b>)" if arg.strip() else "")
+                          + ". Etsy'de ~70 arama yapılacak, rapor 3-5 dk içinde burada.")
+        except Exception as e:
+            telegram.send(f"⚠️ Tarama başlatılamadı: <code>{esc(str(e))}</code>")
     elif cmd == "/panel":
         telegram.send(f"🌐 Panel: {config.pages_url() or 'henüz yok'}")
     return changed

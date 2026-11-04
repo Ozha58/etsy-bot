@@ -117,6 +117,14 @@ def cmd_pinweek(a):
         storage.commit_and_push("Haftalık Pinterest pinleri", extra_paths=("panel/pins",))
 
 
+def cmd_scan(a):
+    from . import niche_scan
+    try:
+        niche_scan.run(a.keyword)
+    finally:
+        storage.commit_and_push("Niş taraması")
+
+
 def cmd_inspect(a):
     from . import inspect_files
     inspect_files.run(a.query)
@@ -142,18 +150,20 @@ def main(argv=None):
     pw.add_argument("--fresh", action="store_true")
     ins = sub.add_parser("inspect")
     ins.add_argument("query")
+    sc = sub.add_parser("scan")
+    sc.add_argument("--keyword", default="")
     r = sub.add_parser("retitle")
     r.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     fn = {"generate": cmd_generate, "poll": cmd_poll, "etsy-connect": cmd_etsy_connect, "selftest": cmd_selftest,
           "panel": cmd_panel, "import-abacus": cmd_import_abacus,
           "retitle": cmd_retitle, "pinweek": cmd_pinweek,
-          "inspect": cmd_inspect}[a.cmd]
+          "inspect": cmd_inspect, "scan": cmd_scan}[a.cmd]
     try:
         fn(a)
     except Exception as e:
         traceback.print_exc()
-        if a.cmd in ("generate", "etsy-connect", "import-abacus", "retitle", "pinweek"):
+        if a.cmd in ("generate", "etsy-connect", "import-abacus", "retitle", "pinweek", "scan"):
             try:
                 telegram.send(f"⚠️ <b>{a.cmd}</b> hata verdi: <code>{esc(str(e)[:600])}</code>\n{config.GITHUB_RUN_URL}")
             except Exception:
