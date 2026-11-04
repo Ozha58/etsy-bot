@@ -136,11 +136,23 @@ def _hashtags(p, n=10):
     return out[:n]
 
 
+def good_tags(p):
+    """Etsy tags without the ones cut at Etsy's 20-character limit (e.g. 'santa sleigh colorin')."""
+    out = []
+    for t in p.get("tags", []):
+        t = (t or "").strip()
+        if t and len(t) < 20 and t.lower() not in (x.lower() for x in out):
+            out.append(t)
+    return out
+
+
 def texts(p, link):
     main, sub = _split_title(p["title"])
     intro = re.split(r"(?<=[.!?])\s", (p.get("spec", {}).get("intro") or "").strip())[0][:240]
-    kw = ", ".join(t for t in p.get("tags", [])[:8])
+    kw = ", ".join(good_tags(p)[:8])
     tail = f" More designs on TikTok & Instagram {HANDLE}"
+    if main and main.lower()[:25] not in intro.lower():
+        intro = f"{main}. {intro}".strip()
     pin_desc = (f"{intro} Instant digital download from {SHOP_NAME} on Etsy. {kw}"[:480 - len(tail)].rstrip(", ") + "." + tail).strip()
     caption = "\n".join([
         f"{HOOKS.get(p['type'], 'New in the shop')} ✨",

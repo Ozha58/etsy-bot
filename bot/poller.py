@@ -17,8 +17,8 @@ HELP = """🤖 <b>Etsy Bot komutları</b>
 /pinterest – Pinterest hesabını bağla (otomatik pin)
 /kod &lt;adres&gt; – Etsy/Pinterest onayından sonra çıkan adresi gönder
 /sosyal – son yayınlanan ürün için Pinterest pini + video (/sosyal 3 → son 3 ürün, /sosyal &lt;id&gt; → o ürün)
-/pin – sıradaki 3 Pinterest pinini hemen gönder (her gün 17:00'de otomatik)
-/pinler – yeni haftanın pin listesini hazırla (her pazartesi otomatik)
+/pin – sıradaki 3 pini elle paylaşmak için buraya gönder (normalde her gün 5 pin kendiliğinden Pinterest'e gider)
+/pinler – yeni haftanın pin listesini hemen hazırla (her pazartesi otomatik, 35 pin)
 /panel – web panel adresi
 /yardim – bu mesaj"""
 
@@ -378,27 +378,20 @@ def _maybe_fix_listings():
     return True
 
 
-PINS_AT = 17  # local hour the day's ready-to-post pins are sent
-
-
-def _maybe_send_pins():
-    import datetime as dt
-    from zoneinfo import ZoneInfo
-    now = dt.datetime.now(ZoneInfo(config.settings()["timezone"]))
-    if now.hour < PINS_AT:
-        return False
-    today = now.date().isoformat()
-    meta = storage.load_meta()
-    if meta.get("pins_sent_day") == today:
-        return False
-    meta["pins_sent_day"] = today
-    storage.save_meta(meta)
+def _maybe_release_pins():
+    """Pinterest autopilot: put the pins whose time has come into the RSS feeds (IFTTT posts them)."""
     try:
         from . import pinweek
-        pinweek.send_daily()
+        rel = pinweek.release_due()
     except Exception as e:
-        print(f"[poll] günlük pinler gönderilemedi: {e}", flush=True)
-    return True
+        print(f"[poll] pinler yayınlanamadı: {e}", flush=True)
+        return False
+    if rel:
+        try:
+            telegram.send("📌 Pinterest'e gönderildi: " + "; ".join(esc(r["Title"][:60]) for r in rel))
+        except Exception:
+            pass
+    return bool(rel)
 
 
 def run(loop_seconds=0):
@@ -412,9 +405,9 @@ def run(loop_seconds=0):
                 any_change = True
             if _maybe_start_pinweek():
                 any_change = True
-            if _maybe_send_pins():
+            if _maybe_release_pins():
                 any_change = True
-                storage.commit_and_push("Günlük üretim başlatıldı")
+                storage.commit_and_push("Pinterest pinleri", extra_paths=("panel/pins",))
             if _maybe_fix_listings():
                 any_change = True
                 storage.commit_and_push("İlan kategorileri onarıldı")

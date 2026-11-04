@@ -1,9 +1,12 @@
-"""Weekly Pinterest bulk-upload file (no Pinterest API approval needed).
+"""Pinterest on autopilot (no Pinterest API approval needed).
 
-Every week the bot picks published products, draws a 2:3 pin image for each, hosts the images on
-the GitHub Pages site (panel/pins/) and writes Pinterest's bulk-create CSV with a publish date per
-pin, spread over the coming week. The owner uploads the CSV once in Pinterest (Create > Bulk create
-Pins) and the pins go out by themselves during the week."""
+Every Monday the bot picks published products (planners and journals first), draws a fresh 2:3 pin
+image for each and schedules 5 pins a day over the week (latest.csv). During the week the listener
+releases each pin at its time into two RSS feeds on the GitHub Pages site:
+  pins/feed-planner.xml  -> board "Digital Planners & Stickers"
+  pins/feed-shop.xml     -> board "Printables & Junk Journals"
+A free IFTTT applet per feed ("RSS new item -> Pinterest create pin") posts them to Pinterest.
+If the Pinterest API is connected with Standard access, pins are created directly instead."""
 import csv
 import datetime as dt
 import io
@@ -19,7 +22,12 @@ from .telegram import esc
 PINS_DIR = config.ROOT / "panel" / "pins"
 HEADERS = ["Title", "Media URL", "Pinterest board", "Thumbnail", "Description", "Link", "Publish date", "Keywords"]
 # good times for US buyers, in UTC: 14:00 (morning US), 19:00 (afternoon), 01:00 (evening)
-SLOTS_UTC = [(14, 0), (19, 0), (1, 0)]
+SLOTS_UTC = [(13, 0), (16, 0), (19, 0), (22, 0), (1, 0)]
+PINS_PER_WEEK = 35
+WEIGHT = {"planner": 3, "junk_journal": 2}  # planners sell best on Pinterest: more turns
+FEEDS = {"planner": ("feed-planner.xml", "Sebasteia Digital Planners", "Digital Planners & Stickers"),
+         "shop": ("feed-shop.xml", "Sebasteia Printables", "Printables & Junk Journals")}
+FEED_KEEP = 40
 KEEP_DAYS = 30
 
 
@@ -28,12 +36,20 @@ def _slug(text, n=40):
 
 
 def pick_products(n: int) -> list:
-    """Published products, least-pinned and newest first, so every product gets turns."""
+    """Published products for n pins: least-pinned first, newest first, planners and junk journals get more turns.
+    Never the same product twice in a row."""
     pub = [p for p in storage.all_products() if p["status"] == "published" and p.get("etsy", {}).get("url")]
-    pub.sort(key=lambda p: (len(p.get("pin_history", [])), -p.get("etsy", {}).get("published_at", 0)))
+    if not pub:
+        return []
+    pub.sort(key=lambda p: -p.get("etsy", {}).get("published_at", 0))
+    count = {p["id"]: len(p.get("pin_history", [])) for p in pub}
     out = []
-    while pub and len(out) < n:
-        out += pub[: n - len(out)]  # if there are fewer products than pins, products repeat (other image)
+    while len(out) < n:
+        last = out[-1]["id"] if out else None
+        cand = [p for p in pub if p["id"] != last] or pub
+        best = min(cand, key=lambda p: count[p["id"]] / WEIGHT.get(p["type"], 1))
+        count[best["id"]] += 1
+        out.append(best)
     return out
 
 
@@ -90,7 +106,7 @@ def build(n_pins=None, fresh=False):
             if p.get("pin_history"):
                 p["pin_history"] = [d for d in p["pin_history"] if d < first]
                 storage.save_product(p)
-    n = int(n_pins or s.get("pins_per_week", 21))
+    n = int(n_pins or max(int(s.get("pins_per_week", PINS_PER_WEEK)), PINS_PER_WEEK))
     products = pick_products(n)
     if not products:
         raise RuntimeError("Henüz yayınlanmış ürün yok, pin dosyası oluşturulamadı.")
@@ -113,12 +129,12 @@ def build(n_pins=None, fresh=False):
         rows.append({
             "Title": texts["pin_title"],
             "Media URL": base + fname,
-            "Pinterest board": BOARDS.get(p["type"], "Printable Wall Art"),
+            "Pinterest board": FEEDS["planner" if p["type"] == "planner" else "shop"][2],
             "Thumbnail": "",
             "Description": texts["pin_desc"],
             "Link": p["etsy"]["url"],
             "Publish date": when.strftime("%Y-%m-%dT%H:%M:%S"),
-            "Keywords": ", ".join(p.get("tags", [])[:10]),
+            "Keywords": ", ".join(social.good_tags(p)[:10]),
         })
         p.setdefault("pin_history", []).append(when.strftime("%Y-%m-%d"))
         storage.save_product(p)
@@ -133,18 +149,108 @@ def build(n_pins=None, fresh=False):
     meta["pinweek"] = {"week": week, "rows": len(rows), "first": rows[0]["Publish date"], "last": rows[-1]["Publish date"]}
     storage.save_meta(meta)
     (PINS_DIR / "latest.csv").write_bytes(csv_bytes)
+    write_feeds()
     return rows, csv_bytes, previews
 
 
 def notify():
-    """After a new week's pins are built: short note (pins arrive in Telegram 3 a day)."""
+    """After a new week's pins are built: short note."""
     meta = storage.load_meta()
     pw = meta.get("pinweek", {})
     meta["pin_cursor"] = 0
     storage.save_meta(meta)
     telegram.send(f"📌 <b>Bu haftanın {pw.get('rows', '?')} Pinterest pini hazır.</b>\n"
-                  "Her gün 17:00'de 3 tanesi buraya hazır gelecek: görseli kaydet, başlık/açıklama/linki yapıştır, "
-                  "panoyu seç, yayınla. Hemen istersen /pin yaz.")
+                  "Her gün 5 tanesi saatinde kendiliğinden Pinterest'e gidecek (ABD saatine göre en iyi saatler).")
+
+
+# ---------------------------------------------------------------- autopilot: release pins into RSS feeds
+
+def _rfc822(ts):
+    import email.utils
+    return email.utils.formatdate(ts, usegmt=True)
+
+
+def _x(t):
+    import html
+    return html.escape(str(t or ""), quote=True)
+
+
+def write_feeds():
+    """Write both RSS feeds from meta['pin_feed'] (always valid, even when empty)."""
+    PINS_DIR.mkdir(parents=True, exist_ok=True)
+    items = storage.load_meta().get("pin_feed", [])
+    site = config.pages_url()
+    for key, (fname, title, board) in FEEDS.items():
+        mine = [i for i in items if i.get("feed") == key][-FEED_KEEP:][::-1]
+        out = ['<?xml version="1.0" encoding="UTF-8"?>',
+               '<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">',
+               "<channel>", f"<title>{_x(title)}</title>", "<link>https://www.etsy.com/shop/Sebasteia</link>",
+               f"<description>{_x(board)} - instant digital downloads from Sebasteia on Etsy</description>",
+               f'<atom:link href="{_x(site + "pins/" + fname)}" rel="self" type="application/rss+xml"/>',
+               f"<lastBuildDate>{_rfc822(time.time())}</lastBuildDate>"]
+        for i in mine:
+            out += ["<item>", f"<title>{_x(i['title'])}</title>", f"<link>{_x(i['link'])}</link>",
+                    f"<description>{_x(i['desc'])}</description>",
+                    f'<guid isPermaLink="false">{_x(i["image"])}</guid>', f"<pubDate>{_rfc822(i['at'])}</pubDate>",
+                    f'<enclosure url="{_x(i["image"])}" type="image/jpeg" length="{int(i.get("size", 200000))}"/>',
+                    f'<media:content url="{_x(i["image"])}" medium="image" type="image/jpeg" width="1000" height="1500"/>',
+                    f'<media:thumbnail url="{_x(i["image"])}"/>', "</item>"]
+        out += ["</channel>", "</rss>"]
+        (PINS_DIR / fname).write_text("\n".join(out), encoding="utf-8")
+
+
+def release_due(max_late_hours=6):
+    """Release every scheduled pin whose time has come (once). Returns the released rows."""
+    f = PINS_DIR / "latest.csv"
+    if not f.exists():
+        return []
+    rows = list(csv.DictReader(io.StringIO(f.read_text(encoding="utf-8"))))
+    meta = storage.load_meta()
+    done = set(meta.get("pins_released", []))
+    now = dt.datetime.utcnow()
+    due, skipped = [], []
+    for r in rows:
+        if r["Media URL"] in done:
+            continue
+        try:
+            when = dt.datetime.fromisoformat(r["Publish date"])
+        except Exception:
+            continue
+        if when > now:
+            continue
+        (skipped if now - when > dt.timedelta(hours=max_late_hours) else due).append(r)
+    if not due and not skipped:
+        return []
+    api = False
+    try:
+        from . import pinterest
+        api = pinterest.configured() and pinterest.connected() and storage.load_meta().get("pinterest_standard")
+    except Exception:
+        pass
+    feed = meta.get("pin_feed", [])
+    for r in due:
+        key = "planner" if r["Pinterest board"] == FEEDS["planner"][2] else "shop"
+        img = PINS_DIR / r["Media URL"].rsplit("/", 1)[-1]
+        sent = False
+        if api and img.exists():
+            try:
+                from . import pinterest
+                pinterest.create_pin("planner" if key == "planner" else "shop", img.read_bytes(), r["Title"],
+                                     r["Description"], r["Link"], r["Title"])
+                sent = True
+            except Exception as e:
+                print(f"[pins] API ile pinlenemedi, RSS'e eklendi: {e}")
+        if not sent:
+            feed.append({"feed": key, "title": r["Title"][:100], "desc": r["Description"][:800], "link": r["Link"],
+                         "image": r["Media URL"], "at": int(time.time()),
+                         "size": img.stat().st_size if img.exists() else 200000})
+    meta = storage.load_meta()
+    meta["pin_feed"] = feed[-2 * FEED_KEEP:]
+    meta["pins_released"] = (meta.get("pins_released", []) + [r["Media URL"] for r in due + skipped])[-400:]
+    meta["pins_released_total"] = int(meta.get("pins_released_total", 0)) + len(due)
+    storage.save_meta(meta)
+    write_feeds()
+    return due
 
 
 def send_daily(n=3):
