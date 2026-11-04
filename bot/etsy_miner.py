@@ -113,7 +113,7 @@ def find(n=4, used=(), today=None, seeds=3, probe=10) -> list:
             continue
         ptype = _type_of(phrase, allowed) or random.choice(allowed)
         ideas.append({
-            "type": ptype, "niche": f"{phrase} in vintage storybook style", "search_query": phrase,
+            "type": ptype, "niche": f"{phrase}, realistic detailed style", "search_query": phrase,
             "source": "etsy",
             "why": (f"Etsy'den bulundu: {tag_hits[phrase]} rakip ilanın etiketinde geçiyor; "
                     f"{m['etsy_results']:,} sonuç, ortanca {int(m['etsy_median_favs'])} favori"),

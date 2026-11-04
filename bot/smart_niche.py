@@ -2,7 +2,7 @@
 
 The AI invents very specific micro-niches (new idea), then we keep the old data-driven checks:
   - product types and weights come from settings.json (and ONLY_TYPE for /uret wallpaper)
-  - every idea stays inside the shop theme (theme.py): vintage storybook snowy forest / winter animals,
+  - every idea stays inside the shop theme (theme.py): one subject per product, realistic detailed style,
     with a seasonal angle (Christmas share in season: settings.json "christmas_share", default 0.7)
   - niches used in the last days are not repeated
   - every idea is scored with Etsy's public search (demand = favorites, competition = number of results)
@@ -139,7 +139,7 @@ def find_trending_niches(count=1):
             ph = v["phrase"]
             if v.get("type") not in allowed or ph in seen or ph in [u.lower() for u in used] or _too_similar(ph, used):
                 continue
-            ideas.append({"type": v["type"], "niche": f"{ph} in vintage storybook style", "search_query": ph, "source": "scan",
+            ideas.append({"type": v["type"], "niche": f"{ph}, realistic detailed style", "search_query": ph, "source": "scan",
                           "why": (f"Niş taramasından: {v['results']:,} ilan, ortanca {int(v['favs'])} favori, "
                                   f"ilk 25'te %{int(v['fresh'] * 100)} yeni ilan"),
                           "etsy_results": v["results"], "etsy_median_favs": v["favs"], "etsy_median_price": v.get("price"),
@@ -172,10 +172,10 @@ def find_trending_niches(count=1):
 
     # nothing usable from the AI: on-theme fallback so the day is never empty
     backups = [
-        "vintage storybook reindeer in a snowy pine forest",
-        "vintage storybook winter woodland animals fox deer owl in snow",
-        "vintage storybook snowy cottage village in the forest",
-        "vintage storybook forest animals around a Christmas tree",
+        "realistic honey bees and beehives",
+        "realistic lighthouse by the sea",
+        "realistic forest mushrooms",
+        "realistic garden birds",
     ]
     types = _weighted_types(count + 4)
     j = 0

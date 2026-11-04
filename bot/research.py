@@ -228,7 +228,7 @@ def product_spec(idea: dict) -> dict:
     prompt = f"""Create a complete Etsy digital product listing plan.
 Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
-CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Vintage Ephemera".
+CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
 Main search phrase: {idea.get('search_query', '')}
 Buyer words for this product type (use the fitting ones in title/tags): {TYPE_WORDS.get(ptype, '')}
 The title must START with the main search phrase (or a very close natural wording of it), then add the most important second keyword.
@@ -246,7 +246,7 @@ Return JSON with these fields:
         spec = llm.ask_json(prompt, temperature=0.9)
         problems = _validate(spec, ptype)
         if not problems:
-            if ptype != "coloring" and "storybook" not in str(spec.get("style", "")).lower():
+            if ptype != "coloring" and theme.style()[:30].lower() not in str(spec.get("style", "")).lower():
                 spec["style"] = f"{theme.style()}, {str(spec.get('style', ''))[:80]}".strip(", ")
             spec["price_usd"] = market_price(idea, lo, hi, float(spec["price_usd"]))
             tags = [t[:20].strip() for t in spec["tags"] if not is_banned(t)]

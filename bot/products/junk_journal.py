@@ -16,9 +16,10 @@ SPEC_FIELDS = """
   "objects": [ exactly 8 objects {"name": "short name", "prompt": "English prompt for ONE single isolated object about the subject (e.g. 'a vintage honey jar with a wooden dipper'). One object only, no text."} ]
 """
 
-SCENE_SUFFIX = ("antique vintage book illustration, aged print, detailed, full composition, "
+SCENE_SUFFIX = ("highly detailed realistic illustration, natural colors, full composition, "
                 "no text, no letters, no words, no numbers, no watermark, no border, no frame")
-OBJECT_SUFFIX = ("single isolated vintage illustration of one object, centered with empty space around it, "
+OBJECT_SUFFIX = ("single isolated highly detailed realistic illustration of one object, true-to-life textures and colors, "
+                 "centered with empty space around it, "
                  "pure plain white background, no shadow, no ground, no text, no letters, no border, no frame")
 
 

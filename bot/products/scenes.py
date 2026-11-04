@@ -15,8 +15,7 @@ SPEC_FIELDS = """
   "elements": [ exactly 15 objects {"name": "short scene name", "prompt": "English prompt describing ONE complete illustrated scene with the main subject, setting and mood"} ]
 """
 
-STYLE = ("vintage painterly illustration, detailed digital painting with soft brush texture, "
-         "warm muted palette, cinematic soft light")
+STYLE = "highly detailed realistic illustration, true-to-life colors, soft natural light"
 SUFFIX = ("full scene, nicely composed, main subject clearly visible, square composition, no text, no letters, "
           "no watermark, no logo, no border, no frame")
 

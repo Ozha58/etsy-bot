@@ -11,7 +11,7 @@ SPEC_FIELDS = """
   "elements": [ exactly 10 objects {"name": "short wallpaper name", "prompt": "English prompt describing ONE vertical phone wallpaper scene with a clear main subject in the center (e.g. 'Santa Claus with his reindeer and sleigh on a snowy hill under a starry sky')"} ]
 """
 
-STYLE = "vintage painterly illustration, soft brush texture, warm muted palette, cozy cinematic light"  # used when the plan has no style
+STYLE = "highly detailed realistic illustration, true-to-life colors, soft natural light"  # used when the plan has no style
 LAYOUT = ("vertical composition for a phone wallpaper, main subject centered, "
           "calm uncluttered area at the top for the clock")
 SUFFIX = ("full scene, nicely composed, no text, no letters, no watermark, no logo, no border, no frame, no phone, no device")

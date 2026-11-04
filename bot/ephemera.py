@@ -8,7 +8,17 @@ import random
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
+from . import config
+
 PAPER = (236, 224, 198)
+CLEAN_PAPER = (250, 247, 241)
+
+
+def vintage():
+    try:
+        return bool(config.settings().get("vintage_look", False))
+    except Exception:
+        return False
 INK = (92, 64, 40)
 SEPIA = (112, 78, 46)
 
@@ -22,13 +32,19 @@ def _noise(w, h, scale, rnd):
 
 def aged_paper(w, h, tint=PAPER, seed=1, stains=True):
     rnd = random.Random(seed)
+    if not vintage():
+        if tint == PAPER:
+            tint = CLEAN_PAPER
+        stains = False
     base = np.ones((h, w, 3), np.float32) * np.array(tint, np.float32)
     blot = _noise(w, h, max(60, w // 6), rnd) - 0.5
     grain = np.random.default_rng(seed).normal(0, 1, (h, w)).astype(np.float32)
     shade = blot * 14 + grain * 4
+    if not vintage():
+        shade = blot * 5 + grain * 2
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     vig = np.sqrt(((xx - w / 2) / (w * 0.62)) ** 2 + ((yy - h / 2) / (h * 0.62)) ** 2)
-    shade -= np.clip(vig - 0.55, 0, 1) * 70
+    shade -= np.clip(vig - 0.55, 0, 1) * (70 if vintage() else 18)
     arr = base + shade[..., None] * np.array([1.0, 0.92, 0.78], np.float32)
     img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
     if stains:
@@ -70,6 +86,8 @@ def deckle_mask(w, h, depth=None, seed=1):
 def sepia_print(img, amount=0.35):
     """Make an AI illustration look like an old print: warm, slightly faded, fine grain."""
     rgb = img.convert("RGB")
+    if not vintage():
+        return rgb
     g = ImageOps.grayscale(rgb)
     sep = ImageOps.colorize(g, (60, 40, 25), (250, 238, 210))
     out = Image.blend(rgb, sep, amount)

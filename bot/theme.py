@@ -1,4 +1,4 @@
-"""Shop focus: Sebasteia = vintage storybook snowy forest, Christmas and winter animal art.
+"""Shop focus: Sebasteia = realistic, detailed printables about one charming subject each.
 
 Every new product stays inside this theme; the seasonal angle changes through the year so the
 shop always has something buyers are shopping for (they shop 3-8 weeks ahead).
@@ -9,12 +9,12 @@ import random
 
 from . import config
 
-SHOP_THEME = ("vintage storybook printables, each product about ONE charming subject "
+SHOP_THEME = ("realistic, detailed printables, each product about ONE charming subject "
               "(honey bees, lighthouses and the seaside, mushrooms, unicorns, dogs, birds, botanicals, cottages, "
-              "tea time, butterflies, woodland animals), aged antique paper look")
+              "tea time, butterflies, woodland animals)")
 
-HOUSE_STYLE = ("vintage storybook illustration, soft gouache and watercolor texture, fine detailed brushwork, "
-               "warm muted palette of forest green, deep red, cream and soft gold, gentle cozy light")
+HOUSE_STYLE = ("highly detailed realistic illustration, true-to-life colors and textures, fine detail, "
+               "soft natural light, crisp and clean, high quality")
 
 SUBJECTS = [
     "honey bees and beehives", "lighthouse by the sea", "seaside and shells", "mushrooms in the forest", "unicorns",
@@ -32,7 +32,7 @@ ANGLES = [
     ((1, 1), "cozy deep winter in the snowy forest, no Christmas items"),
     ((1, 25), "late winter forest, woodland animal couples with little red hearts for Valentine's Day"),
     ((2, 20), "first spring in the forest: bunnies, birds, melting snow, early blossoms, Easter"),
-    ((5, 1), "summer forest and meadow animals in the same storybook style"),
+    ((5, 1), "summer forest and meadow animals"),
     ((8, 15), "autumn woodland: foxes, owls, falling leaves, mushrooms, cute cozy Halloween (never scary)"),
     ((10, 25), "Christmas in the snowy forest"),
     ((12, 31), "cozy deep winter in the snowy forest, no Christmas items"),
