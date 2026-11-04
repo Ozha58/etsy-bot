@@ -115,6 +115,41 @@ def _art_from_pdf(pdf_bytes):
     return best
 
 
+REBUILD_LOOKS = [  # (name, palette, tag) calm, animal-free looks for rebuilt planners
+    ("Neutral Boho", [(150, 110, 90), (176, 152, 110), (124, 150, 120)], "boho planner"),
+    ("Sage Green", [(124, 150, 120), (176, 160, 130), (150, 130, 120)], "sage green planner"),
+    ("Minimal Beige", [(170, 150, 125), (140, 130, 120), (200, 180, 150)], "minimalist planner"),
+    ("Terracotta", [(186, 110, 80), (200, 160, 120), (140, 120, 100)], "terracotta planner"),
+    ("Dusty Rose", [(190, 130, 130), (200, 170, 150), (150, 130, 140)], "pink planner"),
+]
+ED_COPY = {  # edition -> (heading, rest of title, edition tags, intro)
+    "life": ("Digital Planner", "Undated Hyperlinked iPad and Android Life Planner with Stickers",
+             ["life planner", "daily planner", "weekly planner", "aesthetic planner"],
+             "Plan your whole life in one calm, beautiful place. This undated digital planner is fully hyperlinked, so every "
+             "tab, month, week and day is one tap away. Use it on your iPad or Android tablet with any PDF note-taking app."),
+    "budget": ("Budget Planner", "Undated Digital Finance Planner for iPad and Android with Savings and Bill Trackers",
+               ["budget planner", "finance planner", "savings tracker", "bill tracker", "money planner"],
+               "Take control of your money with a calm, beautiful budget planner. Track spending, bills, savings and debt "
+               "every day, plan each paycheck and watch your savings grow, all fully hyperlinked on your iPad or Android tablet."),
+    "student": ("Student Planner", "Undated Digital Academic Planner for iPad and Android with Assignment Tracker",
+                ["student planner", "academic planner", "college planner", "study planner", "assignment tracker"],
+                "Stay on top of classes, assignments and exams with a calm, beautiful student planner. Plan every semester, "
+                "week and study session, all fully hyperlinked on your iPad or Android tablet."),
+    "adhd": ("ADHD Planner", "Undated Digital Planner for Focus, Routines and Brain Dumps, iPad and Android",
+             ["adhd planner", "adhd digital planner", "routine planner", "focus planner", "brain dump"],
+             "A calm, simple planner made for ADHD brains: just three things a day, a brain dump on every page, routines, "
+             "a dopamine menu and focus logs, all fully hyperlinked on your iPad or Android tablet."),
+    "wellness": ("Wellness Planner", "Undated Digital Health and Fitness Planner for iPad and Android",
+                 ["wellness planner", "health planner", "fitness planner", "self care planner", "meal planner"],
+                 "Look after your body and mind with a calm, beautiful wellness planner. Plan meals, workouts, water, sleep "
+                 "and self-care every day, all fully hyperlinked on your iPad or Android tablet."),
+    "business": ("Business Planner", "Undated Digital Small Business Planner for iPad and Android with Order Tracker",
+                 ["business planner", "small business", "content planner", "order tracker", "entrepreneur"],
+                 "Run your small business from one calm, beautiful planner. Track orders, clients, content and income every "
+                 "day, plan launches and goals, all fully hyperlinked on your iPad or Android tablet."),
+}
+
+
 def rebuild_planner(p):
     """Rebuild an old planner listing with today's planner (750+ pages, new photos, no watermark) from its own art."""
     from . import generator, research
@@ -135,21 +170,24 @@ def rebuild_planner(p):
                 objs.append(Image.open(io.BytesIO(z.read(n))).convert("RGBA"))
     if not pdf:
         raise RuntimeError("planlayıcı PDF'i bulunamadı")
-    # old planners were made around an animal: drop that art and those stickers, use a calm neutral-boho look instead
+    # old planners were made around an animal: drop that art and those stickers. Every rebuilt planner gets an
+    # edition and a color look not used yet in the shop, so two rebuilt listings are never the same product.
     spec = dict(p.get("spec", {}))
-    pal = [PL.hex2rgb(c) for c in spec.get("palette", [])][:4] or [(150, 110, 90), (176, 152, 110), (124, 150, 120)]
-    art = PL.boho_art(pal)
+    others = [q.get("spec", {}) for q in storage.all_products() if q.get("type") == "planner" and q["id"] != p["id"]]
+    used_ed = [o.get("edition", "life") for o in others]
+    edition = min(ED_COPY, key=lambda e: (used_ed.count(e), list(ED_COPY).index(e)))
+    used_names = [o.get("planner_name", "") for o in others]
+    aname, pal, ltag = min(REBUILD_LOOKS, key=lambda l: (sum(n.startswith(l[0]) for n in used_names), REBUILD_LOOKS.index(l)))
+    heading, rest, etags, intro = ED_COPY[edition]
+    art = PL.boho_art(pal, seed=len(others) + 3)
     objs = []
-    spec["planner_name"] = "Neutral Boho"
-    title = "Neutral Boho Digital Planner, Undated Hyperlinked iPad and Android Journal with Stickers"
-    spec["title"] = title
-    tags = ["digital planner", "undated planner", "ipad planner", "boho planner", "neutral planner",
-            "hyperlinked planner", "android planner", "daily planner", "weekly planner", "life planner",
-            "aesthetic planner", "planner stickers", "tablet planner"]
-    spec["tags"] = tags
-    spec["intro"] = ("Plan your whole life in one calm, beautiful place. This undated neutral boho digital planner is fully "
-                     "hyperlinked, so every tab, month, week and day is one tap away. Use it on your iPad or Android tablet "
-                     "with any PDF note-taking app, start any month you like and use it year after year.")
+    title = f"{aname} {heading}, {rest}"[:140]
+    tags = list(dict.fromkeys(etags + [ltag, "digital planner", "undated planner", "ipad planner", "android planner",
+                                       "hyperlinked planner", "planner stickers"]))
+    tags = [t for t in tags if len(t) <= 20][:13]
+    spec.update({"planner_name": f"{aname} {heading.replace(' Planner', '').replace('Digital', '').strip()}".strip(),
+                 "title": title, "tags": tags, "edition": edition, "look": None, "intro": intro,
+                 "palette": ["#%02x%02x%02x" % c for c in pal]})
     slug = research.slugify(title, 40)
     built = PL.assemble(spec, slug, art, objs)
     desc = generator.compose_description(spec, built) if spec.get("intro") else p.get("description", "")
