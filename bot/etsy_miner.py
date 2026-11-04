@@ -20,9 +20,10 @@ SEED_SUBJECTS = ["reindeer", "winter fox", "snowy owl", "woodland animals", "win
                  "christmas deer", "winter cardinal", "bear cub", "winter cottage", "winter birds", "forest animals",
                  "christmas village", "winter hedgehog", "moose"]
 TYPE_SEED = {"scenes": "clipart", "wall_art": "print", "wallpaper": "phone wallpaper", "coloring": "coloring page",
-             "junk_journal": "junk journal"}
+             "junk_journal": "junk journal", "planner": "digital planner"}
 TYPE_WORDS = [  # phrase words -> our product type
     ("coloring", ("coloring", "colouring", "line art")),
+    ("planner", ("planner", "ipad journal")),
     ("junk_journal", ("junk journal", "ephemera", "journal kit", "journaling")),
     ("wallpaper", ("wallpaper", "lock screen", "lockscreen", "phone background", "iphone")),
     ("scenes", ("clipart", "clip art", "png", "junk journal", "illustration", "scrapbook", "card making", "sublimation")),

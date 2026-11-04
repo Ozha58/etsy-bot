@@ -124,7 +124,8 @@ Rules:
 - Be specific: subject + scene + season, never generic like "Christmas" or "animals". Ideas must differ clearly from each other.
 - Each idea must suit its product type (coloring = clear black line art scenes; wallpaper = vertical phone wallpaper scenes;
   wall_art = art prints for a room; scenes = full illustrated scenes; clipart = separate objects; pattern = seamless papers;
-  junk_journal = a printable vintage junk journal kit about ONE charming subject, e.g. honey bees, lighthouses, mushrooms).
+  junk_journal = a printable junk journal kit about ONE charming subject, e.g. honey bees, lighthouses, mushrooms;
+  planner = an undated digital planner with a themed cover and matching stickers, e.g. cozy cottage, ocean, botanical).
 - No trademarks, brands, celebrities, characters, franchises or copyrighted styles.
 - The artwork is AI generated and CANNOT contain readable text: no quotes, words, names, monograms or lettering.
 - Avoid these niches we already used recently: {', '.join(used[-40:]) or 'none'}.

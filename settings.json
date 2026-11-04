@@ -3,9 +3,9 @@
   "publish_mode": "active",
   "product_types": {
     "junk_journal": 4,
-    "coloring": 3,
-    "wallpaper": 2,
-    "wall_art": 1
+    "planner": 3,
+    "coloring": 2,
+    "wallpaper": 1
   },
   "max_same_type_per_day": 1,
   "price_ranges_usd": {
@@ -28,6 +28,10 @@
     "junk_journal": [
       3.49,
       5.99
+    ],
+    "planner": [
+      2.49,
+      4.99
     ]
   },
   "niche_memory_days": 60,

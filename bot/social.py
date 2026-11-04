@@ -27,6 +27,7 @@ HOOKS = {
     "scenes": "Instant festive art - just download and enjoy",
     "wallpaper": "Instant phone makeover - download and set",
     "junk_journal": "Print, cut and build your dream journal",
+    "planner": "Plan your days in style on your tablet",
 }
 BASE_TAGS = {
     "wall_art": ["wallart", "printableart", "homedecor"],
@@ -37,6 +38,7 @@ BASE_TAGS = {
     "scenes": ["christmasart", "santaclaus", "vintagechristmas"],
     "wallpaper": ["phonewallpaper", "christmaswallpaper", "iphonewallpaper"],
     "junk_journal": ["junkjournal", "junkjournalkit", "ephemera"],
+    "planner": ["digitalplanner", "ipadplanner", "plannerstickers"],
 }
 
 

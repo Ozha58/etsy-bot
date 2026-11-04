@@ -206,6 +206,7 @@ TYPE_WORDS = {
     "wallpaper": "phone wallpaper, iphone wallpaper, lock screen, aesthetic wallpaper, background",
     "coloring": "coloring pages, printable coloring, coloring book, for kids, for adults, pdf",
     "pattern": "digital paper, seamless pattern, scrapbook paper, background",
+    "planner": "digital planner, undated planner, ipad planner, android planner, hyperlinked planner, digital stickers, journal",
 }
 
 
@@ -248,7 +249,7 @@ def product_spec(idea: dict) -> dict:
     prompt = f"""Create a complete Etsy digital product listing plan.
 Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
-CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
+CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'planner', the title must contain "Digital Planner" and "Undated" and the theme, e.g. "Honey Bee Digital Planner, Undated iPad Planner with Stickers"; never name planner apps or brands. If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
 Main search phrase: {idea.get('search_query', '')}
 Buyer words for this product type (use the fitting ones in title/tags): {TYPE_WORDS.get(ptype, '')}
 The title must START with the main search phrase (or a very close natural wording of it), then add the most important second keyword.
@@ -285,7 +286,8 @@ Return JSON with these fields:
 
 
 _LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 10),"wall_art": ("prints", 3), "coloring": ("pages", 8), "clipart": ("elements", 15), "pattern": ("papers", 10), "tumbler": ("designs", 2),
-               "junk_journal": [("scenes", 6), ("objects", 8)]}
+               "junk_journal": [("scenes", 6), ("objects", 8)],
+               "planner": ("stickers", 8)}
 
 
 def _validate(spec, ptype):
@@ -306,6 +308,8 @@ def _validate(spec, ptype):
             for i in items:
                 i.setdefault("name", "design")
             spec[f] = items[:n]
+    if ptype == "planner" and not (isinstance(spec.get("cover"), dict) and spec["cover"].get("prompt")):
+        probs.append("'cover' must be an object with a 'prompt'")
     if len(spec.get("tags", [])) < 10:
         probs.append("need 13 tags")
     try:

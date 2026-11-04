@@ -206,7 +206,7 @@ def _handle_message(m, meta):
     elif cmd == "/uret":
         try:
             a = arg.strip().lower()
-            kinds = {"wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart"}
+            kinds = {"wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "planner": "planner", "planlayici": "planner", "ajanda": "planner"}
             only = kinds.get(a)
             n = int(a) if a.isdigit() else 1
             _dispatch_generate(n, only)
