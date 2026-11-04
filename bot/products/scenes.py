@@ -24,14 +24,23 @@ SUFFIX = ("full scene, nicely composed, main subject clearly visible, square com
 def build(spec, slug):
     palette = spec.get("palette", [])
     files, previews, names = [], [], []
-    for i, e in enumerate(spec["elements"][:COUNT], 1):
-        raw = images.generate(f"{e['prompt']}, {STYLE}, {SUFFIX}", GEN_W, GEN_H).convert("RGB")
+    wanted = spec["elements"][:COUNT]
+    i = 0
+    for e in wanted:
+        raw = images.try_generate(f"{e['prompt']}, {spec.get('style') or STYLE}, {SUFFIX}", GEN_W, GEN_H)
+        if raw is None:
+            if images.quota_exhausted():
+                break
+            continue
+        i += 1
+        raw = raw.convert("RGB")
         big = raw.resize((OUT_SIZE, OUT_SIZE), Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=2, percent=60, threshold=3))
         safe = "".join(c if c.isalnum() else "-" for c in e["name"].lower()).strip("-")[:30] or "scene"
         files.append((f"{i:02d}-{safe}.jpg", jpeg_bytes(big, 88, dpi=300)))
         previews.append(big.resize((PREVIEW, PREVIEW), Image.LANCZOS))
         names.append(e["name"])
         del big, raw
+    images.need(len(files), len(wanted))
     readme = (f"{spec['title']}\n\nThank you for your purchase!\n\n{len(files)} high resolution JPG illustrations, 4096 x 4096 px, 300 DPI.\n"
               "License: personal and small business commercial use (up to 500 physical products).\n")
     delivery = make_zips(slug, files, readme)
@@ -45,7 +54,7 @@ def build(spec, slug):
     # GÜVENLİ 8 GÖRSEL LİSTESİ (Hata vermemesi için orijinal yapıya sadık kalındı)
     mock = [
         # 1. GÖRSEL: Grafik Kapak
-        ("01-cover.jpg", mockups_scenes.single_cover(ims, name, n, palette)),
+        ("01-cover.jpg", mockups_scenes.collage_cover(ims, name, n, palette)),
         # 2. GÖRSEL: Tüm sahnelerin mozaik görünümü
         ("02-mosaic.jpg", mockups_scenes.mosaic(ims, name, n, palette)),
         # 3. GÖRSEL: Gerçekçi duvar mockup'ı (Sadece 1 kere çağırıyoruz ki çökmesin)

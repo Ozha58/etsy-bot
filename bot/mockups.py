@@ -122,7 +122,7 @@ def cover(images: list, title: str, subtitle: str, palette, badge="INSTANT DOWNL
     if layout == "fan" and n >= 2:
         max_h = area_bottom - area_top
         angles = np.linspace(-9, 9, n) if n > 1 else [0]
-        span = W * 0.80
+        span = W * 0.62
         for i, (im, ang) in enumerate(zip(imgs, angles)):
             im = im.convert("RGB")
             s = (max_h * 0.92) / im.height

@@ -34,7 +34,7 @@ def cover(arts, title, count, palette):
     canvas = _festive_bg(pal)
     _border(canvas)
     d = ImageDraw.Draw(canvas)
-    tf = fit_text(d, title.upper(), "serif", W - 700, 150, 60)
+    tf = fit_text(d, title.upper(), "serif", 1600, 150, 60)
     tw = d.textlength(title.upper(), font=tf)
     d.text(((W - tw) / 2 + 4, 119), title.upper(), font=tf, fill=(0, 0, 0, 160))
     d.text(((W - tw) / 2, 115), title.upper(), font=tf, fill=CREAM + (255,))
@@ -50,7 +50,7 @@ def cover(arts, title, count, palette):
     paste_with_shadow(canvas, mid, ((W - mid.width) // 2, 400), radius=28, offset=(0, 18), opacity=160)
     d = ImageDraw.Draw(canvas)
     # count badge, left
-    cx, cy, r = 300, 760, 175
+    cx, cy, r = 580, 1000, 165
     d.ellipse((cx - r - 12, cy - r - 12, cx + r + 12, cy + r + 12), fill=CREAM + (255,))
     d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=GOLD + (255,))
     ink = _mix(pal["text"], (40, 8, 8), 0.4) + (255,)

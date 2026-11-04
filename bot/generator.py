@@ -61,6 +61,12 @@ def product_caption(p: dict) -> str:
     if p.get("research", {}).get("etsy_results") is not None:
         r = p["research"]
         lines.append(f"📊 Etsy: {r['etsy_results']:,} rakip ilan, ilk 25'te ortanca {int(r.get('etsy_median_favs') or 0)} favori")
+        if r.get("why"):
+            lines.append(f"💡 {esc(str(r['why'])[:200])}")
+        if r.get("source") == "etsy":
+            lines.append("🔎 Kaynak: Etsy araması (rakiplerin gerçek etiketlerinden)")
+        if r.get("etsy_median_price"):
+            lines.append(f"💲 Piyasa ortanca fiyatı: ${r['etsy_median_price']:.2f}")
     if p.get("research", {}).get("variation_of"):
         lines.append(f"🏆 Çok satan ürünün varyasyonu: {esc(p['research']['variation_of'][:80])}")
     lines.append(f"🏷 {esc(', '.join(p['tags']))}")
@@ -84,6 +90,11 @@ def build_one(idea: dict, day: dt.date) -> dict:
     built = mod.build(spec, slug)
     if not built or "included" not in built:
         raise Exception(f"HATA: {mod.__name__} dosyası görselleri üretirken çöktü ve boş döndü.")
+    try:
+        from . import watermark
+        built["mockups"] = watermark.apply_all(built["mockups"])
+    except Exception as e:
+        print(f"[watermark] eklenemedi: {e}")
     p = {
         "id": pid,
         "created_at": int(time.time()),
@@ -91,7 +102,7 @@ def build_one(idea: dict, day: dt.date) -> dict:
         "status": "pending",
         "type": idea["type"],
         "niche": idea["niche"],
-        "research": {k: idea.get(k) for k in ("search_query", "why", "etsy_results", "etsy_median_favs", "score", "variation_of")},
+        "research": {k: idea.get(k) for k in ("search_query", "why", "etsy_results", "etsy_median_favs", "etsy_median_price", "etsy_velocity", "source", "score", "variation_of")},
         "title": spec["title"],
         "description": compose_description(spec, built),
         "tags": spec["tags"],
@@ -160,6 +171,12 @@ def run(count=None, force=False):
     elif failed:
         summary.append("\n⚠️ Başarısız denemeler:\n" + "\n".join(f"• {esc(f)}" for f in failed[:6]))
     summary.append(f"\n🖼 Görsel: Cloudflare {images.stats['cloudflare']}, Pollinations {images.stats['pollinations']}, hata {images.stats['failed']}")
+    try:
+        u = images.usage_today()
+        summary.append(f"🔋 Bugünkü ücretsiz kota: ~{u['used']:,}/{images.DAILY_NEURONS:,} kullanıldı, "
+                       f"~{u['left_images']} görsel kaldı (03:00'te yenilenir)")
+    except Exception as e:
+        print(f"[generate] kota hesaplanamadı: {e}")
     if config.pages_url():
         summary.append(f"🌐 Panel: {config.pages_url()}")
     notify("\n".join(summary))

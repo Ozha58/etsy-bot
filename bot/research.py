@@ -5,7 +5,7 @@ import random
 import re
 import statistics
 
-from . import config, etsy, llm
+from . import config, etsy, llm, theme
 from .products import TYPES
 
 BANNED = [
@@ -114,7 +114,16 @@ def _score(idea):
         med = statistics.median(favs) if favs else 0
         idea["etsy_results"] = count
         idea["etsy_median_favs"] = med
-        return math.log1p(med) - 0.35 * math.log10(count + 10)
+        prices = []
+        for r in res.get("results", []):
+            pr = r.get("price") or {}
+            if pr.get("currency_code") == "USD" and pr.get("divisor"):
+                prices.append(int(pr.get("amount", 0)) / int(pr["divisor"]))
+        idea["etsy_median_price"] = round(statistics.median(prices), 2) if len(prices) >= 5 else None
+        from .etsy_miner import _velocity
+        vel = _velocity(res.get("results", []))
+        idea["etsy_velocity"] = round(vel, 3)
+        return math.log1p(med) - 0.35 * math.log10(count + 10) + 1.5 * math.log1p(vel * 10)
     except Exception as e:
         print(f"[research] Etsy verisi alınamadı ({idea.get('search_query')}): {e}")
         return None
@@ -180,12 +189,25 @@ def title_problems(title: str) -> list:
 
 SPEC_COMMON = """
   "title": "TITLE_RULE",
-  "intro": "2 short persuasive paragraphs (English) describing the product, style and who it is for; no file details, no emojis, no trademarks",
-  "tags": [13 Etsy tags, each max 20 characters, multi-word phrases buyers search, no repeats of the same word only, English],
+  "intro": "2 short persuasive paragraphs (English). The FIRST sentence must contain the main search phrase naturally (Google shows it). Describe the style, the feeling, who it is for and how they will use it (gift, decor, crafts); no file details, no emojis, no trademarks",
+  "tags": [exactly 13 Etsy tags, each 2-3 words and max 20 characters, phrases real buyers type. Cover different angles: product type, subject, art style, occasion/holiday, room or use, recipient/gift, color. Tag 1 = the main search phrase. Do not repeat the same tag idea, English],
+  "styles": [2 short Etsy style words for this artwork, e.g. "Vintage", "Watercolor", "Minimalist", "Boho", "Rustic"],
   "price_usd": number,
   "style": "visual style description used for every image of this product (medium, technique, mood), e.g. 'soft watercolor with loose ink outlines'",
   "palette": [3-5 hex colors],
 """
+
+
+def market_price(idea, lo, hi, ai_price):
+    """Price a bit under the market (median price of the top Etsy results), inside the settings range."""
+    med = idea.get("etsy_median_price")
+    target = med * 0.85 if med else ai_price
+    target = min(hi, max(lo, target))
+    # friendly ending: .99 / .49
+    whole = int(target)
+    cands = [whole - 0.01, whole + 0.49, whole + 0.99]
+    best = min((c for c in cands if lo <= c <= hi), key=lambda c: abs(c - target), default=round(target, 2))
+    return round(best, 2)
 
 
 def product_spec(idea: dict) -> dict:
@@ -197,9 +219,11 @@ Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
 CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack".
 Main search phrase: {idea.get('search_query', '')}
+The title must START with the main search phrase (or a very close natural wording of it), then add the most important second keyword.
 Price must be between {lo} and {hi} USD (end with .99 or .49 is fine).
 Never use trademarks, brand names, characters, celebrities or copyrighted styles in any field.
 The artwork can NOT contain any readable text, so do not plan quotes, words or lettering in the images.
+Shop art style (mandatory for every image): {theme.style()}. The "style" field = this shop style plus at most a few words for this product's mood.
 All text in English. Image prompts must describe ORIGINAL artwork only.
 
 Return JSON with these fields:
@@ -210,8 +234,14 @@ Return JSON with these fields:
         spec = llm.ask_json(prompt, temperature=0.9)
         problems = _validate(spec, ptype)
         if not problems:
-            spec["price_usd"] = round(min(hi, max(lo, float(spec["price_usd"]))), 2)
-            spec["tags"] = [t[:20] for t in spec["tags"] if not is_banned(t)][:13]
+            if ptype != "coloring" and "storybook" not in str(spec.get("style", "")).lower():
+                spec["style"] = f"{theme.style()}, {str(spec.get('style', ''))[:80]}".strip(", ")
+            spec["price_usd"] = market_price(idea, lo, hi, float(spec["price_usd"]))
+            tags = [t[:20].strip() for t in spec["tags"] if not is_banned(t)]
+            q = (idea.get("search_query") or "").strip().lower()
+            if q and len(q) <= 20 and q not in [t.lower() for t in tags]:
+                tags.insert(0, q)  # the phrase we researched must be a tag
+            spec["tags"] = tags[:13]
             return spec
         print(f"[research] spec sorunlu ({problems}), tekrar deneniyor")
         prompt += f"\n\nYour previous answer had problems: {problems}. Fix them."

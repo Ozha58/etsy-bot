@@ -42,42 +42,43 @@ def cover(previews, colored, title, count, palette):
     paper = _mix(pal["all"][0], CREAM, 0.88)
     canvas = Image.new("RGBA", (W, H), paper + (255,))
     split = 1000
+    SX = 340  # left edge of the safe zone: Etsy search/phone views crop to the centre square
     panel = _mix(pal["text"], (60, 10, 14), 0.55)
     ImageDraw.Draw(canvas).rectangle((0, 0, split, H), fill=panel + (255,))
     # pages on the right
-    back = _page_card(previews[0], 1340, -6)
-    front = _page_card(colored, 1340, 5)
-    paste_with_shadow(canvas, back, (split + 20, 250), radius=26, offset=(0, 14), opacity=120)
-    paste_with_shadow(canvas, front, (split + 215, 190), radius=26, offset=(0, 14), opacity=120)
+    back = _page_card(previews[0], 1180, -6)
+    front = _page_card(colored, 1180, 5)
+    paste_with_shadow(canvas, back, (split - 90, 300), radius=26, offset=(0, 14), opacity=120)
+    paste_with_shadow(canvas, front, (split + 60, 250), radius=26, offset=(0, 14), opacity=120)
     d = ImageDraw.Draw(canvas)
     d.rectangle((34, 34, W - 35, H - 35), outline=GOLD + (255,), width=6)
     # left text
-    sf = font("sans_bold", 52)
-    d.text((90, 150), "PRINTABLE COLORING PAGES", font=sf, fill=GOLD + (255,))
-    tf, lines = _wrap_title(d, title, split - 190)
-    y = 270
+    sf = font("sans_bold", 40)
+    d.text((SX, 170), "PRINTABLE COLORING PAGES", font=sf, fill=GOLD + (255,))
+    tf, lines = _wrap_title(d, title, split - SX - 40, max_lines=4)
+    y = 260
     for ln in lines:
-        d.text((94, y + 5), ln, font=tf, fill=(0, 0, 0, 120))
-        d.text((90, y), ln, font=tf, fill=CREAM + (255,))
+        d.text((SX + 4, y + 5), ln, font=tf, fill=(0, 0, 0, 120))
+        d.text((SX, y), ln, font=tf, fill=CREAM + (255,))
         y += int(tf.size * 1.12)
-    d.line((90, y + 30, 520, y + 30), fill=GOLD + (255,), width=7)
+    d.line((SX, y + 30, SX + 380, y + 30), fill=GOLD + (255,), width=7)
     # count badge
-    cx, cy, r = 280, H - 600, 150
+    cx, cy, r = SX + 140, H - 640, 130
     d.ellipse((cx - r - 10, cy - r - 10, cx + r + 10, cy + r + 10), fill=CREAM + (255,))
     d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=GOLD + (255,))
     ink = _mix(pal["text"], (40, 8, 8), 0.4) + (255,)
-    nf = font("sans_bold", 150)
-    d.text((cx - d.textlength(str(count), font=nf) / 2, cy - 118), str(count), font=nf, fill=ink)
-    lf = font("sans_bold", 46)
-    d.text((cx - d.textlength("PAGES", font=lf) / 2, cy + 36), "PAGES", font=lf, fill=ink)
+    nf = font("sans_bold", 130)
+    d.text((cx - d.textlength(str(count), font=nf) / 2, cy - 102), str(count), font=nf, fill=ink)
+    lf = font("sans_bold", 40)
+    d.text((cx - d.textlength("PAGES", font=lf) / 2, cy + 32), "PAGES", font=lf, fill=ink)
     # pills
-    pf = font("sans_bold", 46)
+    pf = font("sans_bold", 38)
     items = [("US LETTER + A4 PDF", CREAM), ("INSTANT DOWNLOAD", GOLD)]
-    yy = H - 330
+    yy = H - 340
     for t, bg in items:
         tw = d.textlength(t, font=pf)
-        h = pf.size + 40
-        d.rounded_rectangle((90, yy, 90 + tw + 80, yy + h), radius=h // 2, fill=bg + (255,))
-        d.text((130, yy + 18), t, font=pf, fill=panel + (255,))
-        yy += h + 28
+        h = pf.size + 36
+        d.rounded_rectangle((SX, yy, SX + tw + 70, yy + h), radius=h // 2, fill=bg + (255,))
+        d.text((SX + 35, yy + 16), t, font=pf, fill=panel + (255,))
+        yy += h + 24
     return canvas.convert("RGB")

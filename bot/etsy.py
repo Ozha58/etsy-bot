@@ -209,6 +209,49 @@ def _clean_tags(tags):
     return out[:13]
 
 
+def _clean_styles(styles):
+    """Etsy 'styles': up to 2 short style words (e.g. Vintage, Watercolor) that also count in search."""
+    out = []
+    for st in styles or []:
+        st = "".join(c for c in str(st) if c.isalnum() or c == " ").strip()[:45]
+        if st and st.lower() not in [o.lower() for o in out]:
+            out.append(st)
+    return out[:2]
+
+
+_ALT = {"cover": "cover preview", "mosaic": "all designs included", "all": "all designs included",
+        "wall": "framed on a wall", "room": "shown in a room", "lifestyle": "printed page on a desk",
+        "info": "what is included", "sizes": "included sizes", "example": "colored example", "page": "page preview",
+        "detail": "close-up detail", "how": "how to download", "print": "print preview", "flatlay": "all prints together"}
+
+
+def _alt_text(title, photo_name):
+    key = "".join(c for c in photo_name.lower().rsplit(".", 1)[0] if c.isalpha())
+    label = next((v for k, v in _ALT.items() if key.startswith(k)), "preview")
+    return f"{title} - {label}"[:250]
+
+
+SECTIONS = {"scenes": "Illustration Packs", "wall_art": "Printable Wall Art",
+            "wallpaper": "Phone Wallpapers", "coloring": "Coloring Pages",
+            "clipart": "Clipart", "pattern": "Digital Paper", "tumbler": "Tumbler Wraps"}
+
+
+def section_for(ptype, tok, shop_id):
+    """Shop section for a product type (created once when missing). None if anything fails."""
+    title = SECTIONS.get(ptype or "")
+    if not title:
+        return None
+    try:
+        for sec in _req("GET", f"/shops/{shop_id}/sections", tok).get("results", []):
+            if (sec.get("title") or "").strip().lower() == title.lower():
+                return sec["shop_section_id"]
+        res = _req("POST", f"/shops/{shop_id}/sections", tok, data={"title": title})
+        return res.get("shop_section_id")
+    except Exception as e:
+        print(f"[etsy] mağaza bölümü ayarlanamadı: {e}")
+        return None
+
+
 def _when_made():
     y = time.gmtime().tm_year
     return f"{y - y % 10}_{y}" if y % 10 else "made_to_order"
@@ -267,7 +310,10 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
         "tags": _clean_tags(p.get("tags", [])),
         "should_auto_renew": True,
     }
-    sec = config.settings().get("shop_section_id")
+    styles = _clean_styles(p.get("styles") or p.get("spec", {}).get("styles"))
+    if styles:
+        data["styles"] = styles
+    sec = config.settings().get("shop_section_id") or section_for(p.get("type"), tok, shop_id)
     if sec:
         data["shop_section_id"] = sec
     listing_id = p.get("etsy", {}).get("listing_id")
@@ -277,6 +323,9 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
         except EtsyError as e:
             if "when_made" in str(e):
                 data["when_made"] = "made_to_order"
+                res = _create(shop_id, tok, data)
+            elif "styles" in str(e).lower() and "styles" in data:
+                data.pop("styles")
                 res = _create(shop_id, tok, data)
             else:
                 raise
@@ -288,7 +337,8 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
     if not existing:
         for rank, (name, data_bytes) in enumerate(photos[:10], 1):
             _req("POST", f"/shops/{shop_id}/listings/{lid}/images", tok,
-                 files={"image": (name, data_bytes, "image/jpeg")}, data={"rank": rank}, timeout=300)
+                 files={"image": (name, data_bytes, "image/jpeg")},
+                 data={"rank": rank, "alt_text": _alt_text(p["title"], name)}, timeout=300)
     if video:
         try:
             try:
@@ -308,12 +358,16 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
             ctype = "application/pdf" if name.endswith(".pdf") else "application/zip"
             _req("POST", f"/shops/{shop_id}/listings/{lid}/files", tok,
                  files={"file": (name, data_bytes, ctype)}, data={"name": name, "rank": rank}, timeout=600)
+    attrs = p.get("etsy", {}).get("attributes")
+    if not attrs:
+        from . import attributes
+        attrs = attributes.fill(lambda m, path, **kw: _req(m, path, tok, **kw), shop_id, lid, data["taxonomy_id"], p)
     state = "draft"
     if mode == "active":
         _req("PATCH", f"/shops/{shop_id}/listings/{lid}", tok, json={"state": "active"})
         state = "active"
     return {"listing_id": lid, "url": f"https://www.etsy.com/listing/{lid}", "state": state, "price": price,
-            "currency": tok.get("currency", "USD")}
+            "currency": tok.get("currency", "USD"), "attributes": attrs}
 
 
 # ---------------- maintenance ----------------

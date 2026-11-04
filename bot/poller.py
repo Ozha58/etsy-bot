@@ -141,7 +141,8 @@ def _handle_callback(cb, meta):
         try:
             res = publish_product(p)
             state_tr = "yayında" if res["state"] == "active" else "taslak olarak kaydedildi"
-            telegram.edit(chat_id, mid, base_html + f"\n\n✅ <b>Etsy'de {state_tr}</b> – {res['price']} {res['currency']}",
+            telegram.edit(chat_id, mid, base_html + f"\n\n✅ <b>Etsy'de {state_tr}</b> – {res['price']} {res['currency']}"
+                          + (f"\n🏷 Özellikler: {esc('; '.join(res.get('attributes') or []))[:600]}" if res.get("attributes") else ""),
                           [[("🔗 Etsy'de aç", res["url"])]])
             send_social(storage.load_product(pid))
         except Exception as e:

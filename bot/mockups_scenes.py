@@ -129,14 +129,14 @@ def single_cover(ims, title, count, palette):
     d = ImageDraw.Draw(canvas)
     d.rectangle((34, 34, W - 35, H - 35), outline=GOLD + (255,), width=6)
     # title
-    tf = fit_text(d, title.upper(), "serif", W - 360, 170, 70)
+    tf = fit_text(d, title.upper(), "serif", 1640, 170, 60)
     tw = d.textlength(title.upper(), font=tf)
     ty = H - 450
     d.text(((W - tw) / 2 + 4, ty + 4), title.upper(), font=tf, fill=(0, 0, 0, 160))
     d.text(((W - tw) / 2, ty), title.upper(), font=tf, fill=CREAM + (255,))
     d.line((W / 2 - 280, ty + tf.size * 1.3, W / 2 + 280, ty + tf.size * 1.3), fill=GOLD + (255,), width=6)
     # count badge, top right
-    cx, cy, r = W - 280, 280, 190
+    cx, cy, r = 1840, 300, 175
     d.ellipse((cx - r - 12, cy - r - 12, cx + r + 12, cy + r + 12), fill=CREAM + (255,))
     d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=GOLD + (255,))
     ink = _mix(pal["text"], (40, 8, 8), 0.4) + (255,)
@@ -145,7 +145,7 @@ def single_cover(ims, title, count, palette):
     lf = font("sans_bold", 66)
     d.text((cx - d.textlength("JPG", font=lf) / 2, cy + 50), "JPG", font=lf, fill=ink)
     # pills
-    pf = font("sans_bold", 50)
+    pf = font("sans_bold", 42)
     dark = _mix(pal["text"], (30, 5, 5), 0.5)
     items = [("4096 x 4096 px", CREAM), ("300 DPI  PRINT READY", CREAM), ("INSTANT DOWNLOAD", GOLD)]
     pad, gap = 36, 40
@@ -154,4 +154,65 @@ def single_cover(ims, title, count, palette):
     for (t, bg), w in zip(items, widths):
         _pill(d, x + w / 2, H - 125, t, pf, dark, bg + (255,), pad=pad)
         x += w + gap
+    return canvas.convert("RGB")
+
+
+def _clip(t, x, y):
+    """Crop a tile so it can be alpha-composited even when it sticks out of the canvas."""
+    l, u = max(0, -x), max(0, -y)
+    r, b = min(t.width, W - x), min(t.height, H - y)
+    return t.crop((l, u, r, b)), (max(x, 0), max(y, 0))
+
+
+def collage_cover(ims, title, count, palette, subtitle="illustration collection"):
+    """Dense collage of many scenes filling the whole cover, with a centered title panel and count badge."""
+    pal = palette_colors(palette)
+    canvas = _festive_bg(pal, seed=7)
+    rnd = random.Random(len(title) * 31 + len(ims))
+    cols, rows = 6, 4
+    sx, sy = W / cols, H / rows
+    tile = int(sx * 1.22)
+    order = list(range(cols * rows))
+    rnd.shuffle(order)
+    pick = list(range(cols * rows))
+    rnd.shuffle(pick)
+    for k in order:
+        r, c = divmod(k, cols)
+        im = ims[pick[k] % len(ims)]
+        t = _square(im, tile, border=10, angle=rnd.uniform(-8, 8))
+        x = int(c * sx + sx / 2 - t.width / 2 + rnd.randint(-35, 35))
+        y = int(r * sy + sy / 2 - t.height / 2 + rnd.randint(-30, 30))
+        canvas.alpha_composite(_clip(t, x, y)[0], _clip(t, x, y)[1])
+    # soft dark vignette so the panel stands out
+    d = ImageDraw.Draw(canvas)
+    # centered cream panel
+    pw, ph = 1500, 700
+    px, py = (W - pw) // 2, int(H * 0.50)
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle((px, py + 14, px + pw, py + ph + 14), radius=70, fill=(0, 0, 0, 120))
+    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(22)))
+    d = ImageDraw.Draw(canvas)
+    d.rounded_rectangle((px, py, px + pw, py + ph), radius=70, fill=CREAM + (250,))
+    d.rounded_rectangle((px + 18, py + 18, px + pw - 18, py + ph - 18), radius=56, outline=GOLD + (255,), width=4)
+    ink = _mix(pal["text"], (40, 8, 8), 0.4)
+    # count badge sitting on the panel's top edge
+    cx, cy, r = W // 2, py, 150
+    d.ellipse((cx - r - 12, cy - r - 12, cx + r + 12, cy + r + 12), fill=CREAM + (255,))
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=GOLD + (255,))
+    nf = font("sans_bold", 170)
+    d.text((cx - d.textlength(str(count), font=nf) / 2, cy - 140), str(count), font=nf, fill=ink + (255,))
+    lf = font("sans_bold", 44)
+    d.text((cx - d.textlength("JPG", font=lf) / 2, cy + 52), "JPG", font=lf, fill=ink + (255,))
+    # script-like subtitle, title, details
+    sf = font("serif_italic", 70)
+    d.text((W / 2 - d.textlength(subtitle, font=sf) / 2, py + 175), subtitle, font=sf, fill=ink + (255,))
+    t_up = title.upper()
+    tf = fit_text(d, t_up, "serif", pw - 160, 150, 56)
+    d.text((W / 2 - d.textlength(t_up, font=tf) / 2, py + 275), t_up, font=tf, fill=ink + (255,))
+    line = f"{count} SCENES  •  4096 x 4096 PX  •  300 DPI"
+    df = fit_text(d, line, "serif", pw - 200, 52, 30)
+    d.text((W / 2 - d.textlength(line, font=df) / 2, py + 275 + tf.size * 1.35), line, font=df, fill=ink + (255,))
+    pf = font("sans_bold", 46)
+    _pill(d, W / 2, py + ph - 105, "INSTANT DOWNLOAD", pf, CREAM, ink + (255,), pad=50)
+    _border(canvas)
     return canvas.convert("RGB")

@@ -18,7 +18,8 @@ CF_MULTIPART_MODELS = ["@cf/black-forest-labs/flux-2-klein-4b"]
 CF_JSON_MODELS = ["@cf/black-forest-labs/flux-1-schnell"]
 
 _disabled = set()  # providers that hit a daily quota during this run
-stats = {"cloudflare": 0, "pollinations": 0, "failed": 0}
+stats = {"cloudflare": 0, "pollinations": 0, "failed": 0, "neurons": 0.0}
+DAILY_NEURONS = 10000  # Cloudflare free allowance, resets 00:00 UTC (03:00 Istanbul)
 
 
 class ImageError(Exception):
@@ -84,6 +85,7 @@ def _cloudflare(prompt, w, h, seed):
                     data = r.json()
                     img_b64 = (data.get("result") or {}).get("image")
                     if img_b64:
+                        stats["neurons"] += 26.05 * (-(-w // 512)) * (-(-h // 512))
                         return _decode(img_b64)
                     errs.append(f"{model.split('/')[-1]}: boş yanıt")
                 else:
@@ -103,6 +105,7 @@ def _cloudflare(prompt, w, h, seed):
             if r.status_code == 200:
                 img_b64 = (r.json().get("result") or {}).get("image")
                 if img_b64:
+                    stats["neurons"] += 4.8 * 4 + 9.6 * 8
                     return _cover(_decode(img_b64), w, h)
             errs.append(f"{model.split('/')[-1]}: HTTP {r.status_code} {r.text[:160]}")
             print(f"[images] {errs[-1]}", flush=True)
@@ -170,3 +173,36 @@ def generate(prompt: str, width: int, height: int, seed: int = None) -> Image.Im
     if quota_exhausted():
         raise ImageError("Görsel üretilemedi → " + QUOTA_MSG)
     raise ImageError("Görsel üretilemedi → " + " | ".join(errors))
+
+
+def try_generate(prompt: str, width: int, height: int):
+    """Like generate(), but returns None instead of failing, so one bad image does not waste a whole pack."""
+    try:
+        return generate(prompt, width, height)
+    except Exception as e:
+        print(f"[images] görsel atlandı: {e}")
+        return None
+
+
+def need(have: int, wanted: int, ratio: float = 0.8):
+    """Stop the product only when too many images failed (keeps packs with e.g. 13 of 15 images)."""
+    if have < max(1, int(wanted * ratio + 0.999)):
+        raise ImageError(f"Görsel üretilemedi → sadece {have}/{wanted} görsel çıktı"
+                         + (f" ({QUOTA_MSG})" if quota_exhausted() else ""))
+
+
+def usage_today() -> dict:
+    """Add this run's Cloudflare usage to today's total (stored in meta). Returns {"used", "left_images"}."""
+    import datetime as _dt
+    from . import storage
+    day = _dt.datetime.utcnow().date().isoformat()
+    meta = storage.load_meta()
+    u = meta.get("cf_usage") or {}
+    if u.get("day") != day:
+        u = {"day": day, "neurons": 0.0}
+    u["neurons"] = round(u.get("neurons", 0.0) + stats["neurons"], 1)
+    stats["neurons"] = 0.0
+    meta["cf_usage"] = u
+    storage.save_meta(meta)
+    used = min(DAILY_NEURONS, u["neurons"]) if not quota_exhausted() else DAILY_NEURONS
+    return {"used": int(used), "left_images": int((DAILY_NEURONS - used) // 104)}

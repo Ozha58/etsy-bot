@@ -2,7 +2,8 @@
 
 The AI invents very specific micro-niches (new idea), then we keep the old data-driven checks:
   - product types and weights come from settings.json (and ONLY_TYPE for /uret wallpaper)
-  - during the Christmas season most ideas are Christmas (settings.json "christmas_share", default 0.7)
+  - every idea stays inside the shop theme (theme.py): vintage storybook snowy forest / winter animals,
+    with a seasonal angle (Christmas share in season: settings.json "christmas_share", default 0.7)
   - niches used in the last days are not repeated
   - every idea is scored with Etsy's public search (demand = favorites, competition = number of results)
   - very crowded niches (more results than settings.json "max_competition", default 8000) are used only as a last resort
@@ -12,28 +13,8 @@ import datetime as dt
 import random
 import re
 
-from . import config, llm, research
+from . import config, llm, research, theme as shop
 from .products import TYPES
-
-CATEGORIES = ["animals", "seasons and holidays", "hobbies", "fantasy", "fashion and style", "food and drink",
-              "space", "plants and flowers", "travel", "home and kitchen"]
-
-CHRISTMAS_RULE = (
-    "CHRISTMAS: the main subject must be Santa Claus (Father Christmas), or reindeer, winter woodland animals, "
-    "a snowy village or happy children in winter. Use a vintage, retro, cozy winter, soft watercolor or poster style. "
-    "No gnomes, no tomte, no elves, no Grinch, no Coca-Cola Santa, no film or brand characters."
-)
-
-
-def _christmas_share(today):
-    share = config.settings().get("christmas_share", 0.7)
-    try:
-        share = float(share)
-    except Exception:
-        share = 0.7
-    in_season = today.month in (10, 11) or (today.month == 12 and today.day <= 20)
-    return share if in_season else 0.0
-
 
 def _weighted_types(n):
     cfg = config.settings().get("product_types", {})
@@ -69,7 +50,6 @@ def _used(today):
 def _slots(n_cand, today):
     """One slot per candidate: product type + theme instruction."""
     types = _weighted_types(n_cand)
-    share = _christmas_share(today)
     best = []
     try:
         best = research.winners()
@@ -80,13 +60,10 @@ def _slots(n_cand, today):
         if best and i < min(2, len(best)):
             w = best[i]
             theme = (f'close variation of our own best seller "{w["title"]}": same buyer and product type, '
-                     "but a clearly different theme, colorway or art style. Never copy it")
+                     f"but a clearly different subject or scene, still inside our shop theme ({shop.theme()}). Never copy it")
             slots.append({"type": t, "theme": theme, "variation_of": w["title"]})
-        elif random.random() < share:
-            slots.append({"type": t, "theme": CHRISTMAS_RULE})
         else:
-            slots.append({"type": t, "theme": f"free micro-niche in the category '{random.choice(CATEGORIES)}' "
-                                              f"(season hint: {research.season_hint(today)})"})
+            slots.append({"type": t, "theme": shop.slot_theme(today)})
     return slots
 
 
@@ -98,7 +75,8 @@ Find {len(slots)} VERY SPECIFIC micro-niche ideas that sell on Etsy but have few
 {plan}
 
 Rules:
-- Be specific: style + theme, never generic like "Christmas" or "cats". State the art style in the niche text.
+- Every idea MUST stay inside our shop theme: {shop.theme()}. Our art style is always: {shop.style()}.
+- Be specific: subject + scene + season, never generic like "Christmas" or "animals". Ideas must differ clearly from each other.
 - Each idea must suit its product type (coloring = clear black line art scenes; wallpaper = vertical phone wallpaper scenes;
   wall_art = art prints for a room; scenes = full illustrated scenes; clipart = separate objects; pattern = seamless papers).
 - No trademarks, brands, celebrities, characters, franchises or copyrighted styles.
@@ -130,7 +108,8 @@ def find_trending_niches(count=1):
                 continue
             if niche.lower() in [u.lower() for u in used] or _too_similar(niche, used):
                 continue
-            idea = {"type": slot["type"], "niche": niche, "search_query": query, "why": str(item.get("why") or "")}
+            idea = {"type": slot["type"], "niche": niche, "search_query": query, "why": str(item.get("why") or ""),
+                    "source": "ai"}
             if slot.get("variation_of"):
                 idea["variation_of"] = slot["variation_of"]
             ideas.append(idea)
@@ -141,6 +120,15 @@ def find_trending_niches(count=1):
     for rank, idea in enumerate(ideas):
         sc = research._score(idea)
         idea["score"] = (sc if sc is not None else 0) + (len(ideas) - rank) * 0.02 + random.random() * 0.1
+    # ideas found directly in Etsy search data (real seller tags), already scored the same way
+    try:
+        from . import etsy_miner
+        seen = {i["search_query"].lower() for i in ideas}
+        for m in etsy_miner.find(max(3, count * 2), used, today):
+            if m["search_query"] not in seen and not _too_similar(m["niche"], used):
+                ideas.append(m)
+    except Exception as e:
+        print(f"[smart_niche] Etsy madenciliği atlandı: {e}")
     cap = int(s.get("max_competition", 8000) or 0)
     crowded = [i for i in ideas if cap and (i.get("etsy_results") or 0) > cap]
     for i in crowded:
@@ -163,18 +151,18 @@ def find_trending_niches(count=1):
             break
     reserve = [i for i in ideas if i not in chosen and not i.get("variation_of")]
 
-    # nothing usable from the AI: Christmas fallback so the day is never empty
+    # nothing usable from the AI: on-theme fallback so the day is never empty
     backups = [
-        "vintage retro Santa Claus with reindeer in a snowy forest",
-        "cozy winter woodland animals fox deer owl in snow",
-        "vintage Santa delivering gifts to happy children",
-        "retro Christmas morning by the fireplace with Santa",
+        "vintage storybook reindeer in a snowy pine forest",
+        "vintage storybook winter woodland animals fox deer owl in snow",
+        "vintage storybook snowy cottage village in the forest",
+        "vintage storybook forest animals around a Christmas tree",
     ]
     types = _weighted_types(count + 4)
     j = 0
     while len(chosen) + len(reserve) < count + 2 and j < len(types):
         n = backups[j % len(backups)]
-        chosen_or_reserve = {"type": types[j], "niche": n, "search_query": n.split(" with ")[0],
+        chosen_or_reserve = {"type": types[j], "niche": n, "search_query": " ".join(n.split()[2:5]),
                              "why": "Yedek niş kullanıldı.", "etsy_results": None}
         (chosen if len(chosen) < count else reserve).append(chosen_or_reserve)
         j += 1

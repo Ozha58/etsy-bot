@@ -47,7 +47,13 @@ def build(spec, slug):
     audience = spec.get("audience", "adults")
     raws = []
     for p in spec["pages"][:8]:
-        raws.append(images.generate(f"{p['prompt']}. {_suffix(audience)}", 1488, 1920))
+        r = images.try_generate(f"{p['prompt']}. {_suffix(audience)}", 1488, 1920)
+        if r is None:
+            if images.quota_exhausted():
+                break
+            continue
+        raws.append(r)
+    images.need(len(raws), len(spec["pages"][:8]), ratio=0.75)
     letter = [_page(r, LETTER) for r in raws]
     a4 = [_page(r, A4) for r in raws]
     delivery = [
