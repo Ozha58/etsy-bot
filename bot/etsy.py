@@ -362,16 +362,29 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
     attrs = p.get("etsy", {}).get("attributes")
     if not attrs:
         from . import attributes
-        attrs = attributes.fill(lambda m, path, **kw: _req(m, path, tok, **kw), shop_id, lid, data["taxonomy_id"], p)
+        attrs = attributes.fill(lambda m, path, **kw: _req(m, path, tok, **kw), shop_id, lid, data["taxonomy_id"], p,
+                                skip=build_meta.get("skip_attributes", ()))
     state = "draft"
     if mode == "active":
         _req("PATCH", f"/shops/{shop_id}/listings/{lid}", tok, json={"state": "active"})
         state = "active"
     return {"listing_id": lid, "url": f"https://www.etsy.com/listing/{lid}", "state": state, "price": price,
-            "currency": tok.get("currency", "USD"), "attributes": attrs}
+            "currency": "USD", "attributes": attrs}
 
 
 # ---------------- maintenance ----------------
+
+def replace_main_image(listing_id, data: bytes, alt_text=""):
+    """Swap the first listing photo for a new JPEG (delete old rank-1 photo, upload new as rank 1)."""
+    tok = token()
+    shop_id = tok.get("shop_id") or get_shop(tok)["shop_id"]
+    imgs = _req("GET", f"/listings/{listing_id}/images", tok).get("results", [])
+    imgs.sort(key=lambda i: i.get("rank", 99))
+    if imgs:
+        _req("DELETE", f"/shops/{shop_id}/listings/{listing_id}/images/{imgs[0]['listing_image_id']}", tok)
+    _req("POST", f"/shops/{shop_id}/listings/{listing_id}/images", tok,
+         files={"image": ("cover.jpg", data, "image/jpeg")}, data={"rank": 1, "alt_text": alt_text[:250]}, timeout=300)
+
 
 def shop_listings(state="active") -> list:
     tok = token()

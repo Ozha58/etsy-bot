@@ -155,5 +155,6 @@ def build(spec, slug):
         "taxonomy": ["Scrapbooking Embellishments", "Digital Prints", "Clip Art & Image Files"],
         "taxonomy_fallback_id": 2078,
         "is_supply": True,
+        "skip_attributes": ["room"],
         "count": total,
     }

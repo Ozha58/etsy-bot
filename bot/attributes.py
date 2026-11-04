@@ -13,13 +13,13 @@ SKIP = {"craft type", "materials", "dimensions", "width", "height", "length", "s
 MAX_VALUES = 120
 
 
-def _properties(req, taxonomy_id):
+def _properties(req, taxonomy_id, skip=()):
     res = req("GET", f"/seller-taxonomy/nodes/{taxonomy_id}/properties")
     out = []
     for pr in res.get("results", []):
         name = (pr.get("display_name") or pr.get("name") or "").strip()
         vals = pr.get("possible_values") or []
-        if not name or not vals or name.lower() in SKIP:
+        if not name or not vals or name.lower() in SKIP or name.lower() in skip:
             continue
         if pr.get("supports_attributes") is False:
             continue
@@ -59,11 +59,11 @@ Return ONLY JSON: {{"attributes": {{"<attribute name>": ["<value>", ...]}}}}"""
     return data if isinstance(data, dict) else {}
 
 
-def fill(req, shop_id, listing_id, taxonomy_id, p) -> list:
+def fill(req, shop_id, listing_id, taxonomy_id, p, skip=()) -> list:
     """Set attributes on a listing. req = etsy._req bound to a token. Returns the saved 'Name: value' texts."""
     saved = []
     try:
-        props = _properties(req, taxonomy_id)
+        props = _properties(req, taxonomy_id, {s.lower() for s in skip})
         if not props:
             return saved
         picks = choose(p, props)
