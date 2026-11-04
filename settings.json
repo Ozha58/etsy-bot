@@ -11,27 +11,27 @@
   "price_ranges_usd": {
     "scenes": [
       1.99,
-      3.99
+      2.99
     ],
     "wall_art": [
       1.49,
-      3.99
+      2.99
     ],
     "coloring": [
       1.99,
-      3.99
+      2.99
     ],
     "wallpaper": [
       1.49,
-      3.49
+      2.49
     ],
     "junk_journal": [
-      3.49,
-      5.99
+      2.49,
+      3.99
     ],
     "planner": [
       2.49,
-      4.99
+      3.99
     ]
   },
   "niche_memory_days": 60,
