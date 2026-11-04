@@ -2,9 +2,9 @@
   "products_per_day": 2,
   "publish_mode": "active",
   "product_types": {
-    "junk_journal": 6,
-    "coloring": 2,
-    "wallpaper": 1,
+    "junk_journal": 4,
+    "coloring": 3,
+    "wallpaper": 2,
     "wall_art": 1
   },
   "max_same_type_per_day": 1,

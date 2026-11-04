@@ -57,6 +57,41 @@ def _used_queries(days=None):
             if p.get("created_at", 0) >= cutoff and p.get("status") != "rejected"} - {""}
 
 
+FORMAT_WORDS = set("""junk journal journals journaling kit kits ephemera printable printables digital download clipart clip
+art png wall prints print poster phone wallpaper wallpapers lock screen lockscreen coloring colouring pages page book
+paper papers pattern patterns seamless scrapbook collage sheet sheets stickers sticker cards card tags bundle pack set
+realistic detailed style vintage illustration illustrations aesthetic cute svg sublimation background backgrounds
+for and the with of in kids adults""".split())
+
+
+def _subject(text):
+    """Subject words of a niche/search phrase without format words: 'bee ephemera' -> {'bee'}."""
+    words = set(re.findall(r"[a-z]{3,}", (text or "").lower()))
+    words = {w[:-1] if w.endswith("s") and len(w) > 4 else w for w in words}
+    return {w for w in words if w not in FORMAT_WORDS}
+
+
+def _recent_subjects(days=14):
+    """Subjects of products made in the last days (rejected ones don't count)."""
+    import time
+    from . import storage
+    cutoff = time.time() - days * 86400
+    out = set()
+    for p in storage.all_products():
+        if p.get("created_at", 0) >= cutoff and p.get("status") != "rejected":
+            out |= _subject(p.get("research", {}).get("search_query") or p.get("niche", ""))
+    return out
+
+
+def _today_types(today):
+    from . import storage
+    out = {}
+    for p in storage.all_products():
+        if p.get("day") == today.isoformat() and p.get("status") != "rejected":
+            out[p.get("type")] = out.get(p.get("type"), 0) + 1
+    return out
+
+
 def _slots(n_cand, today):
     """One slot per candidate: product type + theme instruction."""
     types = _weighted_types(n_cand)
@@ -165,10 +200,27 @@ def find_trending_niches(count=1):
     # not-crowded ideas first (best score first), crowded ones only if we run out
     ideas.sort(key=lambda i: (i in crowded, -i["score"]))
 
-    chosen, per_type, variations = [], {}, 0
+    # different subject than the last 2 weeks, and different product type than what was made today
+    try:
+        recent = _recent_subjects(int(s.get("subject_gap_days", 14) or 14))
+    except Exception:
+        recent = set()
+    fresh = [i for i in ideas if not (_subject(i.get("search_query") or i["niche"]) & recent)]
+    if fresh:
+        ideas = fresh + [i for i in ideas if i not in fresh]
+    try:
+        made_today = _today_types(today)
+    except Exception:
+        made_today = {}
+    max_same = s.get("max_same_type_per_day", 1)
+    if all(made_today.get(i["type"], 0) >= max_same for i in ideas):
+        made_today = {}  # every type already made today: allow repeats rather than producing nothing
+    chosen, per_type, variations = [], dict(made_today), 0
     for idea in ideas:
         t = idea["type"]
-        if per_type.get(t, 0) >= s.get("max_same_type_per_day", 1):
+        if per_type.get(t, 0) >= max_same:
+            continue
+        if fresh and idea not in fresh and any(i not in chosen and i["type"] == t for i in fresh):
             continue
         if idea.get("variation_of"):
             if variations >= 1:
@@ -179,6 +231,8 @@ def find_trending_niches(count=1):
         if len(chosen) >= count:
             break
     reserve = [i for i in ideas if i not in chosen and not i.get("variation_of")]
+    # reserves: types not made today first, fresh subjects first
+    reserve.sort(key=lambda i: (per_type.get(i["type"], 0) >= max_same, i not in fresh))
 
     # nothing usable from the AI: on-theme fallback so the day is never empty
     backups = [
