@@ -435,6 +435,47 @@ def replace_main_image(listing_id, data: bytes, alt_text=""):
          files={"image": ("cover.jpg", data, "image/jpeg")}, data={"rank": 1, "alt_text": alt_text[:250]}, timeout=300)
 
 
+def replace_all_images(listing_id, photos: list, title=""):
+    """Swap every listing photo for new JPEGs [(name, bytes)] (max 10). Etsy keeps max 10, so: drop old 2..n,
+    add new 2..n, then swap the first one; the listing is never left without a photo."""
+    tok = token()
+    shop_id = tok.get("shop_id") or get_shop(tok)["shop_id"]
+    old = _req("GET", f"/listings/{listing_id}/images", tok).get("results", [])
+    old.sort(key=lambda i: i.get("rank", 99))
+    for im in old[1:]:
+        _req("DELETE", f"/shops/{shop_id}/listings/{listing_id}/images/{im['listing_image_id']}", tok)
+    for rank, (name, data) in enumerate(photos[1:10], 2):
+        _req("POST", f"/shops/{shop_id}/listings/{listing_id}/images", tok,
+             files={"image": (name, data, "image/jpeg")}, data={"rank": rank, "alt_text": _alt_text(title, name)}, timeout=300)
+    if old:
+        _req("DELETE", f"/shops/{shop_id}/listings/{listing_id}/images/{old[0]['listing_image_id']}", tok)
+    name, data = photos[0]
+    _req("POST", f"/shops/{shop_id}/listings/{listing_id}/images", tok,
+         files={"image": (name, data, "image/jpeg")}, data={"rank": 1, "alt_text": _alt_text(title, name)}, timeout=300)
+
+
+def replace_files(listing_id, delivery: list):
+    """Swap the digital files of a listing for new ones [(name, bytes)] (max 5 x 20 MB)."""
+    for name, data in delivery:
+        if len(data) > 20 * 1024 * 1024:
+            raise EtsyError(f"{name} 20 MB'tan büyük")
+    tok = token()
+    shop_id = tok.get("shop_id") or get_shop(tok)["shop_id"]
+    old = _req("GET", f"/shops/{shop_id}/listings/{listing_id}/files", tok).get("results", [])
+    for f in old:
+        _req("DELETE", f"/shops/{shop_id}/listings/{listing_id}/files/{f['listing_file_id']}", tok)
+    for rank, (name, data) in enumerate(delivery[:5], 1):
+        ctype = "application/pdf" if name.endswith(".pdf") else "application/zip"
+        _req("POST", f"/shops/{shop_id}/listings/{listing_id}/files", tok,
+             files={"file": (name, data, ctype)}, data={"name": name, "rank": rank}, timeout=600)
+
+
+def update_listing(listing_id, **fields) -> dict:
+    tok = token()
+    shop_id = tok.get("shop_id") or get_shop(tok)["shop_id"]
+    return _req("PATCH", f"/shops/{shop_id}/listings/{listing_id}", tok, json=fields)
+
+
 def shop_listings(state="active") -> list:
     tok = token()
     out, offset = [], 0

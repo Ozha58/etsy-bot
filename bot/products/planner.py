@@ -16,9 +16,9 @@ from ..mockups import H as MH, W as MW
 
 LABEL_TR = "Dijital yaşam planlayıcısı (750+ linkli sayfa, 6 renk teması, 80 şablon, 1000+ sticker, 50+ kapak)"
 SPEC_FIELDS = """
-  "planner_name": "short planner name, 2-4 words, about the theme (e.g. 'Honey Bee Garden')",
-  "cover": {"prompt": "English prompt for ONE beautiful horizontal cover illustration for the theme, calm area in the center, no text"},
-  "stickers": [ exactly 8 objects {"name": "short name", "prompt": "English prompt for ONE single isolated object that fits the theme (sticker), no text"} ]
+  "planner_name": "short planner name, 2-4 words, named by its aesthetic (e.g. 'Neutral Boho', 'Sage Botanical', 'Dark Academia')",
+  "cover": {"prompt": "English prompt for ONE beautiful aesthetic horizontal cover image in the planner style (texture, pattern, flowers or a calm scene; NO animals, NO people), calm area in the lower center, no text"},
+  "stickers": [ exactly 8 objects {"name": "short name", "prompt": "English prompt for ONE single isolated aesthetic object that fits the style (flower, leaf, cup, candle, book...), no animals, no text"} ]
 """
 OBJECT_SUFFIX = ("single isolated object, centered with empty space around it, pure plain white background, "
                  "no shadow, no ground, no text, no letters, no border, no frame")
@@ -75,19 +75,293 @@ def _badge(c, cx, cy, big, small, col):
     d.text((cx - d.textlength(small, font=sf) / 2, cy + 18), small, font=sf, fill=(255, 255, 255, 255))
 
 
-def _cover_mock(front, backs, accent, badges):
-    """First listing photo, like the best sellers: stacked tablets + big feature badges, all inside the centre square."""
-    c = _bg(accent)
-    _title(c, "DIGITAL PLANNER", "undated  •  hyperlinked  •  iPad & Android", accent, y=50)
+def _hero_bg(art, accent):
+    """Listing background made from the planner's own cover art: soft focus, light veil, dark vignette."""
+    a = art.convert("RGB")
+    sc = max(MW / a.width, MH / a.height)
+    a = a.resize((int(a.width * sc) + 1, int(a.height * sc) + 1), Image.LANCZOS)
+    l, t = (a.width - MW) // 2, (a.height - MH) // 2
+    a = a.crop((l, t, l + MW, t + MH)).filter(ImageFilter.GaussianBlur(7)).convert("RGBA")
+    cream = tuple(int(c * 0.10 + 248 * 0.90) for c in accent)
+    veil = Image.new("RGBA", (MW, MH), cream + (0,))
+    d = ImageDraw.Draw(veil)
+    for y in range(MH):  # strong veil at the top (title), lighter in the middle, stronger again at the bottom
+        t = y / MH
+        a_ = 215 if t < 0.17 else int(215 - (t - 0.17) * 300) if t < 0.45 else int(131 + (t - 0.45) * 120)
+        d.line((0, y, MW, y), fill=cream + (max(90, min(225, a_)),))
+    a.alpha_composite(veil)
+    return a
+
+
+def _pill_badge(c, cx, cy, big, small, accent, r=124):
+    """White round badge with an accent ring: one calm color family instead of a rainbow."""
+    sh = Image.new("RGBA", c.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).ellipse((cx - r, cy - r + 14, cx + r, cy + r + 14), fill=(0, 0, 0, 80))
+    c.alpha_composite(sh.filter(ImageFilter.GaussianBlur(16)))
+    d = ImageDraw.Draw(c)
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 255, 255, 255))
+    d.ellipse((cx - r + 12, cy - r + 12, cx + r - 12, cy + r - 12), outline=accent + (255,), width=5)
+    bf = fit_text(d, big, "sans_bold", r * 1.28, 74, 34)
+    bb = d.textbbox((0, 0), big, font=bf)
+    d.text((cx - (bb[2] - bb[0]) / 2 - bb[0], cy - 22 - (bb[3] - bb[1]) - bb[1] + 8), big, font=bf, fill=accent + (255,))
+    sf = fit_text(d, small, "sans_bold", r * 1.4, 27, 16)
+    d.text((cx - d.textlength(small, font=sf) / 2, cy + 22), small, font=sf, fill=INK + (255,))
+
+
+def _cover_mock(front, backs, accent, badges, art=None):
+    """First listing photo: the planner's own art as a soft backdrop, three tablets, calm white badges.
+    Everything important sits inside Etsy's centre-square crop (x 300-2100)."""
+    if art is None:  # take the art from the rendered cover page
+        art = front.crop((0, int(front.height * 0.1), int(front.width * 0.94), front.height))
+    dark = tuple(int(v * 0.55) for v in accent)
+    c = _hero_bg(art, accent)
+    d = ImageDraw.Draw(c)
+    tt = "Digital Planner"
+    hf = font("serif", 150)
+    try:
+        hf.set_variation_by_name("SemiBold")
+    except Exception:
+        pass
+    d.text((MW / 2 - d.textlength(tt, font=hf) / 2, 30), tt, font=hf, fill=INK + (255,))
+    sub = "UNDATED   •   HYPERLINKED   •   iPad & ANDROID"
+    sf = fit_text(d, sub, "sans_bold", 1300, 38, 22)
+    sw = d.textlength(sub, font=sf)
+    d.text((MW / 2 - sw / 2, 246), sub, font=sf, fill=dark + (255,))
+    d.line((MW / 2 - sw / 2 - 90, 270, MW / 2 - sw / 2 - 30, 270), fill=accent + (255,), width=4)
+    d.line((MW / 2 + sw / 2 + 30, 270, MW / 2 + sw / 2 + 90, 270), fill=accent + (255,), width=4)
     for k, pg in enumerate(backs[:2]):
-        t = _tablet(pg, 820).rotate((-7, 7)[k], expand=True, resample=Image.BICUBIC)
-        paste_with_shadow(c, t, ((480, 1020)[k], 330 + k * 10), radius=22, offset=(0, 14), opacity=100)
-    t = _tablet(front, 1080)
-    paste_with_shadow(c, t, ((MW - t.width) // 2, 520), radius=30, offset=(0, 22), opacity=140)
-    cols = [accent, (200, 120, 110), (110, 140, 120), (100, 130, 170), (160, 120, 170)]
-    spots = [(470, 430), (1930, 430), (420, 1080), (1980, 1080), (MW // 2, 1500)]
-    for (big, small), (x, y), col in zip(badges, spots, cols):
-        _badge(c, min(max(x, 430), MW - 430), y, big, small, col)
+        t = _tablet(pg, 860).rotate((6, -6)[k], expand=True, resample=Image.BICUBIC)
+        paste_with_shadow(c, t, ((420, MW - 420 - t.width)[k], 360), radius=26, offset=(0, 18), opacity=110)
+    t = _tablet(front, 1200)
+    fx, fy = (MW - t.width) // 2, 590
+    paste_with_shadow(c, t, (fx, fy), radius=36, offset=(0, 28), opacity=150)
+    spots = [(470, 470), (1930, 470), (440, 1150), (1960, 1150)]
+    for k, ((big, small), (x, y)) in enumerate(zip(badges, spots)):
+        _pill_badge(c, min(max(x, 440), MW - 440), y, big, small, dark if k % 2 else accent)
+    if len(badges) > 4:  # the fifth one as a ribbon under the tablet, so it never hides the screen
+        text = f"{badges[4][0]} {badges[4][1]}   •   INSTANT DOWNLOAD"
+        d = ImageDraw.Draw(c)
+        rf = fit_text(d, text, "sans_bold", 1100, 40, 24)
+        rw = d.textlength(text, font=rf) + 120
+        y0 = fy + t.height + 40
+        sh = Image.new("RGBA", c.size, (0, 0, 0, 0))
+        ImageDraw.Draw(sh).rounded_rectangle((MW / 2 - rw / 2, y0 + 10, MW / 2 + rw / 2, y0 + 100), 45, fill=(0, 0, 0, 70))
+        c.alpha_composite(sh.filter(ImageFilter.GaussianBlur(12)))
+        d = ImageDraw.Draw(c)
+        d.rounded_rectangle((MW / 2 - rw / 2, y0, MW / 2 + rw / 2, y0 + 90), 45, fill=accent + (255,))
+        bb = d.textbbox((0, 0), text, font=rf)
+        d.text((MW / 2 - (bb[2] - bb[0]) / 2 - bb[0], y0 + 45 - (bb[3] - bb[1]) / 2 - bb[1]), text, font=rf, fill=(255, 255, 255, 255))
+    return c.convert("RGB")
+
+
+def boho_art(palette, w=1536, h=1152, seed=5):
+    """Calm neutral-boho cover art drawn with Pillow (no quota, never an animal): cream paper, soft arches,
+    a half sun, rounded hills and a few leaf sprigs in muted tones of the palette."""
+    rnd = random.Random(seed)
+    mute = lambda c, t: tuple(int(v * (1 - t) + 236 * t) for v in c)
+    cols = [mute(c, 0.45) for c in palette] + [(214, 190, 168), (196, 160, 136), (226, 210, 190), (182, 168, 146)]
+    im = Image.new("RGBA", (w, h), (246, 240, 232, 255))
+    d = ImageDraw.Draw(im)
+    # nested rainbow arches, left
+    cx, base = int(w * 0.26), int(h * 0.78)
+    for k, r in enumerate((420, 340, 260, 180)):
+        d.pieslice((cx - r, base - r, cx + r, base + r), 180, 360, fill=cols[k % len(cols)] + (255,))
+    d.rectangle((0, base, w, h), fill=(246, 240, 232, 255))
+    # half sun, right
+    sx, sy, sr = int(w * 0.74), int(h * 0.42), 170
+    d.ellipse((sx - sr, sy - sr, sx + sr, sy + sr), fill=cols[4 % len(cols)] + (255,))
+    # rolling hills at the bottom
+    for k in range(3):
+        y0 = int(h * (0.70 + k * 0.08))
+        pts = [(0, h)]
+        for x in range(0, w + 40, 40):
+            pts.append((x, y0 + int(40 * __import__("math").sin(x / (190 + 60 * k) + k * 1.7))))
+        pts.append((w, h))
+        d.polygon(pts, fill=cols[(k + 1) % len(cols)] + (255,))
+    # leaf sprigs
+    for _ in range(3):
+        lx, ly = rnd.randrange(int(w * 0.55), w - 120), rnd.randrange(int(h * 0.62), int(h * 0.8))
+        col = mute(cols[rnd.randrange(len(cols))], 0.15)
+        d.line((lx, ly, lx + 30, ly - 210), fill=col + (255,), width=6)
+        for j in range(5):
+            yy = ly - 40 - j * 34
+            xx = lx + 6 + j * 5
+            d.ellipse((xx - 46, yy - 12, xx - 2, yy + 12), fill=col + (255,))
+            d.ellipse((xx + 2, yy - 20, xx + 46, yy + 4), fill=col + (255,))
+    # paper grain
+    noise = Image.effect_noise((w, h), 18).convert("L").point(lambda v: int(v * 0.12))
+    grain = Image.new("RGBA", (w, h), (90, 70, 50, 0))
+    grain.putalpha(noise)
+    im.alpha_composite(grain)
+    return im.convert("RGB")
+
+
+def _soft_bg(accent):
+    """Dreamy soft background like the best sellers: light tinted gradient + a few big blurred light shapes."""
+    top = tuple(int(c * 0.10 + 246 * 0.90) for c in accent)
+    bot = tuple(int(c * 0.18 + 236 * 0.82) for c in accent)
+    c = Image.new("RGBA", (MW, MH))
+    d = ImageDraw.Draw(c)
+    for y in range(MH):
+        t = y / MH
+        d.line((0, y, MW, y), fill=tuple(int(a * (1 - t) + b * t) for a, b in zip(top, bot)) + (255,))
+    blobs = Image.new("RGBA", (MW, MH), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(blobs)
+    rnd = random.Random(3)
+    for _ in range(7):
+        x, y, r = rnd.randrange(0, MW), rnd.randrange(0, MH), rnd.randrange(250, 520)
+        bd.ellipse((x - r, y - r, x + r, y + r), fill=(255, 255, 255, rnd.randrange(50, 95)))
+    c.alpha_composite(blobs.filter(ImageFilter.GaussianBlur(90)))
+    return c
+
+
+def _center_text(d, y, text, f, fill):
+    bb = d.textbbox((0, 0), text, font=f)
+    d.text((MW / 2 - (bb[2] - bb[0]) / 2 - bb[0], y), text, font=f, fill=fill)
+
+
+def _shadow_shape(c, box, radius, blur=18, off=14, alpha=80, ellipse=False):
+    sh = Image.new("RGBA", c.size, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(sh)
+    b = (box[0], box[1] + off, box[2], box[3] + off)
+    (sd.ellipse(b, fill=(0, 0, 0, alpha)) if ellipse else sd.rounded_rectangle(b, radius, fill=(0, 0, 0, alpha)))
+    c.alpha_composite(sh.filter(ImageFilter.GaussianBlur(blur)))
+
+
+def _black_pill(c, x, y, text, size=54):
+    d = ImageDraw.Draw(c)
+    f = font("sans_bold", size)
+    bb = d.textbbox((0, 0), text, font=f)
+    w, h = bb[2] - bb[0] + 120, int(size * 2.05)
+    _shadow_shape(c, (x, y, x + w, y + h), h // 2, blur=14, off=10, alpha=70)
+    d = ImageDraw.Draw(c)
+    d.rounded_rectangle((x, y, x + w, y + h), h // 2, fill=(20, 20, 22, 255))
+    d.text((x + 60 - bb[0], y + (h - (bb[3] - bb[1])) / 2 - bb[1]), text, font=f, fill=(255, 255, 255, 255))
+    return w, h
+
+
+def _burst(c, cx, cy, r, lines):
+    import math
+    pts = []
+    n = 18
+    for k in range(n * 2):
+        rr = r if k % 2 == 0 else r * 0.86
+        a = math.pi * k / n
+        pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
+    sh = Image.new("RGBA", c.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).polygon([(x, y + 12) for x, y in pts], fill=(0, 0, 0, 80))
+    c.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)))
+    d = ImageDraw.Draw(c)
+    d.polygon(pts, fill=(20, 20, 22, 255))
+    w = (255, 255, 255, 255)  # download icon
+    d.line((cx, cy - r * 0.62, cx, cy - r * 0.30), fill=w, width=7)
+    d.line((cx - 20, cy - r * 0.42, cx, cy - r * 0.28, cx + 20, cy - r * 0.42), fill=w, width=7, joint="curve")
+    d.line((cx - 34, cy - r * 0.30, cx - 34, cy - r * 0.20, cx + 34, cy - r * 0.20, cx + 34, cy - r * 0.30), fill=w, width=6)
+    f = font("sans_bold", int(r * 0.24))
+    for k, ln in enumerate(lines):
+        bb = d.textbbox((0, 0), ln, font=f)
+        d.text((cx - (bb[2] - bb[0]) / 2 - bb[0], cy - r * 0.08 + k * r * 0.30), ln, font=f, fill=w)
+
+
+def _stylus(c, x1, y1, x2, y2):
+    import math
+    L = int(math.hypot(x2 - x1, y2 - y1))
+    st = Image.new("RGBA", (L, 44), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(st)
+    sd.rounded_rectangle((70, 4, L - 1, 40), 18, fill=(252, 252, 252, 255), outline=(210, 210, 214, 255), width=2)
+    sd.polygon([(72, 6), (72, 38), (4, 22)], fill=(238, 238, 240, 255))
+    sd.polygon([(20, 17), (20, 27), (2, 22)], fill=(80, 80, 85, 255))
+    sd.rectangle((L - 60, 4, L - 54, 40), fill=(225, 225, 228, 255))
+    ang = math.degrees(math.atan2(-(y2 - y1), x2 - x1))
+    st = st.rotate(ang + 180, expand=True, resample=Image.BICUBIC)
+    sh = Image.new("RGBA", st.size, (0, 0, 0, 0))
+    sh.putalpha(st.split()[-1].point(lambda v: v * 70 // 255))
+    c.alpha_composite(sh.filter(ImageFilter.GaussianBlur(8)), (int(min(x1, x2)) + 14, int(min(y1, y2)) + 22))
+    c.alpha_composite(st, (int(min(x1, x2)), int(min(y1, y2))))
+
+
+def hero_mock(art, daily, name, accent, swatches, info):
+    """First listing photo in the best-seller layout: small black pill, big elegant title, a tablet opened like a book
+    (cover art on the left, a real daily page on the right), theme color dots, black call-outs, an INSTANT DOWNLOAD
+    burst and a feature strip. All key parts stay inside Etsy's centre-square crop (x 300-2100)."""
+    c = _soft_bg(accent)
+    d = ImageDraw.Draw(c)
+    # top pill
+    pf = font("sans_medium", 40)
+    pt = "THE ALL-IN-ONE"
+    pw = d.textlength(pt, font=pf) + 90
+    d.rounded_rectangle((MW / 2 - pw / 2, 52, MW / 2 + pw / 2, 132), 40, fill=(20, 20, 22, 255))
+    _center_text(d, 62, pt, pf, (255, 255, 255, 255))
+    # title
+    tf = font("serif", 220)
+    try:
+        tf.set_variation_by_name("Medium")
+    except Exception:
+        pass
+    tt = "DIGITAL PLANNER"
+    while d.textlength(tt, font=tf) > 1760 and tf.size > 120:
+        tf = tf.font_variant(size=tf.size - 6)
+    _center_text(d, 140, tt, tf, (24, 22, 22, 255))
+    sub = f"undated digital planner  |  {info['pages']} hyperlinked pages  |  for iPad & Android"
+    sf = fit_text(d, sub, "sans_light", 1760, 54, 30)
+    _center_text(d, 400, sub, sf, (40, 38, 38, 255))
+    # tablet opened like a book
+    sh_ = 860
+    wl = int(sh_ * 0.62)
+    dpage = daily.convert("RGB")
+    wr = int(dpage.width * sh_ / dpage.height)
+    gap, bez = 16, 30
+    W_, H_ = wl + gap + wr + 2 * bez, sh_ + 2 * bez
+    tx, ty = (MW - W_) // 2, 515
+    _shadow_shape(c, (tx, ty, tx + W_, ty + H_), 60, blur=30, off=26, alpha=110)
+    d = ImageDraw.Draw(c)
+    d.rounded_rectangle((tx, ty, tx + W_, ty + H_), 60, fill=(22, 22, 25, 255))
+    d.rounded_rectangle((tx + 3, ty + 3, tx + W_ - 3, ty + H_ - 3), 58, outline=(70, 70, 76, 255), width=3)
+    # left: the cover
+    a = art.convert("RGB")
+    s_ = max(wl / a.width, sh_ / a.height)
+    a = a.resize((int(a.width * s_) + 1, int(a.height * s_) + 1), Image.LANCZOS)
+    l = (a.width - wl) // 2
+    a = a.crop((l, 0, l + wl, sh_)).convert("RGBA")
+    ad = ImageDraw.Draw(a)
+    lab_w, lab_h = wl - 90, 190
+    lx, ly = 45, int(sh_ * 0.40)
+    veil = Image.new("RGBA", a.size, (0, 0, 0, 0))
+    ImageDraw.Draw(veil).rounded_rectangle((lx, ly, lx + lab_w, ly + lab_h), 18, fill=(255, 253, 250, 225))
+    a.alpha_composite(veil)
+    ad = ImageDraw.Draw(a)
+    nf = fit_text(ad, name.upper(), "sans_medium", lab_w - 60, 30, 16)
+    ad.text((wl / 2 - ad.textlength(name.upper(), font=nf) / 2, ly + 28), name.upper(), font=nf, fill=accent + (255,))
+    pf2 = font("serif", 76)
+    ad.text((wl / 2 - ad.textlength("PLANNER", font=pf2) / 2, ly + 72), "PLANNER", font=pf2, fill=(60, 52, 48, 255))
+    for x in range(26):  # spine shadow
+        ad.line((wl - 1 - x, 0, wl - 1 - x, sh_), fill=(0, 0, 0, int(60 * (1 - x / 26))))
+    c.paste(a.convert("RGB"), (tx + bez, ty + bez))
+    # right: a real daily page
+    c.paste(dpage.resize((wr, sh_), Image.LANCZOS), (tx + bez + wl + gap, ty + bez))
+    # theme color dots on the left edge
+    r = 46
+    for k, col in enumerate(swatches[:6]):
+        cx, cy = tx + 4, ty + 95 + k * 104
+        _shadow_shape(c, (cx - r, cy - r, cx + r, cy + r), 0, blur=10, off=8, alpha=70, ellipse=True)
+        d = ImageDraw.Draw(c)
+        soft = tuple(int(v * 0.55 + 255 * 0.45) for v in col) if sum(col) > 200 else col
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=soft + (255,), outline=(255, 255, 255, 255), width=7)
+    # black call-outs
+    _black_pill(c, 310, ty + H_ - 250, f"{info['templates']}+ EXTRA TEMPLATES")
+    _black_pill(c, 340, ty + H_ - 120, "MONDAY & SUNDAY START" if info.get("monday") else "LIGHT & DARK MODE")
+    _burst(c, tx + W_ - 140, ty + 190, 150, ["INSTANT", "DOWNLOAD"])
+    _stylus(c, tx + W_ - 520, ty + H_ - 60, tx + W_ + 40, ty + H_ - 330)
+    # feature strip
+    by = MH - 215
+    strip = Image.new("RGBA", (MW, 150), (255, 255, 255, 120))
+    c.alpha_composite(strip, (0, by))
+    d = ImageDraw.Draw(c)
+    ft = (f"{info['themes']} color themes  •  {info['stickers']}+ stickers  •  {info['covers']}+ covers  •  "
+          f"{info['notebooks']} notebooks included")
+    ff = fit_text(d, ft, "sans", 1760, 62, 30)
+    bb = d.textbbox((0, 0), ft, font=ff)
+    _center_text(d, by + 75 - (bb[3] - bb[1]) / 2 - bb[1], ft, ff, (30, 28, 28, 255))
     return c.convert("RGB")
 
 
@@ -232,6 +506,13 @@ def build(spec, slug):
         if im is not None:
             objs.append(trim_alpha(color_to_alpha_background(im)))
     images.need(len(objs), 8, ratio=0.75)
+    return assemble(spec, slug, cover, objs)
+
+
+def assemble(spec, slug, cover, objs, palette=None):
+    """Everything after the AI art: PDFs, stickers, covers, zips and the 10 listing photos.
+    Also used by /kapak to rebuild an old planner from its own art (no image quota)."""
+    palette = palette or [hex2rgb(x) for x in spec.get("palette", [])][:4] or [(196, 140, 50), (110, 140, 90), (170, 90, 70)]
     name = spec.get("planner_name", "Digital Planner")
     title = f"{name} Planner" if "planner" not in name.lower() else name
 
@@ -281,9 +562,11 @@ def build(spec, slug):
              "12 months, 60 weeks, 420 daily pages", f"{n_tpl} templates: goals, health, money, life",
              "12 custom notebooks + 8 note papers", f"{n_st}+ stickers & {n_cov}+ covers", "How-to page + index on every tab"]
     mock = [
-        ("01-cover.jpg", _cover_mock(sig["cover"], [previews["Sage"]["m0"], dk["m0w0d0"]], accent,
-                                     [(f"{n_pages // 50 * 50}+", "LINKED PAGES"), ("6", "COLOR THEMES"), (f"{n_tpl}", "TEMPLATES"),
-                                      (f"{n_st}+", "STICKERS"), (f"{n_cov}+", "COVERS")])),
+        ("01-cover.jpg", hero_mock(cover, sig["m0w0d0"], name, accent,
+                                   [palette[0], (52, 54, 60)] + [THEMES[t][0] for t in ("Sage", "Blush", "Ocean", "Lavender")],
+                                   {"pages": n_pages, "templates": n_tpl, "stickers": n_st, "covers": n_cov,
+                                    "notebooks": planner_pdf.NOTEBOOKS, "themes": 6,
+                                    "monday": any("monday" in f[0] for f in files)})),
         ("02-features.jpg", _features_mock(accent, feats, sig["index"])),
         ("03-navigation.jpg", _grid_mock([sig["index"], sig["guide"]], "EASY NAVIGATION", "index, top tabs, month tabs and arrows on every page", accent)),
         ("04-monthly.jpg", _grid_mock([sig["m0"], sig["m0g"], sig["m0h"], sig["m0b"]], "MONTHLY PAGES", "calendar • at a glance • habits & mood • budget", accent)),

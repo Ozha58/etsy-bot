@@ -1,6 +1,7 @@
 """Redraw the cover of an already published listing with today's cover design and replace the
 first photo on Etsy (Telegram: /kapak <id> or /kapak hepsi). Uses the product's stored files,
-so no image quota is spent."""
+so no image quota is spent. Planners are rebuilt completely (new PDFs, stickers, covers and all
+10 photos, no watermark) from their own cover art and stickers."""
 import io
 import zipfile
 
@@ -53,7 +54,7 @@ def _planner_cover(p):
     from . import planner_pdf
     from .imgutil import hex2rgb
     from .products import planner as PL
-    pdfs, n_st, n_cov = {}, 0, 0
+    pdfs, n_st, n_cov, art = {}, 0, 0, None
     for f in p.get("files", []):
         if not f["name"].endswith(".zip"):
             continue
@@ -66,6 +67,8 @@ def _planner_cover(p):
                 n_st += 1
             elif low.startswith("covers/"):
                 n_cov += 1
+                if low.endswith("cover-01.jpg"):  # the clean AI cover art
+                    art = Image.open(io.BytesIO(z.read(n))).convert("RGB")
     if not pdfs:
         raise RuntimeError("planlayıcı PDF'i bulunamadı")
     light = next((v for k, v in pdfs.items() if "dark" not in k), None) or next(iter(pdfs.values()))
@@ -73,6 +76,16 @@ def _planner_cover(p):
     import pypdfium2 as pdfium
     n_pages = len(pdfium.PdfDocument(light))
     front, back1 = planner_pdf.render_pages(light, [0, 3], 1400)
+    if art is not None:  # redraw the first page with today's layout (small card low, art fully visible)
+        try:
+            spec = p.get("spec", {})
+            name = spec.get("planner_name") or "Digital Planner"
+            title = name if "planner" in name.lower() else f"{name} Planner"
+            pal0 = [hex2rgb(c) for c in spec.get("palette", [])] or [(150, 110, 90)]
+            pp = planner_pdf.Planner(title, pal0, art, [], "sun", False)
+            front = planner_pdf.render_pages(pp.build(), [0], 1400)[0]
+        except Exception as e:
+            print(f"[kapak] yeni ilk sayfa çizilemedi: {e}")
     back2 = planner_pdf.render_pages(dark, [5], 1400)[0]
     themes = len({k.split("-sunday")[0].rsplit("-", 1)[-1] for k in pdfs})
     m = re.search(r"(\d+)\+?\s+templates", p.get("description", ""), re.I)
@@ -85,7 +98,75 @@ def _planner_cover(p):
         badges.append((f"{n_st // 50 * 50}+", "STICKERS"))
     badges.append((f"{n_cov}" if n_cov else "SUN", "COVERS" if n_cov else "& MON START"))
     pal = [hex2rgb(c) for c in p.get("spec", {}).get("palette", [])] or [(196, 140, 50)]
-    return PL._cover_mock(front, [back1, back2], pal[0], badges[:5])
+    return PL._cover_mock(front, [back1, back2], pal[0], badges[:5], art=art)
+
+
+def _art_from_pdf(pdf_bytes):
+    """The clean cover art is embedded as an image on the planner's first page (the title card is vector on top)."""
+    import pypdfium2 as pdfium
+    import pypdfium2.raw as raw
+    page = pdfium.PdfDocument(pdf_bytes)[0]
+    best = None
+    for o in page.get_objects():
+        if o.type == raw.FPDF_PAGEOBJ_IMAGE:
+            im = o.get_bitmap(render=False).to_pil().convert("RGB")
+            if best is None or im.width * im.height > best.width * best.height:
+                best = im
+    return best
+
+
+def rebuild_planner(p):
+    """Rebuild an old planner listing with today's planner (750+ pages, new photos, no watermark) from its own art."""
+    from . import generator, research
+    from .products import planner as PL
+    lid = p.get("etsy", {}).get("listing_id")
+    if p.get("status") != "published" or not lid:
+        raise RuntimeError("ürün Etsy'de yayında değil")
+    pdf, objs = None, []
+    for f in p.get("files", []):
+        if not f["name"].endswith(".zip"):
+            continue
+        z = zipfile.ZipFile(io.BytesIO(assets.download(p["id"], "file__" + f["name"])))
+        for n in sorted(z.namelist()):
+            low = n.lower()
+            if low.endswith(".pdf") and "dark" not in low and (pdf is None or "signature" in low and "sunday" in low):
+                pdf = z.read(n)
+            elif "01-themed/" in low and low.endswith(".png"):
+                objs.append(Image.open(io.BytesIO(z.read(n))).convert("RGBA"))
+    if not pdf:
+        raise RuntimeError("planlayıcı PDF'i bulunamadı")
+    # old planners were made around an animal: drop that art and those stickers, use a calm neutral-boho look instead
+    spec = dict(p.get("spec", {}))
+    pal = [PL.hex2rgb(c) for c in spec.get("palette", [])][:4] or [(150, 110, 90), (176, 152, 110), (124, 150, 120)]
+    art = PL.boho_art(pal)
+    objs = []
+    spec["planner_name"] = "Neutral Boho"
+    title = "Neutral Boho Digital Planner, Undated Hyperlinked iPad and Android Journal with Stickers"
+    spec["title"] = title
+    tags = ["digital planner", "undated planner", "ipad planner", "boho planner", "neutral planner",
+            "hyperlinked planner", "android planner", "daily planner", "weekly planner", "life planner",
+            "aesthetic planner", "planner stickers", "tablet planner"]
+    spec["tags"] = tags
+    spec["intro"] = ("Plan your whole life in one calm, beautiful place. This undated neutral boho digital planner is fully "
+                     "hyperlinked, so every tab, month, week and day is one tap away. Use it on your iPad or Android tablet "
+                     "with any PDF note-taking app, start any month you like and use it year after year.")
+    slug = research.slugify(title, 40)
+    built = PL.assemble(spec, slug, art, objs)
+    desc = generator.compose_description(spec, built) if spec.get("intro") else p.get("description", "")
+    telegram.send("⏳ Yeni dosyalar Etsy'ye yükleniyor…")
+    etsy.replace_files(lid, built["delivery"])
+    etsy.replace_all_images(lid, built["mockups"], title)
+    try:
+        etsy.update_listing(lid, title=title[:140], description=desc, tags=tags)
+    except Exception as e:
+        print(f"[recover] başlık/açıklama güncellenemedi: {e}")
+    payload = {f"file__{n}": b for n, b in built["delivery"]}
+    payload.update({f"photo__{n}": b for n, b in built["mockups"]})
+    assets.upload(p["id"], payload)
+    p.update({"title": title, "description": desc, "tags": tags, "spec": spec, "thumb": built["thumb"],
+              "files": [{"name": n, "size": len(b)} for n, b in built["delivery"]],
+              "photos": [n for n, _ in built["mockups"]], "rebuilt": True})
+    return built["mockups"]
 
 
 def clean_title(title):
@@ -122,7 +203,8 @@ def run(arg):
     arg = (arg or "").strip()
     pub = [p for p in storage.all_products() if p.get("status") == "published" and p.get("type") in SUPPORTED]
     if arg.lower() in ("hepsi", "all"):
-        targets = [p for p in pub if not p.get("cover_refreshed")][:6]
+        targets = [p for p in pub if not p.get("cover_refreshed")]
+        targets = [p for p in targets if p["type"] != "planner"][:6] + [p for p in targets if p["type"] == "planner"][:1]
     else:
         targets = [p for p in pub if arg in (p["id"], str(p.get("etsy", {}).get("listing_id")))]
     if not targets:
@@ -132,6 +214,16 @@ def run(arg):
     changed = False
     for p in targets:
         try:
+            if p["type"] == "planner":
+                telegram.send(f"📒 Planlayıcı baştan yenileniyor (yeni sayfalar, 10 yeni fotoğraf, filigransız): "
+                              f"<b>{esc(p['title'][:80])}</b> – ~5 dk")
+                photos = rebuild_planner(p)
+                p["cover_refreshed"] = True
+                storage.add_event(p, "Planlayıcı yenilendi")
+                storage.save_product(p)
+                changed = True
+                telegram.album(photos[:10], caption=f"✅ Yenilendi: <b>{esc(p['title'][:80])}</b>")
+                continue
             data = refresh(p)
             p["cover_refreshed"] = True
             storage.add_event(p, "Kapak yenilendi")

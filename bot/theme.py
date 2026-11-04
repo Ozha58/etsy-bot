@@ -63,7 +63,28 @@ def angle(today: dt.date = None) -> str:
     return current
 
 
-def slot_theme(today: dt.date = None) -> str:
+# Planners sell on an AESTHETIC, not on an animal (BrighterPlans & co: neutral, boho, floral, minimal, dark).
+PLANNER_STYLES = [
+    "neutral boho: beige, terracotta and dried pampas grass", "minimalist cream and beige, soft linen texture",
+    "soft watercolor wildflowers", "sage green botanical leaves", "pastel rainbow aesthetic",
+    "dark academia: old books, candlelight, deep green and brown", "cottagecore: wildflowers, linen and sunlight",
+    "elegant white marble with gold accents", "calm coastal: soft blue waves and sand", "lavender fields at sunset",
+    "cozy autumn leaves and warm tones", "cozy coffee, books and a knitted blanket", "japandi zen: stone, bamboo, soft light",
+    "romantic pink peonies", "night sky with moon and stars", "golden sunflower field", "abstract earth-tone shapes",
+    "blush pink and gold minimal", "tropical palm leaves", "vintage roses on cream paper",
+]
+
+
+def planner_theme() -> str:
+    return (f"PLANNER STYLE (mandatory): {random.choice(PLANNER_STYLES)}. Make it look like the best-selling aesthetic "
+            "planners on Etsy: calm, pretty, adult. The cover art is a texture, a pattern, flowers or a calm scene. "
+            "NO animals, NO characters, NO people, NO Christmas. Name it by the aesthetic "
+            "(e.g. 'Neutral Boho Planner', 'Sage Botanical Planner', 'Dark Academia Planner').")
+
+
+def slot_theme(today: dt.date = None, ptype: str = None) -> str:
+    if ptype == "planner":
+        return planner_theme()
     return (f"SHOP THEME (mandatory): {theme()}. Season angle: {angle(today)}. "
             f"Subject idea to build on: {random.choice(SUBJECTS)}. "
             "No gnomes, no elves, no Grinch, no brand or film characters.")

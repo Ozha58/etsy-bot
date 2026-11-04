@@ -124,7 +124,7 @@ def _slots(n_cand, today):
                      f"but a clearly different subject or scene, still inside our shop theme ({shop.theme()}). Never copy it")
             slots.append({"type": t, "theme": theme, "variation_of": w["title"]})
         else:
-            slots.append({"type": t, "theme": shop.slot_theme(today)})
+            slots.append({"type": t, "theme": shop.slot_theme(today, t)})
     return slots
 
 
@@ -269,9 +269,13 @@ def find_trending_niches(count=1):
     j = 0
     while len(chosen) + len(reserve) < count + 2 and j < len(types):
         t = types[j]
-        pool = [b for b in backups if not (_subject(b[1]) & recent_by_type.get(t, set()))] or backups
-        niche, sub = pool[0]
-        backups.remove((niche, sub))
+        if t == "planner":  # planners: an aesthetic, never an animal
+            sub = random.choice(shop.PLANNER_STYLES).split(":")[0]
+            niche = f"{sub} digital planner"
+        else:
+            pool = [b for b in backups if not (_subject(b[1]) & recent_by_type.get(t, set()))] or backups
+            niche, sub = pool[0]
+            backups.remove((niche, sub))
         idea = {"type": t, "niche": niche, "search_query": " ".join(sub.split()[:3]),
                 "why": "Yedek niş kullanıldı.", "etsy_results": None}
         (chosen if len(chosen) < count else reserve).append(idea)

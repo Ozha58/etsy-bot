@@ -387,14 +387,16 @@ class Planner:
         art = art.resize((int(art.width * s), int(art.height * s)), Image.LANCZOS)
         l, t = (art.width - aw) // 2, (art.height - ah) // 2
         self._img("cover", art.crop((l, t, l + aw, t + ah)), 0, 0, aw, ah)
+        # small frosted card low on the page, so the art (the animal, the scene) stays fully visible
+        cw, ch, cy = 640, 200, 46
         self._fill(self.card)
-        self.c.setFillAlpha(0.92)
-        self.c.roundRect(aw / 2 - 380, ah / 2 - 150, 760, 300, 30, stroke=0, fill=1)
+        self.c.setFillAlpha(0.88)
+        self.c.roundRect(aw / 2 - cw / 2, cy, cw, ch, 26, stroke=0, fill=1)
         self.c.setFillAlpha(1)
-        self._text(aw / 2, ah / 2 + 70, "UNDATED DIGITAL PLANNER", "SansB", 22, self.pal[0], "c")
-        size = 50 if len(self.title) <= 24 else 38
-        self._text(aw / 2, ah / 2 + 5, self.title, "Serif", size, self.ink, "c")
-        self._button(aw / 2 - 110, ah / 2 - 95, 220, 50, "START HERE", "index", self.pal[0], True)
+        self._text(aw / 2, cy + ch - 42, "UNDATED DIGITAL PLANNER", "SansB", 18, self.pal[0], "c")
+        size = 40 if len(self.title) <= 24 else 30
+        self._text(aw / 2, cy + ch - 98, self.title, "Serif", size, self.ink, "c")
+        self._button(aw / 2 - 100, cy + 22, 200, 44, "START HERE", "index", self.pal[0], True)
         self._end()
 
     def index(self):
