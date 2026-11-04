@@ -61,7 +61,10 @@ FORMAT_WORDS = set("""junk journal journals journaling kit kits ephemera printab
 art png wall prints print poster phone wallpaper wallpapers lock screen lockscreen coloring colouring pages page book
 paper papers pattern patterns seamless scrapbook collage sheet sheets stickers sticker cards card tags bundle pack set
 realistic detailed style vintage illustration illustrations aesthetic cute svg sublimation background backgrounds
-for and the with of in kids adults""".split())
+for and the with of in kids adults
+christmas xmas holiday holidays festive winter snowy snow spring summer autumn fall halloween valentine valentines
+easter thanksgiving new year seasonal cozy cosy watercolor retro rustic boho minimalist modern woodland forest
+soft pastel dark moody scene scenes nordic scandinavian colorful decor art line gift gifts instant""".split())
 
 
 def _subject(text):
@@ -80,6 +83,19 @@ def _recent_subjects(days=14):
     for p in storage.all_products():
         if p.get("created_at", 0) >= cutoff and p.get("status") != "rejected":
             out |= _subject(p.get("research", {}).get("search_query") or p.get("niche", ""))
+    return out
+
+
+def _recent_subjects_by_type(days=45):
+    """{product type: subject words} of products made in the last days (rejected ones don't count)."""
+    import time
+    from . import storage
+    cutoff = time.time() - days * 86400
+    out = {}
+    for p in storage.all_products():
+        if p.get("created_at", 0) >= cutoff and p.get("status") != "rejected":
+            out.setdefault(p.get("type"), set()).update(
+                _subject(p.get("research", {}).get("search_query") or p.get("niche", "")) | _subject(p.get("title", "")))
     return out
 
 
@@ -216,38 +232,48 @@ def find_trending_niches(count=1):
     max_same = s.get("max_same_type_per_day", 1)
     if all(made_today.get(i["type"], 0) >= max_same for i in ideas):
         made_today = {}  # every type already made today: allow repeats rather than producing nothing
-    chosen, per_type, variations = [], dict(made_today), 0
-    for idea in ideas:
-        t = idea["type"]
-        if per_type.get(t, 0) >= max_same:
-            continue
-        if fresh and idea not in fresh and any(i not in chosen and i["type"] == t for i in fresh):
-            continue
-        if idea.get("variation_of"):
-            if variations >= 1:
-                continue
-            variations += 1
-        chosen.append(idea)
-        per_type[t] = per_type.get(t, 0) + 1
-        if len(chosen) >= count:
-            break
-    reserve = [i for i in ideas if i not in chosen and not i.get("variation_of")]
-    # reserves: types not made today first, fresh subjects first
-    reserve.sort(key=lambda i: (per_type.get(i["type"], 0) >= max_same, i not in fresh))
+    # never the same subject twice in the same product type (e.g. 4 Santa coloring books, 2 bee junk journals):
+    # those listings only compete with each other in Etsy search
+    try:
+        recent_by_type = _recent_subjects_by_type(int(s.get("duplicate_gap_days", 45) or 45))
+    except Exception:
+        recent_by_type = {}
 
-    # nothing usable from the AI: on-theme fallback so the day is never empty
-    backups = [
-        "realistic honey bees and beehives",
-        "realistic lighthouse by the sea",
-        "realistic forest mushrooms",
-        "realistic garden birds",
-    ]
+    def _dupe(i):
+        return bool(_subject(i.get("search_query") or i["niche"]) & recent_by_type.get(i["type"], set()))
+
+    chosen, per_type, variations = [], dict(made_today), 0
+    for pass_no in (1, 2):
+        for idea in ideas:
+            if len(chosen) >= count:
+                break
+            t = idea["type"]
+            if idea in chosen or per_type.get(t, 0) >= max_same or _dupe(idea):
+                continue
+            if pass_no == 1 and fresh and idea not in fresh:
+                continue  # first pass: only subjects not used in the last 2 weeks
+            if idea.get("variation_of"):
+                if variations >= 1:
+                    continue
+                variations += 1
+            chosen.append(idea)
+            per_type[t] = per_type.get(t, 0) + 1
+    reserve = [i for i in ideas if i not in chosen and not i.get("variation_of")]
+    # reserves: no duplicates first, types not made today first, fresh subjects first
+    reserve.sort(key=lambda i: (_dupe(i), per_type.get(i["type"], 0) >= max_same, i not in fresh))
+
+    # nothing usable from the AI: on-theme fallback so the day is never empty (subjects not used yet first)
+    backups = [(f"realistic {sub}", sub) for sub in shop.SUBJECTS]
+    random.shuffle(backups)
     types = _weighted_types(count + 4)
     j = 0
     while len(chosen) + len(reserve) < count + 2 and j < len(types):
-        n = backups[j % len(backups)]
-        chosen_or_reserve = {"type": types[j], "niche": n, "search_query": " ".join(n.split()[2:5]),
-                             "why": "Yedek niş kullanıldı.", "etsy_results": None}
-        (chosen if len(chosen) < count else reserve).append(chosen_or_reserve)
+        t = types[j]
+        pool = [b for b in backups if not (_subject(b[1]) & recent_by_type.get(t, set()))] or backups
+        niche, sub = pool[0]
+        backups.remove((niche, sub))
+        idea = {"type": t, "niche": niche, "search_query": " ".join(sub.split()[:3]),
+                "why": "Yedek niş kullanıldı.", "etsy_results": None}
+        (chosen if len(chosen) < count else reserve).append(idea)
         j += 1
     return chosen + reserve

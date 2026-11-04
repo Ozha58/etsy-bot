@@ -356,6 +356,27 @@ def _maybe_start_pinweek():
     return True
 
 
+FIX_VERSION = "listing-fix-1"  # bump to run the one-off listing repair again
+
+
+def _maybe_fix_listings():
+    """Once: move live listings to the categories competitors rank in and fix lower-case titles."""
+    meta = storage.load_meta()
+    if meta.get("listing_fix") == FIX_VERSION or not storage.load_etsy().get("refresh_token"):
+        return False
+    meta["listing_fix"] = FIX_VERSION
+    storage.save_meta(meta)
+    try:
+        notes = etsy.fix_listings()
+        print(f"[poll] ilan onarımı: {notes}", flush=True)
+        if notes:
+            telegram.send("🛠 <b>Etsy ilanları onarıldı</b> (doğru kategori = aramada görünürlük):\n"
+                          + "\n".join(f"• {esc(n)}" for n in notes[:40]))
+    except Exception as e:
+        print(f"[poll] ilan onarımı başarısız: {e}", flush=True)
+    return True
+
+
 PINS_AT = 17  # local hour the day's ready-to-post pins are sent
 
 
@@ -393,6 +414,9 @@ def run(loop_seconds=0):
             if _maybe_send_pins():
                 any_change = True
                 storage.commit_and_push("Günlük üretim başlatıldı")
+            if _maybe_fix_listings():
+                any_change = True
+                storage.commit_and_push("İlan kategorileri onarıldı")
         except Exception as e:
             print(f"[poll] günlük kontrol hatası: {e}", flush=True)
     while True:

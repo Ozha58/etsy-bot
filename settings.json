@@ -1,5 +1,5 @@
 {
-  "products_per_day": 2,
+  "products_per_day": 4,
   "publish_mode": "active",
   "product_types": {
     "junk_journal": 4,
@@ -36,5 +36,5 @@
   },
   "niche_memory_days": 60,
   "timezone": "Europe/Istanbul",
-  "christmas_share": 0.0
+  "christmas_share": 0.5
 }

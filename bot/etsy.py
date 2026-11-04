@@ -157,26 +157,75 @@ def search_active(keywords: str, limit=25) -> dict:
 _TAXONOMY = None
 
 
-def taxonomy_id(names: list, fallback: int) -> int:
-    global _TAXONOMY
-    try:
-        if _TAXONOMY is None:
-            nodes = _req("GET", "/seller-taxonomy/nodes").get("results", [])
-            flat = {}
+# Categories that the best-selling competitors use (checked on Etsy, Nov 2026).
+# A name can be a leaf name ("Coloring Books") or a path suffix ("Paper > Scrapbooking Ephemera").
+TAXONOMY_BY_TYPE = {
+    "junk_journal": ["Paper > Scrapbooking Ephemera", "Clip Art & Image Files"],
+    "pattern": ["Paper > Decorative Paper", "Clip Art & Image Files"],
+    "wallpaper": ["Drawing & Illustration > Digital", "Digital Prints"],
+    "planner": ["Templates > Planner Templates", "Planner Templates"],
+    "coloring": ["Books > Coloring Books", "Digital Prints"],
+    "clipart": ["Clip Art & Image Files"],
+    "scenes": ["Clip Art & Image Files"],
+    "tumbler": ["Clip Art & Image Files"],
+    "wall_art": ["Prints > Digital Prints"],
+}
 
-            def walk(ns):
-                for n in ns:
-                    if not n.get("children"):
-                        flat.setdefault(n["name"].lower(), n["id"])
-                    walk(n.get("children") or [])
-            walk(nodes)
-            _TAXONOMY = flat
+
+def _taxonomy_paths():
+    """[(lowercase 'a > b > c' path, id, is_leaf)] for every Etsy seller category."""
+    global _TAXONOMY
+    if _TAXONOMY is None:
+        nodes = _req("GET", "/seller-taxonomy/nodes").get("results", [])
+        flat = []
+
+        def walk(ns, parents):
+            for n in ns:
+                path = parents + [n["name"].strip().lower()]
+                flat.append((" > ".join(path), n["id"], not n.get("children")))
+                walk(n.get("children") or [], path)
+        walk(nodes, [])
+        _TAXONOMY = flat
+    return _TAXONOMY
+
+
+def taxonomy_id(names: list, fallback: int) -> int:
+    try:
+        paths = _taxonomy_paths()
         for name in names:
-            if name.lower() in _TAXONOMY:
-                return _TAXONOMY[name.lower()]
+            want = " > ".join(x.strip() for x in name.lower().split(">"))
+            hits = [(leaf, pid) for path, pid, leaf in paths if path == want or path.endswith(" > " + want)]
+            if hits:
+                hits.sort(key=lambda h: not h[0])  # leaf categories first
+                return hits[0][1]
     except Exception as e:
         print(f"[etsy] kategori listesi alınamadı: {e}")
     return fallback
+
+
+def taxonomy_for(ptype: str, build_meta: dict) -> int:
+    names = TAXONOMY_BY_TYPE.get(ptype or "") or build_meta.get("taxonomy", [])
+    return taxonomy_id(names, build_meta.get("taxonomy_fallback_id", 2078))
+
+
+_SMALL = {"a", "an", "and", "or", "the", "of", "for", "with", "in", "on", "to", "by", "at"}
+
+
+def nice_title(title: str) -> str:
+    """'cute penguin clipart bundle' -> 'Cute Penguin Clipart Bundle'. Titles that already use capitals are kept."""
+    t = " ".join((title or "").split())
+    words = t.split(" ")
+    if not t or sum(w[:1].isupper() for w in words) >= max(2, len(words) // 2):
+        return t
+    out = []
+    for i, w in enumerate(words):
+        if i and w.lower() in _SMALL:
+            out.append(w.lower())
+        elif w[:1].islower():
+            out.append(w[:1].upper() + w[1:])
+        else:
+            out.append(w)
+    return " ".join(out)
 
 
 # ---------------- publishing ----------------
@@ -300,12 +349,12 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
     price = round(float(p["price_usd"]), 2)
     data = {
         "quantity": 999,
-        "title": p["title"][:140],
+        "title": nice_title(p["title"])[:140],
         "description": p["description"],
         "price": price,
         "who_made": "i_did",
         "when_made": _when_made(),
-        "taxonomy_id": taxonomy_id(build_meta.get("taxonomy", []), build_meta.get("taxonomy_fallback_id", 2078)),
+        "taxonomy_id": taxonomy_for(p.get("type"), build_meta),
         "type": "download",
         "is_supply": bool(build_meta.get("is_supply")),
         "tags": _clean_tags(p.get("tags", [])),
@@ -396,6 +445,66 @@ def shop_listings(state="active") -> list:
         offset += 100
         if offset >= res.get("count", 0) or not res.get("results"):
             return out
+
+
+def _type_from_title(title: str):
+    t = (title or "").lower()
+    for words, ptype in ((("junk journal", "ephemera"), "junk_journal"), (("digital planner", "planner"), "planner"),
+                         (("wallpaper", "lock screen", "lockscreen"), "wallpaper"),
+                         (("digital paper", "seamless pattern", "scrapbook paper"), "pattern"),
+                         (("coloring", "colouring"), "coloring"), (("tumbler",), "tumbler"),
+                         (("wall art", "art print", "prints"), "wall_art"),
+                         (("clipart", "clip art", "illustration pack", "scenes"), "clipart")):
+        if any(w in t for w in words):
+            return ptype
+    return None
+
+
+def fix_listings() -> list:
+    """One-off repair of live listings: wrong category (e.g. junk journals in 'Digital Prints')
+    and lower-case titles. Attributes are filled again for the new category. Returns change notes."""
+    from . import attributes
+    tok = token()
+    shop_id = tok["shop_id"]
+    by_lid = {str(p.get("etsy", {}).get("listing_id")): p for p in storage.all_products() if p.get("etsy", {}).get("listing_id")}
+    notes = []
+    for state in ("active", "draft"):
+        try:
+            listings = shop_listings(state)
+        except Exception as e:
+            print(f"[etsy] {state} ilanlar alınamadı: {e}")
+            continue
+        for li in listings:
+            lid = li["listing_id"]
+            p = by_lid.get(str(lid)) or {}
+            ptype = p.get("type") or _type_from_title(li.get("title"))
+            if ptype not in TAXONOMY_BY_TYPE:
+                continue
+            want = taxonomy_id(TAXONOMY_BY_TYPE[ptype], li.get("taxonomy_id"))
+            change = {}
+            if want and want != li.get("taxonomy_id"):
+                change["taxonomy_id"] = want
+            title = html_unescape(li.get("title") or "")
+            if nice_title(title) != title:
+                change["title"] = nice_title(title)
+            if not change:
+                continue
+            try:
+                _req("PATCH", f"/shops/{shop_id}/listings/{lid}", tok, json=change)
+                if "taxonomy_id" in change:
+                    attributes.fill(lambda m, path, **kw: _req(m, path, tok, **kw), shop_id, lid, want,
+                                    p or {"title": title, "type": ptype, "tags": li.get("tags", [])},
+                                    skip=("room",) if ptype in ("junk_journal", "planner") else ())
+                notes.append(f"{title[:50]} → " + ", ".join(
+                    ("kategori düzeltildi" if k == "taxonomy_id" else "başlık düzeltildi") for k in change))
+            except Exception as e:
+                notes.append(f"{title[:50]} → HATA: {str(e)[:120]}")
+    return notes
+
+
+def html_unescape(s):
+    import html
+    return html.unescape(s or "")
 
 
 def update_title(listing_id, title: str) -> dict:
