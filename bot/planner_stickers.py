@@ -149,11 +149,14 @@ def icon(kind, col):
     return im
 
 
-def make_all(palette, themed=()):
-    """palette: list of rgb; themed: AI sticker images (RGBA). Returns [(filename, PIL RGBA)]."""
-    cols = list(palette)[:6]
+def make_all(palette, themed=(), per_word=12):
+    """palette: list of rgb (any length, more colors = more stickers); themed: AI sticker images (RGBA).
+    Returns [(filename, PIL RGBA)]."""
+    cols = list(dict.fromkeys(tuple(c) for c in palette))
+    base = len(cols)
     while len(cols) < 6:
-        cols.append(_dark(cols[len(cols) % max(1, len(palette))], 0.25))
+        cols.append(_dark(cols[len(cols) % max(1, base)], 0.25))
+    nc = len(cols)
     out = []
     for i, t in enumerate(themed, 1):
         out.append((f"01-themed/themed-{i:02d}.png", t))
@@ -165,16 +168,13 @@ def make_all(palette, themed=()):
         for kind in ("heart", "star", "check", "arrow", "highlight", "clip"):
             out.append((f"07-icons/{kind}-{ci + 1}.png", icon(kind, c)))
     for wi, w in enumerate(WORDS):
-        for k in range(6):
-            safe = w.lower().replace(" ", "-").replace("'", "")
-            out.append((f"04-labels/{safe}-{k + 1}.png", label(w, cols[(wi + k) % 6], k % 3)))
+        safe = w.lower().replace(" ", "-").replace("'", "")
+        for k in range(min(per_word, nc * 3)):
+            out.append((f"04-labels/{safe}-{k + 1}.png", label(w, cols[(wi + k) % nc], k % 3)))
     for n in range(1, 32):
         for k, filled in enumerate((True, False)):
-            out.append((f"05-dates/date-{n:02d}-{'filled' if filled else 'outline'}.png", date_circle(n, cols[n % 6], filled)))
-    for i, dname in enumerate(DAYS):
-        for k in range(2):
-            out.append((f"06-days-months/{dname.lower()}-{k + 1}.png", label(dname, cols[i % 6], k)))
-    for i, m in enumerate(MONTHS):
-        for k in range(2):
-            out.append((f"06-days-months/{m.lower()}-{k + 1}.png", label(m, cols[i % 6], k)))
+            out.append((f"05-dates/date-{n:02d}-{'filled' if filled else 'outline'}.png", date_circle(n, cols[n % nc], filled)))
+    for i, name in enumerate(DAYS + MONTHS):
+        for k in range(4):
+            out.append((f"06-days-months/{name.lower()}-{k + 1}.png", label(name, cols[(i + k) % nc], k % 3)))
     return out

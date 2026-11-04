@@ -101,8 +101,48 @@ TEMPLATES = [
     ("contacts", "Contacts", "life", [("table", "", ["Name", "Phone", "Email", "Birthday"], 16)]),
     ("passwords", "Website Log (hints only)", "life", [("table", "", ["Website", "Username", "Hint"], 16)]),
     ("journal", "Journal", "life", [("lines", "Dear diary", 20)]),
+    # extra templates (competitors offer 80+)
+    ("qplan1", "Quarter 1 Plan", "year", [("boxes", ["Top goals", "Projects", "Habits to build", "Focus", "Dates", "Notes"])]),
+    ("qplan2", "Quarter 2 Plan", "year", [("boxes", ["Top goals", "Projects", "Habits to build", "Focus", "Dates", "Notes"])]),
+    ("qplan3", "Quarter 3 Plan", "year", [("boxes", ["Top goals", "Projects", "Habits to build", "Focus", "Dates", "Notes"])]),
+    ("qplan4", "Quarter 4 Plan", "year", [("boxes", ["Top goals", "Projects", "Habits to build", "Focus", "Dates", "Notes"])]),
+    ("wordyear", "Word of the Year", "year", [("lines", "My word", 2), ("lines", "Why this word", 8), ("lines", "How I will live it", 8)]),
+    ("aboutme", "About Me", "year", [("boxes", ["Favorites", "Dreams", "Strengths", "Values", "Fun facts", "This year I want"])]),
+    ("smart", "SMART Goals", "goals", [("table", "", ["Goal", "Specific", "Measurable", "Achievable", "Relevant", "Time"], 8)]),
+    ("matrix", "Priority Matrix", "goals", [("boxes", ["Urgent & important", "Important, not urgent", "Urgent, not important", "Neither"])]),
+    ("habitlist", "Habit Builder", "goals", [("table", "", ["Habit", "Cue", "Reward", "Start date"], 10), ("circles", "21 day streak", 21)]),
+    ("pomodoro", "Pomodoro Tracker", "goals", [("table", "", ["Task", "Sessions", "Done"], 12), ("circles", "Focus sessions", 62)]),
+    ("timelog", "Time Tracker", "goals", [("table", "", ["Time", "Activity", "Category", "Notes"], 18)]),
+    ("weeklyreview", "Weekly Review", "goals", [("boxes", ["Went well", "To improve", "Learned", "Next week focus"])]),
+    ("mood", "Mood Tracker", "health", [("circles", "Color a mood for every day of the year", 366)]),
+    ("sleep", "Sleep Log", "health", [("table", "", ["Date", "Bedtime", "Wake up", "Hours", "Quality"], 16)]),
+    ("steps", "Steps & Activity", "health", [("table", "", ["Date", "Steps", "Activity", "Minutes", "Feeling"], 16)]),
+    ("measure", "Body Measurements", "health", [("table", "", ["Date", "Weight", "Waist", "Hips", "Notes"], 14)]),
+    ("doctor", "Appointments", "health", [("table", "", ["Date", "Doctor", "Reason", "Notes"], 14)]),
+    ("emergency", "Emergency Fund", "finance", [("lines", "My target", 2), ("circles", "Color one for every deposit", 100)]),
+    ("invest", "Investment Tracker", "finance", [("table", "", ["Date", "Asset", "Amount", "Value", "Notes"], 15)]),
+    ("income", "Income Tracker", "finance", [("table", "", ["Date", "Source", "Amount", "Notes"], 16)]),
+    ("weeklybudget", "Weekly Budget", "finance", [("table", "", ["Day", "Planned", "Spent", "Notes"], 7), ("check", "Spending goals", 8)]),
+    ("wishlistfin", "Saving For", "finance", [("table", "", ["Item", "Price", "Saved", "Bought"], 14)]),
+    ("wishlist", "Wishlist", "life", [("check", "Things I want", 16), ("check", "Gift ideas", 16)]),
+    ("parcels", "Order & Parcel Tracker", "life", [("table", "", ["Order", "Shop", "Ordered", "Arrived", "Return"], 16)]),
+    ("movies", "Movie & Series Log", "life", [("table", "", ["Title", "Genre", "Watched", "Rating"], 16)]),
+    ("tbr", "To Be Read", "life", [("check", "Books to read", 16), ("check", "Books I loved", 16)]),
+    ("booknotes", "Book Notes", "life", [("lines", "Title & author", 2), ("lines", "Favorite quotes", 8), ("lines", "My thoughts", 8)]),
+    ("packing", "Packing List", "life", [("check", "Clothes", 12), ("check", "Toiletries", 10), ("check", "Tech", 8), ("check", "Documents", 8)]),
+    ("dream", "Dream Journal", "life", [("lines", "Last night I dreamed", 12), ("lines", "Feelings & meaning", 8)]),
+    ("affirm", "Affirmations", "life", [("lines", "I am", 10), ("lines", "I can", 10)]),
+    ("selfcareplan", "Self-Care Plan", "life", [("boxes", ["Morning", "Evening", "Weekly", "When I feel low"])]),
+    ("chores", "Chore Chart", "life", [("table", "", ["Chore", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], 12)]),
+    ("birthdays", "Gift Planner", "life", [("table", "", ["Person", "Occasion", "Gift", "Budget", "Bought"], 14)]),
+    ("pets", "Pet Care", "life", [("table", "", ["Date", "Task", "Vet / food", "Notes"], 14)]),
+    ("plants", "Plant Care", "life", [("table", "", ["Plant", "Water", "Sun", "Fertilize", "Notes"], 14)]),
+    ("events", "Event Planner", "life", [("lines", "Event", 2), ("check", "To do", 10), ("table", "", ["Guest", "RSVP"], 10)]),
+    ("habitsyear", "Yearly Habit Tracker", "goals", [("circles", "One habit, every day of the year", 366)]),
 ]
-PAPERS = ["Lined", "Dotted", "Grid", "Blank", "Cornell", "Lined", "Dotted", "Grid"]
+PAPERS = ["Lined", "Dotted", "Grid", "Blank", "Cornell", "Music", "Lined", "Dotted"]
+NB_PAPERS = ["Lined", "Dotted", "Grid", "Blank"]
+NOTEBOOKS = 12
 
 
 class Planner:
@@ -120,9 +160,10 @@ class Planner:
         self.deco = deco
         self.days = DAYS_SUN if week_start == "sun" else DAYS_MON
         self.buf = io.BytesIO()
-        self.c = rl.Canvas(self.buf, pagesize=(W, H))
+        self.c = rl.Canvas(self.buf, pagesize=(W, H), pageCompression=1)
         self.c.setTitle(title)
         self.pages = 0
+        self.order = []
         self._imgcache = {}
 
     # ---------- primitives ----------
@@ -141,7 +182,10 @@ class Planner:
     def _img(self, key, im, x, y, w, h):
         if key not in self._imgcache:
             b = io.BytesIO()
-            im.save(b, "PNG")
+            if im.mode == "RGB":
+                im.save(b, "JPEG", quality=86)  # photos: JPEG keeps the PDF small
+            else:
+                im.save(b, "PNG")
             b.seek(0)
             self._imgcache[key] = ImageReader(b)
         self.c.drawImage(self._imgcache[key], x, y, w, h, mask="auto")
@@ -201,6 +245,7 @@ class Planner:
             self._link(key, (x + 4, H - TOP_H + 8, x + tw - 4, H - 10))
 
     def _page(self, key=None, section=None, month=None):
+        self.order.append(key)
         self._fill(self.paper)
         self.c.rect(0, 0, W, H, stroke=0, fill=1)
         if key:
@@ -358,7 +403,8 @@ class Planner:
         groups = [("CALENDAR", [("Year at a Glance", "year")] + [(m, f"m{i}") for i, m in enumerate(MONTHS)])]
         for sec, name in (("year", "YEAR"), ("goals", "GOALS"), ("health", "HEALTH"), ("finance", "FINANCE"), ("life", "LIFE")):
             groups.append((name, [(t[1], t[0]) for t in TEMPLATES if t[2] == sec]))
-        groups.append(("NOTES", [(f"{p} paper", f"note{k}") for k, p in enumerate(PAPERS)] + [("Daily pages", "m0w0d0")]))
+        groups.append(("NOTES", [("How to use", "guide"), ("All notes", "notes")] + [(f"{p} paper", f"note{k}") for k, p in enumerate(PAPERS[:6])]
+                       + [(f"Notebook {n + 1}", f"nb{n}") for n in range(NOTEBOOKS)]))
         cols = len(groups)
         cw = (W - TAB_W - 80) / cols
         for g, (name, items) in enumerate(groups):
@@ -368,8 +414,9 @@ class Planner:
             step = min(46, (top - 90) / max(len(items), 1))
             for k, (lab, key) in enumerate(items):
                 y = top - 78 - k * step
-                lab = lab if len(lab) <= 17 else lab[:16] + "…"
-                self._text(x, y, lab, "Sans", 16, self.ink)
+                fs = 16 if len(items) <= 18 else 13
+                lab = lab if len(lab) <= 19 else lab[:18] + "…"
+                self._text(x, y, lab, "Sans", fs, self.ink)
                 self._link(key, (x - 4, y - 8, x + cw - 12, y + 20))
         self._end()
 
@@ -408,7 +455,7 @@ class Planner:
         t = self._box(sx, top - 250, sw, 250, "Goals", col)
         self._lines(sx + 16, t, top - 250 + 8, sw - 32, 30)
         self._text(sx, top - 290, "THIS MONTH", "SansB", 14, col)
-        links = [(f"Week {w + 1}", f"m{i}w{w}") for w in range(WEEKS)] + \
+        links = [("At a glance", f"m{i}g")] + [(f"Week {w + 1}", f"m{i}w{w}") for w in range(WEEKS)] + \
                 [("Habits & Mood", f"m{i}h"), ("Budget", f"m{i}b"), ("Reflection", f"m{i}r")]
         for k, (lab, key) in enumerate(links):
             y = top - 345 - k * 50
@@ -434,7 +481,8 @@ class Planner:
                 self._text(x + bw - 16, y + bh - 32, "open ›", "Sans", 12, self.soft, "r")
             else:
                 t = self._box(x, y, bw, bh, "Priorities", col)
-                self._check(x + 16, t, y + 12, bw - 32, 8)
+                self._check(x + 16, t, y + 70, bw - 32, 6)
+                self._button(x + 16, y + 18, bw - 32, 38, "Hourly schedule ›", f"m{i}w{w}s", col, True)
         self._end()
 
     def day(self, i, w, k):
@@ -516,23 +564,20 @@ class Planner:
         self._layout([("boxes", ["Highlights", "Wins", "Challenges", "Lessons", "Grateful for", "Next month"])], top, col)
         self._end()
 
-    def template(self, key, title, section, items, n):
+    def template(self, key, title, section, items, n, first=False):
         col = self.pal[n % len(self.pal)]
-        first = n == 0 or TEMPLATES[n - 1][2] != section
-        self._page(None, section)
-        if first:
+        self._page(key, section)
+        if first and section != "year":  # the YEAR tab goes to "Year at a Glance"
             self.c.bookmarkPage(section)
-        self.c.bookmarkPage(key)
         top = self._header(title, section.upper(), col, n)
         self._layout(items, top, col)
         self._end()
 
-    def note_page(self, k, kind):
-        col = self.pal[k % len(self.pal)]
-        self._page(f"note{k}", "notes")
-        if k == 0:
-            self.c.bookmarkPage("notes")
-        top = self._header("Notes", kind.upper(), col, k + 3)
+    def note_page(self, k, kind, title=None, prev=None, nxt=None):
+        col = self.pal[(k if isinstance(k, int) else len(title or "")) % len(self.pal)]
+        self._page(f"note{k}" if isinstance(k, int) else k, "notes")
+        top = self._header(title or "Notes", kind.upper(), col, (k if isinstance(k, int) else 0) + 3,
+                           prev=prev, nxt=nxt)
         x0, x1, y0, y1 = 40, W - TAB_W - 40, top - 10, 40
         if kind == "Lined":
             self._lines(x0, y0, y1, x1 - x0)
@@ -547,6 +592,13 @@ class Planner:
                 self.c.line(x, y1, x, y0)
             for y in range(int(y1), int(y0) + 1, 30):
                 self.c.line(x0, y, x1, y)
+        elif kind == "Music":
+            self._stroke(_mix(self.line, self.ink, 0.15), 1)
+            y = y0 - 30
+            while y - 48 > y1:
+                for l in range(5):
+                    self.c.line(x0, y - l * 12, x1, y - l * 12)
+                y -= 110
         elif kind == "Cornell":
             self._stroke(col, 1.4)
             self.c.line(x0 + 300, y0, x0 + 300, y1 + 160)
@@ -557,23 +609,133 @@ class Planner:
             self._lines(x0 + 320, y0 - 34, y1 + 170, x1 - x0 - 320)
         self._end()
 
+    def guide(self):
+        self._page("guide", "index")
+        top = self._header("How to use your planner", "START HERE", self.pal[0], 2)
+        steps = [("Navigate", "Tap the tabs at the top (Home, Year, Goals, Health, Finance, Life, Notes) and the month tabs on the right."),
+                 ("Months", "Each month opens a calendar. Write the dates in the small circles: it is undated, so start any time."),
+                 ("Weeks & days", "Month pages link to 5 weeks. Week pages link to an hourly schedule and to every single day."),
+                 ("Arrows", "Use the arrows in the page header to go to the previous or next week, day or month."),
+                 ("Templates", "80 extra pages for goals, health, money and life are in the top tabs. Duplicate any page in your app."),
+                 ("Notebooks", "12 custom notebooks with lined, dotted, grid and blank paper are under NOTES. Rename them as you like."),
+                 ("Stickers", "Import the PNG stickers into your note app's sticker or image library, then drag them onto any page.")]
+        y = top - 20
+        for k, (head, body) in enumerate(steps):
+            col = self.pal[k % len(self.pal)]
+            self._fill(col)
+            self.c.circle(70, y - 26, 22, stroke=0, fill=1)
+            self._text(70, y - 33, str(k + 1), "SansB", 20, (255, 255, 255), "c")
+            self._text(110, y - 22, head.upper(), "SansB", 17, col)
+            self._text(110, y - 50, body, "Sans", 16, self.ink)
+            y -= 106
+        self._button(W - TAB_W - 260, 50, 220, 44, "Open the index", "index", self.pal[0], True)
+        self._end()
+
+    def week_schedule(self, i, w):
+        col = self.pal[i % len(self.pal)]
+        self._page(f"m{i}w{w}s", "year", i)
+        top = self._header(f"{MONTHS[i]} · Week {w + 1}", "SCHEDULE", col, i + w + 4, prev=f"m{i}w{w}", nxt=None)
+        x0, x1 = 100, W - TAB_W - 40
+        cw = (x1 - x0) / 7
+        for d, name in enumerate(self.days):
+            self._fill(_mix(self.card, col, 0.15))
+            self.c.rect(x0 + d * cw, top - 40, cw, 40, stroke=0, fill=1)
+            self._text(x0 + d * cw + cw / 2, top - 27, name[:3].upper(), "SansB", 14, col, "c")
+            self._link(f"m{i}w{w}d{d}", (x0 + d * cw, top - 40, x0 + (d + 1) * cw, top))
+        rows = 17
+        rh = (top - 40 - 50) / rows
+        self._stroke(self.line, 1)
+        for r in range(rows + 1):
+            y = top - 40 - r * rh
+            self.c.line(x0, y, x1, y)
+            if r < rows:
+                h = r + 6
+                self._text(40, y - rh / 2 - 5, f"{h % 12 or 12} {'am' if h < 12 else 'pm'}", "SansL", 13, self.soft)
+        for d in range(8):
+            self.c.line(x0 + d * cw, top - 40, x0 + d * cw, top - 40 - rows * rh)
+        self._end()
+
+    def glance(self, i):
+        col = self.pal[i % len(self.pal)]
+        self._page(f"m{i}g", "year", i)
+        top = self._header(f"{MONTHS[i]} · At a Glance", "31 DAYS", col, i + 6)
+        x0, x1 = 40, W - TAB_W - 40
+        half = (x1 - x0 - 24) / 2
+        rh = (top - 40) / 16
+        for d in range(31):
+            cx = x0 + (d // 16) * (half + 24)
+            y = top - (d % 16 + 1) * rh
+            self._fill(_mix(self.card, col, 0.18))
+            self.c.roundRect(cx, y + 4, 52, rh - 8, 8, stroke=0, fill=1)
+            self._text(cx + 26, y + rh / 2 - 6, str(d + 1), "SansB", 15, col, "c")
+            self._stroke(self.line, 1)
+            self.c.line(cx + 64, y + 6, cx + half, y + 6)
+        self._end()
+
+    def notes_hub(self):
+        self._page("notes", "notes")
+        top = self._header("Notes & Notebooks", "TAP TO OPEN", self.pal[0], 5)
+        x0 = 40
+        self._text(x0, top - 30, "NOTE PAPERS", "SansB", 16, self.pal[0])
+        for k, kind in enumerate(PAPERS):
+            self._button(x0 + (k % 4) * 270, top - 90 - (k // 4) * 60, 250, 44, f"{kind} paper", f"note{k}", self.pal[k % len(self.pal)])
+        self._text(x0, top - 250, "MY NOTEBOOKS", "SansB", 16, self.pal[1 % len(self.pal)])
+        bw, bh = (W - TAB_W - 80 - 5 * 16) / 6, 150
+        for n in range(NOTEBOOKS):
+            x = x0 + (n % 6) * (bw + 16)
+            y = top - 290 - (n // 6 + 1) * (bh + 20)
+            col = self.pal[n % len(self.pal)]
+            self._fill(_mix(self.card, col, 0.35))
+            self.c.roundRect(x, y, bw, bh, 16, stroke=0, fill=1)
+            self._fill(col)
+            self.c.roundRect(x, y, 22, bh, 8, stroke=0, fill=1)
+            self._text(x + bw / 2 + 10, y + bh / 2 - 8, f"Notebook {n + 1}", "SansB", 16, self.ink, "c")
+            self._link(f"nb{n}", (x, y, x + bw, y + bh))
+        self._end()
+
+    def notebook(self, n):
+        col = self.pal[n % len(self.pal)]
+        self._page(f"nb{n}", "notes")
+        top = self._header(f"Notebook {n + 1}", "COVER", col, n + 2, prev="notes", nxt=f"nb{n}p0")
+        self._fill(_mix(self.card, col, 0.25))
+        self.c.roundRect(240, 140, W - TAB_W - 480, top - 220, 30, stroke=0, fill=1)
+        self._text((W - TAB_W) / 2, top / 2 + 40, "NOTEBOOK TITLE", "SansB", 18, col, "c")
+        self._stroke(col, 2)
+        self.c.line((W - TAB_W) / 2 - 300, top / 2, (W - TAB_W) / 2 + 300, top / 2)
+        self._deco(n, (W - TAB_W) / 2 - 70, 190, 140)
+        for k, kind in enumerate(NB_PAPERS):
+            self._button(260 + k * 150, 70, 140, 40, kind, f"nb{n}p{k}", col)
+        self._end()
+        for k, kind in enumerate(NB_PAPERS):
+            self.note_page(f"nb{n}p{k}", kind, f"Notebook {n + 1}",
+                           prev=f"nb{n}p{k - 1}" if k else f"nb{n}", nxt=f"nb{n}p{k + 1}" if k < len(NB_PAPERS) - 1 else None)
+
     def build(self):
         self.cover()
         self.index()
+        self.guide()
         self.year()
         for i in range(12):
             self.month(i)
+            self.glance(i)
             for w in range(WEEKS):
                 self.week(i, w)
+                self.week_schedule(i, w)
                 for k in range(7):
                     self.day(i, w, k)
             self.habits(i)
             self.budget(i)
             self.reflection(i)
-        for n, (key, title, section, items) in enumerate(TEMPLATES):
-            self.template(key, title, section, items, n)
+        order = [sec for _, sec in SECTIONS]
+        seen = set()
+        for n, (key, title, section, items) in enumerate(sorted(TEMPLATES, key=lambda t: order.index(t[2]))):
+            self.template(key, title, section, items, n, first=section not in seen)
+            seen.add(section)
+        self.notes_hub()
         for k, kind in enumerate(PAPERS):
             self.note_page(k, kind)
+        for n in range(NOTEBOOKS):
+            self.notebook(n)
         self.c.save()
         return self.buf.getvalue()
 
@@ -590,15 +752,6 @@ def render_pages(pdf_bytes, page_numbers, width=1200):
     return out
 
 
-def page_index(key, week_start="sun"):
-    """Page number of a named page in the built PDF (same order as build())."""
-    order = ["cover", "index", "year"]
-    for i in range(12):
-        order.append(f"m{i}")
-        for w in range(WEEKS):
-            order.append(f"m{i}w{w}")
-            order += [f"m{i}w{w}d{k}" for k in range(7)]
-        order += [f"m{i}h", f"m{i}b", f"m{i}r"]
-    order += [t[0] for t in TEMPLATES]
-    order += [f"note{k}" for k in range(len(PAPERS))]
-    return order.index(key)
+def page_index(key, planner=None):
+    """Page number of a named page (planner.order is filled while building)."""
+    return planner.order.index(key)
