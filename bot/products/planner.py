@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from .. import ephemera as E
 from .. import images, planner_pdf, planner_stickers
+from ..bundle_cover import bundle_cover
 from ..imgutil import color_to_alpha_background, fit_text, font, hex2rgb, jpeg_bytes, make_zips, png_bytes, \
     paste_with_shadow, thumb_b64, trim_alpha
 from ..mockups import H as MH, W as MW
@@ -217,6 +218,70 @@ def pick_edition_look(spec, slug=""):
     look = spec.get("look") if spec.get("look") in planner_pdf.LOOKS else \
         min(planner_pdf.LOOKS, key=lambda l: (used_look.get(l, 0), (zlib.crc32(l.encode()) ^ h) & 255))
     return ed, look
+
+
+NOTES = {  # handwritten sticky-note words per edition (shown on the listing collage only)
+    "life": [("Pay rent", "call mom!"), ("Yoga 7am", "drink water"), ("Dinner w/ Anna", "8 pm")],
+    "budget": [("Save $50", "this week"), ("No spend", "weekend!"), ("Bills due", "the 15th")],
+    "student": [("Essay due", "Friday!"), ("Study group", "4 pm"), ("Exam prep", "chapter 5")],
+    "adhd": [("Just 3 things", "today"), ("Take meds", "8 am"), ("You got this", "one step")],
+    "wellness": [("10k steps", "walk 30 min"), ("Meal prep", "Sunday"), ("Sleep by", "10:30")],
+    "business": [("Ship orders", "by 3 pm"), ("Post reel", "tonight"), ("Invoice", "client B")],
+    "migraine": [("Drink water", "every hour"), ("Neuro appt", "Tue 10 am"), ("Dark room", "+ ice pack")],
+}
+
+
+def _note_sticker(note_img, lines, ink):
+    """A sticky note with two handwritten lines on it."""
+    from .. import display_fonts as DF
+    n = note_img.copy()
+    d = ImageDraw.Draw(n)
+    f = DF.get("hand", int(n.width * 0.13))
+    y = n.height * 0.30
+    for ln in lines:
+        d.text((n.width * 0.14, y), ln, font=f, fill=ink + (255,))
+        y += f.size * 1.15
+    return n
+
+
+def decorate_page(page, pools, ed, rnd, ink):
+    """A planner page dressed like the best sellers' previews: washi tape, labels, a handwritten sticky note,
+    icons and a date circle, all from the product's own stickers."""
+    pg = page.convert("RGBA").copy()
+    w, h = pg.size
+
+    def put(im, scale, xy, ang):
+        im = im.copy()
+        im.thumbnail((int(w * scale), int(h * scale * 1.4)), Image.LANCZOS)
+        im = im.rotate(ang, expand=True, resample=Image.BICUBIC)
+        pg.alpha_composite(im, (int(xy[0] - im.width / 2), int(xy[1] - im.height / 2)))
+
+    if pools["washi"]:
+        put(rnd.choice(pools["washi"]), 0.42, (w * 0.16, h * 0.10), rnd.uniform(-38, -28))
+        put(rnd.choice(pools["washi"]), 0.36, (w * 0.86, h * 0.92), rnd.uniform(-35, -25))
+    if pools["notes"]:
+        note = _note_sticker(rnd.choice(pools["notes"]), rnd.choice(NOTES.get(ed, NOTES["life"])), ink)
+        put(note, 0.26, (w * rnd.uniform(0.70, 0.80), h * rnd.uniform(0.55, 0.68)), rnd.uniform(-8, 8))
+    for k in range(2):
+        if pools["labels"]:
+            put(rnd.choice(pools["labels"]), 0.22, (w * rnd.uniform(0.28, 0.55), h * (0.38 + 0.26 * k)), rnd.uniform(-6, 6))
+    if pools["themed"]:
+        put(rnd.choice(pools["themed"]), 0.16, (w * rnd.uniform(0.82, 0.88), h * 0.28), rnd.uniform(-10, 10))
+    elif pools["icons"]:
+        put(rnd.choice(pools["icons"]), 0.10, (w * 0.86, h * 0.30), rnd.uniform(-12, 12))
+    if pools["dates"]:
+        put(rnd.choice(pools["dates"]), 0.09, (w * 0.08, h * 0.88), 0)
+    return pg.convert("RGB")
+
+
+def collage_pages(pages, stickers, ed, palette):
+    rnd = random.Random(11)
+    pool = lambda key: [im for n, im in stickers if key in n]
+    pools = {"washi": pool("washi"), "notes": [im for n, im in stickers if "note-square" in n],
+             "labels": pool(f"08-{ed}-labels") or pool("04-labels"), "themed": pool("01-themed") or pool("09-pain-scale"),
+             "icons": pool("10-trigger-icons") or pool("07-icons"), "dates": pool("dates")}
+    ink = tuple(int(v * 0.45) for v in palette[0])
+    return [decorate_page(p, pools, ed, rnd, ink) for p in pages]
 
 
 def _soft_bg(accent):
@@ -562,7 +627,7 @@ def assemble(spec, slug, cover, objs, palette=None):
                     main = p
     n_tpl = len(main.templates)
     all_colors = list(palette) + [c for v in THEMES.values() for c in v]
-    stickers = planner_stickers.make_all(all_colors[:12], [E.sticker(o) for o in objs])
+    stickers = planner_stickers.make_all(all_colors[:12], [E.sticker(o) for o in objs], edition=edition)
     covers = _covers(cover, objs, title, all_colors)
     readme = (f"{spec['title']}\n\nThank you for your purchase!\n\n"
               f"PLANNER: undated, {n_pages} hyperlinked pages, landscape 4:3 PDF for iPad and Android tablets.\n"
@@ -591,6 +656,13 @@ def assemble(spec, slug, cover, objs, palette=None):
              "12 months, 60 weeks, 420 daily pages", f"{n_tpl} templates: goals, health, money, life",
              "12 custom notebooks + 8 note papers", f"{n_st}+ stickers & {n_cov}+ covers", "How-to page + index on every tab"][:8]
     mock = [
+        ("00-bundle.jpg", bundle_cover(
+            collage_pages([sig[k] for k in ("m0w0d0", "m0", "m0w0", "m0g", "m0h", "m0b", "index", "m0w0s", "notes", "guide")] +
+                          [sig[k] for k in showcase] + [dk["m0w0d0"], previews["Blush"]["m0"], previews["Ocean"]["m0w0d0"]],
+                          stickers, edition, palette) + covers[:3], n_pages, "LINKED PAGES", name,
+            ["#%02x%02x%02x" % c for c in palette], bundle_word=ed["heading"], ribbon="UNDATED",
+            sticker=("6", "COLOR", "THEMES"),
+            features=[f"{n_tpl}+ TEMPLATES", f"{n_st}+ STICKERS", "iPAD & ANDROID"])),
         ("01-cover.jpg", hero_mock(cover, sig["m0w0d0"], name, accent,
                                    [palette[0], (52, 54, 60)] + [THEMES[t][0] for t in ("Sage", "Blush", "Ocean", "Lavender")],
                                    {"pages": n_pages, "templates": n_tpl, "stickers": n_st, "covers": n_cov,
@@ -606,7 +678,6 @@ def assemble(spec, slug, cover, objs, palette=None):
                                         " • ".join(t[1].lower() for t in ed["extra"][:4]) if ed["extra"] else "goals • health • finance • life", accent)),
         ("08-themes.jpg", _themes_mock([previews[t]["m0"] for t in ("Signature", "Dark", "Sage", "Blush", "Ocean", "Lavender")],
                                        ["Signature", "Dark", "Sage", "Blush", "Ocean", "Lavender"], accent)),
-        ("09-notes.jpg", _grid_mock([sig["notes"], sig["nb0p1"]], "NOTES & NOTEBOOKS", "12 custom notebooks • lined, dotted, grid, blank, Cornell, music", accent)),
         ("10-extras.jpg", _extras_mock(stickers, covers, accent, n_st, n_cov)),
     ]
     return {
@@ -625,11 +696,18 @@ def assemble(spec, slug, cover, objs, palette=None):
             f"{len(stickers)} digital stickers (PNG) and {len(covers)} covers",
         ],
         "details": ["Landscape 4:3 for iPad and Android tablets", "Clickable top tabs, month tabs, index and previous/next arrows",
-                    "Works in any PDF note-taking app"],
+                    "Works in any PDF note-taking app"] + ([ed["note"]] if ed.get("note") else []),
         "usage": ["Open in a PDF note-taking app and write with your stylus",
                   "Undated: start any month and reuse it every year"],
         "license": "For personal use only. Please do not share, resell or redistribute the files.",
         "taxonomy": ["Calendars & Planners", "Planner Templates", "Digital Prints"],
+        "count": n_pages,
+        "cover_unit": "LINKED PAGES",
+        "cover_kicker": ed["heading"] if edition != "life" else "Undated Digital Planner",
+        "cover_items": collage_pages([sig["m0w0d0"]] + [sig[k] for k in showcase[:3]] + [sig["m0"], dk["m0w0d0"]] +
+                                     [previews["Blush"]["m0w0d0"], sig["index"]], stickers, edition, palette),
+        "cover_features": ([ed["extra"][0][1], ed["extra"][1][1]] if ed["extra"] else ["Hyperlinked tabs", "Light & dark mode"])
+                          + [f"{n_st}+ stickers", "iPad & Android"],
         "taxonomy_fallback_id": 2078,
         "is_supply": False,
         "skip_attributes": ["room", "home style"],

@@ -117,7 +117,13 @@ def _slots(n_cand, today):
     except Exception:
         pass
     slots = []
+    subj = config.env("ONLY_SUBJECT", "").strip()
     for i, t in enumerate(types):
+        if subj:  # /uret planner migraine: every idea is about this subject (it overrides the shop theme)
+            slots.append({"type": t, "theme": f"MANDATORY SUBJECT (overrides the shop theme): {subj}. The product must be "
+                                              f"made for exactly this need or person, e.g. a {subj} {t.replace('_', ' ')}. "
+                                              + (shop.slot_theme(today, t) if t == "planner" else "")})
+            continue
         if best and i < min(2, len(best)):
             w = best[i]
             theme = (f'close variation of our own best seller "{w["title"]}": same buyer and product type, '
@@ -184,7 +190,10 @@ def find_trending_niches(count=1):
         sc = research._score(idea)
         idea["score"] = (sc if sc is not None else 0) + (len(ideas) - rank) * 0.02 + random.random() * 0.1
     # ideas found directly in Etsy search data (real seller tags), already scored the same way
+    subj = config.env("ONLY_SUBJECT", "").strip()
     try:
+        if subj:
+            raise RuntimeError("konu sabit (/uret ... konu)")
         from . import etsy_miner
         seen = {i["search_query"].lower() for i in ideas}
         for m in etsy_miner.find(max(3, count * 2), used, today):
@@ -194,6 +203,8 @@ def find_trending_niches(count=1):
         print(f"[smart_niche] Etsy madenciliği atlandı: {e}")
     # best phrases from the /nis niche scan database (real Etsy data, last 21 days)
     try:
+        if subj:
+            raise RuntimeError("konu sabit (/uret ... konu)")
         from . import niche_scan
         allowed = set(s.get("product_types", {})) or set(TYPES)
         seen = {i["search_query"].lower() for i in ideas} | _used_queries()

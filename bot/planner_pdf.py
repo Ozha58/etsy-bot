@@ -182,6 +182,19 @@ EDITIONS = {
                      ("w_habits", "Healthy Habits", "health", [("table", "", ["Habit", "Goal", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], 10)]),
                      ("w_mind", "Mindfulness Journal", "health", [("lines", "How I feel", 8), ("lines", "What I need", 8)]),
                      ("w_progress", "Progress Check-in", "health", [("boxes", ["Week 1", "Week 2", "Week 3", "Week 4"])])]},
+    "migraine": {"word": "migraine", "pill": "MIGRAINE & HEADACHE", "heading": "MIGRAINE TRACKER", "schedule": "Schedule & rest",
+                 "note": "A tracking tool only, not medical advice. Share your logs with your doctor.",
+                 "daily": [("pain", "Pain level"), ("lines", "Possible triggers"), ("check", "Meds & what helped", 4),
+                           ("energy", "Energy · Water"), ("lines", "Notes for my doctor")],
+                 "extra": [
+                     ("g_profile", "My Migraine Profile", "health", [("boxes", ["My doctor & clinic", "Usual symptoms", "Known triggers", "What helps me", "Current medications", "Allergies & notes"])]),
+                     ("g_attack", "Attack Log", "health", [("table", "", ["Date", "Start", "End", "Pain 0-10", "Aura?", "Triggers", "Meds", "Relief"], 14)]),
+                     ("g_triggers", "Trigger Tracker", "health", [("table", "", ["Date", "Sleep", "Stress", "Food", "Weather", "Screen", "Cycle", "Water"], 14)]),
+                     ("g_meds", "Medication Log", "health", [("table", "", ["Date", "Time", "Medication", "Dose", "Relief after 2h", "Side effects"], 16)]),
+                     ("g_month", "Headache Days Calendar", "health", [("days", "Color each day by headache level"), ("lines", "Patterns I notice", 5)]),
+                     ("g_doctor", "Doctor Visit Summary", "health", [("boxes", ["Headache days this month", "Worst attacks", "Medications tried", "Side effects", "Questions for my doctor", "Next steps"])]),
+                     ("g_cycle", "Hormones & Cycle", "health", [("table", "", ["Date", "Cycle day", "Headache?", "Pain 0-10", "Notes"], 14)]),
+                     ("g_relief", "My Relief Toolkit", "health", [("check", "What helps me", 10), ("check", "My plan for a bad day", 8)])]},
     "business": {"word": "small business", "pill": "SMALL BUSINESS", "heading": "BUSINESS PLANNER", "schedule": "Schedule",
                  "daily": [("check", "Priorities", 3), ("check", "Orders & clients", 5), ("lines", "Content ideas"), ("lines", "Calls & emails"), ("lines", "Notes")],
                  "extra": [
@@ -198,7 +211,7 @@ LOOKS = ("soft", "minimal", "classic", "pastel")
 def edition_of(text):
     """Guess the edition from a title / niche text."""
     t = (text or "").lower()
-    for ed, words in (("budget", ("budget", "finance", "money", "saving")), ("student", ("student", "college", "school", "study", "academic")),
+    for ed, words in (("migraine", ("migraine", "headache", "chronic pain")), ("budget", ("budget", "finance", "money", "saving")), ("student", ("student", "college", "school", "study", "academic")),
                       ("adhd", ("adhd", "neurodivergent")), ("wellness", ("wellness", "fitness", "health", "self care", "self-care")),
                       ("business", ("business", "entrepreneur", "seller", "etsy shop"))):
         if any(w in t for w in words):
@@ -450,7 +463,7 @@ class Planner:
         if len(items) == 1 or items[0][0] in ("boxes", "grid"):
             areas = [(left, right, top, 40)]
         else:
-            mid = (left + right) / 2
+            mid = (left + right) / 2 if items[0][0] != "days" else left + (right - left) * 0.64
             n = len(items)
             if n == 2:
                 areas = [(left, mid - gap / 2, top, 40), (mid + gap / 2, right, top, 40)]
@@ -493,6 +506,21 @@ class Planner:
                     self._table(ix, t, y1 + 12, iw, it[2], it[3], col)
                 elif kind == "circles":
                     self._circles(ix, t, y1 + 12, iw, it[2], col)
+                elif kind == "days":  # numbered month grid + a colour key to shade each day
+                    key = [("none", (235, 235, 230)), ("mild", (190, 215, 160)), ("moderate", (240, 200, 120)),
+                           ("severe", (225, 120, 110))]
+                    kw = iw / len(key)
+                    for j, (lab, c) in enumerate(key):
+                        self._fill(_mix(c, self.card, 0.15))
+                        self.c.roundRect(ix + j * kw, y1 + 14, 22, 22, 5, stroke=0, fill=1)
+                        self._text(ix + j * kw + 30, y1 + 19, lab, "Sans", 13, self.soft)
+                    gy0, gy1 = t - 6, y1 + 52
+                    cw, ch = iw / 7, (gy0 - gy1) / 5
+                    self._stroke(self.line, 1)
+                    for d in range(31):
+                        cx, cy = ix + (d % 7) * cw, gy0 - (d // 7 + 1) * ch
+                        self.c.roundRect(cx + 3, cy + 3, cw - 6, ch - 6, 8, stroke=1, fill=0)
+                        self._text(cx + 10, cy + ch - 22, str(d + 1), "SansB", 12, col)
 
     # ---------- pages ----------
     def cover(self):
@@ -639,6 +667,19 @@ class Planner:
         elif kind == "lines":
             self._lines(x + 16, t, y + 8, w - 32)
         else:
+            if kind == "pain":  # 0-10 scale, numbers in the circles, green to red tint
+                n, iw = 11, w - 32
+                r = min(22, iw / n / 2 - 2)
+                for j in range(n):
+                    cx, cy = x + 16 + (j + 0.5) * iw / n, (t + y + 40) / 2
+                    tint = _mix((120, 180, 120), (220, 90, 80), j / 10)
+                    self._fill(_mix(tint, self.card, 0.55))
+                    self._stroke(tint, 1.2)
+                    self.c.circle(cx, cy, r, stroke=1, fill=1)
+                    self._text(cx, cy - 5, str(j), "SansB", 14, self.ink, "c")
+                self._text(x + 18, y + 18, "none", "SansL", 12, self.soft)
+                self._text(x + w - 18, y + 18, "worst", "SansL", 12, self.soft, "r")
+                return
             labels = {"mood": ["great", "good", "ok", "low", "bad"], "energy": ["high", "good", "ok", "low", "empty"],
                       "nospend": ["yes", "", "no", "", "almost"]}[kind]
             if kind == "nospend":

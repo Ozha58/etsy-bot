@@ -46,7 +46,8 @@ TYPE_WORDS = [
     ("coloring", ("coloring", "colouring", "line art")),
     ("wallpaper", ("wallpaper", "lock screen", "lockscreen", "phone background")),
     ("pattern", ("digital paper", "seamless", "pattern", "scrapbook paper")),
-    ("planner", ("planner", "goodnotes", "ipad journal")),
+    ("planner", ("planner", "goodnotes", "ipad journal", "tracker", "report sheet", "log book")),
+    ("stickers", ("stickers", "sticker")),
     ("junk_journal", ("junk journal", "ephemera", "journal", "junk journaling")),
     ("clipart", ("clipart", "clip art", "png", "sublimation", "transparent")),
     ("wall_art", ("print", "wall art", "poster", "decor", "painting")),
@@ -169,6 +170,60 @@ def run(keyword="", n_seeds=45, n_tags=25):
     storage.save_meta(meta)
     report(db if not keyword else {m["phrase"]: m for m in measured}, keyword, len(measured), calls, len(db))
     return db
+
+
+# Discovery (/kesif): "one specific person + one specific need" phrases, the logic that found migraine stickers
+PEOPLE = [
+    # trackers for a health situation (tracking tools only, never treatment claims)
+    "migraine", "chronic pain", "fibromyalgia", "endometriosis", "pcos", "ibs", "diabetes", "blood pressure",
+    "weight loss injection", "menopause", "perimenopause", "period", "fertility", "ivf", "pregnancy", "postpartum",
+    "breastfeeding", "baby sleep", "potty training", "adhd", "autism", "anxiety", "therapy", "sobriety",
+    "physical therapy", "pots", "long covid", "asthma", "food allergy", "celiac", "medication",
+    # a job's daily paperwork
+    "nurse", "teacher", "therapist", "dental hygienist", "vet tech", "pharmacist", "realtor", "hairstylist",
+    "nail tech", "esthetician", "dog groomer", "photographer", "home baker", "homeschool", "foster parent",
+    "military spouse", "truck driver", "flight attendant", "content creator", "small business",
+    # a life moment or a hobby with its own records
+    "wedding", "new baby", "puppy", "kitten", "garden", "reading", "bird watching", "hiking", "cruise", "camping",
+    "knitting", "crochet", "quilting", "sourdough", "meal prep", "cleaning", "moving", "job search", "college application",
+]
+DISCOVER_FORMATS = ("stickers", "tracker", "planner")
+
+
+def discover(n_people=None):
+    """Measure every PEOPLE x FORMAT phrase on Etsy and rank them (same metrics as /nis)."""
+    meta = storage.load_meta()
+    db = {k: v for k, v in (meta.get("niche_scan") or {}).items() if time.time() - v.get("at", 0) < KEEP_DAYS * 86400}
+    people = PEOPLE[:n_people] if n_people else PEOPLE
+    measured, calls = [], 0
+    for who in people:
+        for f in DISCOVER_FORMATS:
+            ph = f"{who} {f}"
+            if research.is_banned(ph):
+                continue
+            try:
+                m = measure(ph)
+                calls += 1
+                db[ph] = m
+                measured.append(m)
+            except Exception as e:
+                print(f"[kesif] {ph}: {e}")
+            time.sleep(0.12)
+    meta["niche_scan"] = db
+    storage.save_meta(meta)
+    found = {m["phrase"]: m for m in measured}
+    top = sorted([v for v in found.values() if v["results"] >= MIN_RESULTS], key=lambda v: -v["score"])[:20]
+    lines = []
+    for i, v in enumerate(top, 1):
+        price = f" · ${v['price']:.2f}" if v.get("price") else ""
+        lines.append(f"{i}. <b>{esc(v['phrase'])}</b>\n"
+                     f"    {v['results']:,} ilan · {int(v['favs'])} fav · {v['speed']:.2f}/gün · yeni %{int(v['fresh'] * 100)}{price}")
+    telegram.send("🧭 <b>Niş keşfi</b> – belirli kişi + belirli ihtiyaç\n"
+                  f"{len(measured)} ifade ölçüldü ({calls} Etsy araması). En iyi 20:\n"
+                  "ilan = rakip · fav = ilk 25'in ortanca favorisi · hız = günde favori · yeni = ilk 25'te yeni ilan oranı\n\n"
+                  + ("\n".join(lines) or "Ölçülebilir ifade bulunamadı.")
+                  + "\n\nBeğendiğinizi üretmek için: <code>/uret stickers migraine</code> veya <code>/uret planner migraine</code>")
+    return top
 
 
 def best(db=None, n=15, makeable=True):

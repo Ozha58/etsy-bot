@@ -88,8 +88,44 @@ def _cover_version():
     return COVER_VERSION
 
 
+KICKERS = {"journal": "Printable Journal Pages", "planner": "Undated Digital Planner", "stickers": "Digital Stickers", "clipart": "Transparent PNG Clipart",
+           "junk_journal": "Printable Junk Journal Kit", "coloring": "Printable Coloring Pages", "wallpaper": "Phone Wallpapers",
+           "pattern": "Seamless Digital Paper", "wall_art": "Printable Wall Art", "scenes": "Illustration Pack",
+           "tumbler": "Tumbler Wrap Design"}
+FEATURES = {"journal": ["Dated pages", "Habit & mood trackers", "A4 · A5 · Letter", "Print at home"],
+            "planner": ["Hyperlinked tabs", "Light & dark mode", "Stickers included", "iPad & Android"],
+            "stickers": ["Transparent PNG", "Sticker book PDF", "Printable sheets", "Any note app"],
+            "clipart": ["Transparent PNG", "Commercial use", "Sticker sheets", "Instant download"],
+            "junk_journal": ["Pages, cards & tags", "Stickers & stamps", "Print at home", "300 DPI"]}
+
+
+def _topic_cover(idea, spec, slug, built):
+    """Replace the first photo with a cover made around an AI scene of this product's own subject."""
+    from . import covers
+    from .bundle_cover import delivery_items
+    recent = [p.get("cover_layout") for p in sorted(storage.all_products(), key=lambda p: -p.get("created_at", 0))
+              if p.get("cover_layout")]
+    layout = covers.choose_layout(slug, recent)
+    scene = spec.get("cover_scene") or f"a cozy scene about {idea.get('niche', spec.get('title', ''))}"
+    hero = images.try_generate(f"{scene}, {spec.get('style', '')}, {covers.SCENE_SUFFIX}", 1024, 1024)
+    items = built.get("cover_items") or delivery_items(built["delivery"], limit=12)
+    title = (spec.get("title") or "").split(",")[0].strip()
+    cov = covers.make(layout, hero, items, title=title, kicker=built.get("cover_kicker") or KICKERS.get(idea["type"], ""),
+                      count=built.get("count"), unit=built.get("cover_unit") or covers.UNITS.get(idea["type"], ""),
+                      features=built.get("cover_features") or FEATURES.get(idea["type"], ()),
+                      palette=spec.get("palette"), seed=slug)
+    from .imgutil import jpeg_bytes, thumb_b64
+    built["mockups"] = [("00-cover.jpg", jpeg_bytes(cov, 88, dpi=72))] + built["mockups"][:9]
+    built["thumb"] = thumb_b64(cov)
+    built["preview"] = cov
+    return layout
+
+
 def build_one(idea: dict, day: dt.date) -> dict:
+    plan = TYPES[idea["type"]].prepare(idea, day) if hasattr(TYPES[idea["type"]], "prepare") else None
     spec = research.product_spec(idea)
+    if plan:  # decided by code (e.g. journal: month / year bundle, colour / black & white, price ladder)
+        spec.update(plan)
     pid = next_id(day)
     slug = research.slugify(spec.get("title"), 40)
     mod = TYPES[idea["type"]]
@@ -97,16 +133,27 @@ def build_one(idea: dict, day: dt.date) -> dict:
     built = mod.build(spec, slug)
     if not built or "included" not in built:
         raise Exception(f"HATA: {mod.__name__} dosyası görselleri üretirken çöktü ve boş döndü.")
+    layout = None
+    try:  # a topic cover in a layout the shop has not used lately (never the same template on every listing)
+        layout = _topic_cover(idea, spec, slug, built)
+    except Exception as e:
+        print(f"[cover] konu kapağı yapılamadı, ürünün kendi kapağı kalıyor: {e}")
     try:
         from . import watermark
         if idea["type"] != "planner":  # planner photos only show empty templates: a watermark just hurts the look
             built["mockups"] = watermark.apply_all(built["mockups"])
     except Exception as e:
         print(f"[watermark] eklenemedi: {e}")
+    try:  # every photo in the first photo's shape, so Etsy shows them full size on computer and phone
+        from . import photo_ratio
+        built["mockups"] = photo_ratio.same_ratio(built["mockups"])
+    except Exception as e:
+        print(f"[photo_ratio] yapılamadı: {e}")
     p = {
         "id": pid,
         "created_at": int(time.time()),
         "day": day.isoformat(),
+        "cover_layout": layout,
         "status": "pending",
         "type": idea["type"],
         "niche": idea["niche"],

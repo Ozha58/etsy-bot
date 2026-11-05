@@ -149,7 +149,91 @@ def icon(kind, col):
     return im
 
 
-def make_all(palette, themed=(), per_word=12):
+EDITION_WORDS = {  # extra word labels for an edition's own stickers
+    "migraine": ["Migraine day", "Headache", "Aura", "Took meds", "Rest day", "Dark room", "Ice pack", "Hydrate",
+                 "Neurologist", "Doctor appt", "Flare day", "Low spoons", "Pain free!", "Good day", "Trigger",
+                 "Weather change", "Poor sleep", "Screen break", "Caffeine", "Cycle day", "Stress", "Nausea",
+                 "Light sensitive", "Sound sensitive", "Neck pain", "Rescue med", "Preventive", "Self care",
+                 "Nap", "Quiet time", "Skipped meal", "Hormones", "Bad night", "Ask for help", "Be gentle"],
+}
+
+
+def pain_scale(n, size=240):
+    """A 0-10 pain level sticker: green to red circle, the number and a small face."""
+    t = n / 10
+    col = tuple(int(a + (b - a) * t) for a, b in zip((120, 185, 120), (220, 85, 75)))
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((6, 6, size - 6, size - 6), fill=col + (255,), outline=(255, 255, 255, 255), width=10)
+    f = font("sans_bold", int(size * 0.34))
+    txt = str(n)
+    tw = d.textlength(txt, font=f)
+    d.text(((size - tw) / 2, size * 0.16), txt, font=f, fill=(255, 255, 255, 255))
+    ex, ey, er = size * 0.36, size * 0.62, size * 0.035
+    for x in (ex, size - ex):
+        d.ellipse((x - er, ey - er, x + er, ey + er), fill=(255, 255, 255, 255))
+    mw, my = size * 0.16, size * 0.76
+    curve = 0.10 - 0.2 * t  # smile at 0, frown at 10
+    d.arc((size / 2 - mw, my - abs(curve) * size, size / 2 + mw, my + abs(curve) * size),
+          *((20, 160) if curve > 0 else (200, 340)), fill=(255, 255, 255, 255), width=int(size * 0.03))
+    return im
+
+
+def trigger_icon(kind, col, size=260):
+    """Simple, clear trigger / care icons drawn by code."""
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    c, w = col + (255,), (255, 255, 255, 255)
+    d.ellipse((4, 4, size - 4, size - 4), fill=_soft(col, 0.75) + (255,), outline=c, width=8)
+    s = size
+    if kind == "pill":
+        d.rounded_rectangle((s * .22, s * .40, s * .78, s * .60), s * .1, fill=c)
+        d.rectangle((s * .5, s * .40, s * .78, s * .60), fill=_dark(col, 0.25) + (255,))
+        d.rounded_rectangle((s * .22, s * .40, s * .78, s * .60), s * .1, outline=_dark(col, 0.35) + (255,), width=4)
+    elif kind == "water":
+        d.polygon([(s * .5, s * .18), (s * .70, s * .52), (s * .30, s * .52)], fill=c)
+        d.ellipse((s * .30, s * .38, s * .70, s * .78), fill=c)
+    elif kind == "sleep":
+        d.ellipse((s * .25, s * .22, s * .72, s * .70), fill=c)
+        d.ellipse((s * .38, s * .16, s * .82, s * .62), fill=_soft(col, 0.75) + (255,))
+    elif kind == "weather":
+        for x, y, r in ((.40, .45, .16), (.58, .40, .19), (.70, .50, .13), (.30, .52, .12)):
+            d.ellipse((s * (x - r), s * (y - r), s * (x + r), s * (y + r)), fill=c)
+        for x in (.36, .52, .68):
+            d.line((s * x, s * .66, s * (x - .05), s * .80), fill=c, width=int(s * .035))
+    elif kind == "coffee":
+        d.rounded_rectangle((s * .26, s * .36, s * .64, s * .74), s * .06, fill=c)
+        d.ellipse((s * .58, s * .44, s * .78, s * .62), outline=c, width=int(s * .04))
+        for x in (.36, .46, .56):
+            d.arc((s * (x - .04), s * .16, s * (x + .04), s * .32), 90, 270, fill=c, width=int(s * .025))
+    elif kind == "screen":
+        d.rounded_rectangle((s * .34, s * .18, s * .66, s * .82), s * .05, fill=c)
+        d.rectangle((s * .38, s * .25, s * .62, s * .72), fill=w)
+    elif kind == "ice":
+        d.rounded_rectangle((s * .24, s * .30, s * .76, s * .70), s * .12, fill=c)
+        for a in range(3):
+            import math
+            ang = math.pi / 3 * a
+            d.line((s * .5 - s * .14 * math.cos(ang), s * .5 - s * .14 * math.sin(ang),
+                    s * .5 + s * .14 * math.cos(ang), s * .5 + s * .14 * math.sin(ang)), fill=w, width=int(s * .03))
+    elif kind == "aura":
+        d.polygon([(s * .56, s * .14), (s * .30, s * .54), (s * .48, s * .54), (s * .40, s * .86), (s * .70, s * .42),
+                   (s * .52, s * .42)], fill=c)
+    elif kind == "calendar":
+        d.rounded_rectangle((s * .24, s * .28, s * .76, s * .76), s * .05, fill=w, outline=c, width=8)
+        d.rectangle((s * .24, s * .28, s * .76, s * .40), fill=c)
+        for k in range(6):
+            x, y = s * (.32 + (k % 3) * .14), s * (.50 + (k // 3) * .12)
+            d.ellipse((x - 9, y - 9, x + 9, y + 9), fill=c)
+    elif kind == "heart":
+        _heart(d, s // 2, s // 2 + 12, int(s * .26), c)
+    return im
+
+
+TRIGGER_ICONS = ("pill", "water", "sleep", "weather", "coffee", "screen", "ice", "aura", "calendar", "heart")
+
+
+def make_all(palette, themed=(), per_word=12, edition=None):
     """palette: list of rgb (any length, more colors = more stickers); themed: AI sticker images (RGBA).
     Returns [(filename, PIL RGBA)]."""
     cols = list(dict.fromkeys(tuple(c) for c in palette))
@@ -174,6 +258,17 @@ def make_all(palette, themed=(), per_word=12):
     for n in range(1, 32):
         for k, filled in enumerate((True, False)):
             out.append((f"05-dates/date-{n:02d}-{'filled' if filled else 'outline'}.png", date_circle(n, cols[n % nc], filled)))
+    words = EDITION_WORDS.get(edition or "", [])
+    for wi, w in enumerate(words):  # the edition's own labels come first in the pack
+        safe = w.lower().replace(" ", "-").replace("'", "").replace("!", "")
+        for k in range(min(6, nc * 2)):
+            out.append((f"08-{edition}-labels/{safe}-{k + 1}.png", label(w, cols[(wi + k) % nc], k % 3)))
+    if edition == "migraine":
+        for n in range(11):
+            out.append((f"09-pain-scale/pain-{n:02d}.png", pain_scale(n)))
+        for ci, c in enumerate(cols[:6]):
+            for kind in TRIGGER_ICONS:
+                out.append((f"10-trigger-icons/{kind}-{ci + 1}.png", trigger_icon(kind, c)))
     for i, name in enumerate(DAYS + MONTHS):
         for k in range(4):
             out.append((f"06-days-months/{name.lower()}-{k + 1}.png", label(name, cols[(i + k) % nc], k % 3)))

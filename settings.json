@@ -5,7 +5,8 @@
     "junk_journal": 4,
     "planner": 3,
     "coloring": 2,
-    "wallpaper": 1
+    "wallpaper": 1,
+    "journal": 3
   },
   "max_same_type_per_day": 1,
   "price_ranges_usd": {
@@ -32,6 +33,14 @@
     "planner": [
       2.49,
       3.99
+    ],
+    "stickers": [
+      3.49,
+      4.99
+    ],
+    "journal": [
+      3.49,
+      19.99
     ]
   },
   "niche_memory_days": 60,

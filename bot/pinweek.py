@@ -24,7 +24,7 @@ HEADERS = ["Title", "Media URL", "Pinterest board", "Thumbnail", "Description", 
 # good times for US buyers, in UTC: 14:00 (morning US), 19:00 (afternoon), 01:00 (evening)
 SLOTS_UTC = [(13, 0), (16, 0), (19, 0), (22, 0), (1, 0)]
 PINS_PER_WEEK = 35
-WEIGHT = {"planner": 3, "junk_journal": 2}  # planners sell best on Pinterest: more turns
+WEIGHT = {"planner": 3, "stickers": 3, "journal": 3, "junk_journal": 2}  # planners sell best on Pinterest: more turns
 FEEDS = {"planner": ("feed-planner.xml", "Sebasteia Digital Planners", "Digital Planners & Stickers"),
          "shop": ("feed-shop.xml", "Sebasteia Printables", "Printables & Junk Journals")}
 FEED_KEEP = 40
@@ -129,7 +129,7 @@ def build(n_pins=None, fresh=False):
         rows.append({
             "Title": texts["pin_title"],
             "Media URL": base + fname,
-            "Pinterest board": FEEDS["planner" if p["type"] == "planner" else "shop"][2],
+            "Pinterest board": FEEDS["planner" if p["type"] in ("planner", "stickers", "journal") else "shop"][2],
             "Thumbnail": "",
             "Description": texts["pin_desc"],
             "Link": p["etsy"]["url"],

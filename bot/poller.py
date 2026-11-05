@@ -10,9 +10,11 @@ from .telegram import esc
 HELP = """🤖 <b>Etsy Bot komutları</b>
 /durum – ürün sayıları ve Etsy bağlantısı
 /bekleyen – onay bekleyen ürünleri tekrar gönder
-/uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün; tür seçmek için: /uret junk, planner, coloring, wallpaper, wall_art, scenes, clipart)
+/uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün; tür: /uret journal, junk, planner, stickers, coloring, wallpaper, wall_art, scenes, clipart; konu da verebilirsiniz: /uret planner migraine)
 /nis – Etsy verisiyle niş taraması (/nis frog → tek konuyu derin tara)
-/kapak – ilanın kapağını ve videosunu yeni tasarımla baştan yap (/kapak &lt;id&gt;, /kapak hepsi, /kapak durum)
+/kapak – ilanın kapağını ve videosunu yeni tasarımla baştan yap (/kapak &lt;id&gt;, /kapak hepsi, /kapak durum)\n/kapak konu – yayındaki ilanların 1. fotoğrafını kendi konusuna özel, hepsi farklı kapakla değiştir (6 ilan / sefer)
+/kesif – bot onlarca 'belirli kişi + belirli ihtiyaç' nişini Etsy'de tarar, en iyi 20'yi getirir
+/foto – ilandaki bütün fotoğrafları kare yap (/foto &lt;ilan no&gt; veya /foto hepsi)
 /etsy – Etsy mağazanı bağla / yeniden bağla
 /pinterest – Pinterest hesabını bağla (otomatik pin)
 /kod &lt;adres&gt; – Etsy/Pinterest onayından sonra çıkan adresi gönder
@@ -166,12 +168,14 @@ def _handle_callback(cb, meta):
     return False
 
 
-def _dispatch_generate(count=None, only=None):
+def _dispatch_generate(count=None, only=None, subject=None):
     if not (config.GITHUB_TOKEN and config.GITHUB_REPOSITORY):
         raise RuntimeError("GitHub ortamı yok")
     inputs = {"count": str(count)} if count else {}
     if only:
         inputs["only"] = only
+    if subject:
+        inputs["subject"] = subject[:60]
     r = requests.post(
         f"https://api.github.com/repos/{config.GITHUB_REPOSITORY}/actions/workflows/daily.yml/dispatches",
         headers={"Authorization": f"Bearer {config.GITHUB_TOKEN}", "Accept": "application/vnd.github+json"},
@@ -210,13 +214,16 @@ def _handle_message(m, meta):
                           else [[("🔁 Tekrar dene", f"retry:{p['id']}"), ("❌ Reddet", f"no:{p['id']}")]])
     elif cmd == "/uret":
         try:
-            a = arg.strip().lower()
-            kinds = {"wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "planner": "planner", "planlayici": "planner", "ajanda": "planner",
+            parts = arg.strip().lower().split(None, 1)
+            a = parts[0] if parts else ""
+            subject = parts[1] if len(parts) > 1 else ""
+            kinds = {"stickers": "stickers", "sticker": "stickers", "wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "planner": "planner", "planlayici": "planner", "ajanda": "planner", "journal": "journal", "gunluk": "journal", "günlük": "journal", "bujo": "journal",
                      "pattern": "pattern", "kagit": "pattern", "tumbler": "tumbler"}
             only = kinds.get(a)
             n = int(a) if a.isdigit() else 1
-            _dispatch_generate(n, only)
-            telegram.send(f"🚀 {n} ürünlük ek üretim başlatıldı. Hazır olunca buraya gelecek (ürün başına ~5-8 dk).")
+            _dispatch_generate(n, only, subject if only else "")
+            telegram.send(f"🚀 {n} ürünlük ek üretim başlatıldı" + (f" (konu: <b>{esc(subject)}</b>)" if only and subject else "")
+                          + ". Hazır olunca buraya gelecek (ürün başına ~5-8 dk).")
         except Exception as e:
             telegram.send(f"⚠️ Üretim başlatılamadı: <code>{esc(str(e))}</code>")
     elif cmd == "/etsy":
@@ -290,6 +297,13 @@ def _handle_message(m, meta):
             changed |= recover.run(arg)
         except Exception as e:
             telegram.send(f"⚠️ <code>{esc(str(e)[:400])}</code>")
+    elif cmd == "/foto":
+        from . import photo_ratio
+        telegram.send("🖼 İlan fotoğrafları kareye getiriliyor… (ilan başına ~1 dk)")
+        try:
+            changed |= photo_ratio.run(arg)
+        except Exception as e:
+            telegram.send(f"⚠️ <code>{esc(str(e)[:400])}</code>")
     elif cmd == "/nis":
         try:
             _dispatch("nis-tarama.yml", {"keyword": arg.strip()[:40]})
@@ -297,6 +311,13 @@ def _handle_message(m, meta):
                           + ". Etsy'de ~70 arama yapılacak, rapor 3-5 dk içinde burada.")
         except Exception as e:
             telegram.send(f"⚠️ Tarama başlatılamadı: <code>{esc(str(e))}</code>")
+    elif cmd == "/kesif":
+        try:
+            _dispatch("nis-tarama.yml", {"keyword": "kesif"})
+            telegram.send("🧭 Niş keşfi başladı: ~70 farklı kişi/ihtiyaç × sticker, tracker, planner = ~210 Etsy araması. "
+                          "Rapor 5-8 dk içinde burada.")
+        except Exception as e:
+            telegram.send(f"⚠️ Keşif başlatılamadı: <code>{esc(str(e))}</code>")
     elif cmd == "/panel":
         telegram.send(f"🌐 Panel: {config.pages_url() or 'henüz yok'}")
     return changed

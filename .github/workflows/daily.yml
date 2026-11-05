@@ -12,6 +12,10 @@ on:
         description: "Sadece bu türü üret (scenes, wallpaper, coloring, wall_art; boş = hepsi)"
         required: false
         default: ""
+      subject:
+        description: "Konu (ör. migraine; boş = bot seçer)"
+        required: false
+        default: ""
 concurrency:
   group: daily
   cancel-in-progress: false
@@ -39,6 +43,7 @@ jobs:
       PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ONLY_TYPE: ${{ github.event.inputs.only }}
+      ONLY_SUBJECT: ${{ github.event.inputs.subject }}
     steps:
       - uses: actions/checkout@v4
         with:

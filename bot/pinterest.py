@@ -24,6 +24,8 @@ BOARDS = {
     "wallpaper": "Christmas Phone Wallpapers",
     "junk_journal": "Junk Journal Kits & Ephemera",
     "planner": "Digital Planners & Stickers",
+    "stickers": "Digital Planners & Stickers",
+    "journal": "Digital Planners & Stickers",
 }
 BOARD_DESC = "Instant digital downloads from Sebasteia on Etsy."
 

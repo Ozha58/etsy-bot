@@ -78,7 +78,7 @@ PLANNER_STYLES = [
 PLANNER_EDITIONS = {  # what the planner is FOR: every planner in the shop is a different product
     "life": "an all-in-one life planner", "budget": "a budget / finance planner", "student": "a student / college planner",
     "adhd": "an ADHD-friendly planner", "wellness": "a health & wellness / fitness planner",
-    "business": "a small business planner",
+    "business": "a small business planner", "migraine": "a migraine & headache tracker planner",
 }
 
 
@@ -95,6 +95,10 @@ def planner_theme() -> str:
 def slot_theme(today: dt.date = None, ptype: str = None) -> str:
     if ptype == "planner":
         return planner_theme()
+    if ptype == "journal":  # the exact month / year bundle is decided by products.journal.prepare()
+        return ("PRINTABLE BULLET JOURNAL (mandatory): a cozy seasonal theme for the coming months' journal pages "
+                "(e.g. 'cozy winter', 'snowy pines', 'fresh start', 'winter botanicals'), calm and pretty, "
+                "no characters, no brands, no Christmas-only theme.")
     return (f"SHOP THEME (mandatory): {theme()}. Season angle: {angle(today)}. "
             f"Subject idea to build on: {random.choice(SUBJECTS)}. "
             "No gnomes, no elves, no Grinch, no brand or film characters.")

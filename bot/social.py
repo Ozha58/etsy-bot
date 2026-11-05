@@ -28,6 +28,8 @@ HOOKS = {
     "wallpaper": "Instant phone makeover - download and set",
     "junk_journal": "Print, cut and build your dream journal",
     "planner": "Plan your days in style on your tablet",
+    "stickers": "Drag, drop and track it in your planner",
+    "journal": "Print it, color it, fill it in - your month is ready",
 }
 BASE_TAGS = {
     "wall_art": ["wallart", "printableart", "homedecor"],
@@ -39,6 +41,8 @@ BASE_TAGS = {
     "wallpaper": ["phonewallpaper", "christmaswallpaper", "iphonewallpaper"],
     "junk_journal": ["junkjournal", "junkjournalkit", "ephemera"],
     "planner": ["digitalplanner", "ipadplanner", "plannerstickers"],
+    "stickers": ["digitalstickers", "plannerstickers", "trackerstickers"],
+    "journal": ["bulletjournal", "bujo", "journalprintables"],
 }
 
 

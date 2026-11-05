@@ -120,7 +120,10 @@ def cmd_pinweek(a):
 def cmd_scan(a):
     from . import niche_scan
     try:
-        niche_scan.run(a.keyword)
+        if (a.keyword or "").strip().lower() in ("kesif", "keşif", "discover"):
+            niche_scan.discover()
+        else:
+            niche_scan.run(a.keyword)
     finally:
         storage.commit_and_push("Niş taraması")
 

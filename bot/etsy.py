@@ -164,6 +164,8 @@ TAXONOMY_BY_TYPE = {
     "pattern": ["Paper > Decorative Paper", "Clip Art & Image Files"],
     "wallpaper": ["Drawing & Illustration > Digital", "Digital Prints"],
     "planner": ["Templates > Planner Templates", "Planner Templates"],
+    "stickers": ["Paper > Stickers", "Stickers", "Clip Art & Image Files"],
+    "journal": ["Templates > Planner Templates", "Planner Templates", "Calendars & Planners"],
     "coloring": ["Books > Coloring Books", "Digital Prints"],
     "clipart": ["Clip Art & Image Files"],
     "scenes": ["Clip Art & Image Files"],
@@ -283,7 +285,8 @@ def _alt_text(title, photo_name):
 SECTIONS = {"scenes": "Illustration Packs", "wall_art": "Printable Wall Art",
             "wallpaper": "Phone Wallpapers", "coloring": "Coloring Pages",
             "clipart": "Clipart", "pattern": "Digital Paper", "tumbler": "Tumbler Wraps",
-            "junk_journal": "Junk Journal Kits", "planner": "Digital Planners"}
+            "junk_journal": "Junk Journal Kits", "planner": "Digital Planners", "stickers": "Digital Stickers",
+            "journal": "Printable Journal Pages"}
 
 
 def section_for(ptype, tok, shop_id):

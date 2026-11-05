@@ -3,6 +3,7 @@ first photo on Etsy (Telegram: /kapak <id> or /kapak hepsi). Uses the product's 
 so no image quota is spent. Planners are rebuilt completely (new PDFs, stickers, covers and all
 10 photos, no watermark) from their own cover art and stickers."""
 import io
+import time
 import zipfile
 
 from PIL import Image
@@ -234,6 +235,8 @@ def rebuild_planner(p):
     desc = generator.compose_description(spec, built) if spec.get("intro") else p.get("description", "")
     telegram.send("⏳ Yeni dosyalar Etsy'ye yükleniyor…")
     etsy.replace_files(lid, built["delivery"])
+    from . import photo_ratio
+    built["mockups"] = photo_ratio.same_ratio(built["mockups"])
     etsy.replace_all_images(lid, built["mockups"], title)
     try:
         etsy.update_listing(lid, title=title[:140], description=desc, tags=tags)
@@ -302,6 +305,55 @@ def refresh(p):
     return data, video_ok
 
 
+def topic_refresh(p):
+    """Photo 1 of a published listing becomes a cover about ITS OWN subject (AI scene of the buyer's world + the real
+    product), in a layout the shop has not used lately. Costs 1 image."""
+    from . import covers, generator, images, llm
+    from .bundle_cover import delivery_items
+    lid = p.get("etsy", {}).get("listing_id")
+    if p.get("status") != "published" or not lid:
+        raise RuntimeError("ürün Etsy'de yayında değil")
+    spec = p.get("spec", {})
+    items = []
+    try:
+        items = delivery_items(_delivery(p), limit=12)
+    except Exception as e:
+        print(f"[recover] dosya görselleri alınamadı: {e}")
+    for n in p.get("photos", [])[1:7]:  # the listing's own product photos (planner pages, sheets...)
+        try:
+            items.append(Image.open(io.BytesIO(assets.download(p["id"], "photo__" + n))).convert("RGB"))
+        except Exception:
+            pass
+    if not items:
+        raise RuntimeError("ürün görseli bulunamadı")
+    scene = spec.get("cover_scene")
+    if not scene:
+        try:
+            scene = llm.ask_json(
+                "Write ONE English image prompt for a cozy lifestyle scene that shows the world of the buyer of this Etsy "
+                f"digital product: '{p['title']}' (niche: {p.get('niche', '')}). Objects and atmosphere that clearly "
+                "belong to THIS subject, no text, no faces in close-up, no animals unless the product is about animals. "
+                'Return JSON {"scene": "..."}', temperature=0.9)["scene"]
+        except Exception as e:
+            print(f"[recover] sahne yazılamadı: {e}")
+            scene = f"a cozy calm scene about {p.get('niche') or p['title']}"
+    hero = images.try_generate(f"{scene}, {spec.get('style', '')}, {covers.SCENE_SUFFIX}", 1024, 1024)
+    recent = [q.get("cover_layout") for q in sorted(storage.all_products(), key=lambda q: -q.get("cover_at", q.get("created_at", 0)))
+              if q.get("cover_layout") and q["id"] != p["id"]]
+    layout = covers.choose_layout(p["id"] + str(len(recent)), recent)
+    title = clean_title(p["title"]).split(",")[0].strip()
+    cov = covers.make(layout, hero, items, title=title, kicker=generator.KICKERS.get(p["type"], ""),
+                      count=None, unit=covers.UNITS.get(p["type"], ""),
+                      features=generator.FEATURES.get(p["type"], ()), palette=spec.get("palette"), seed=p["id"])
+    from . import photo_ratio
+    data = photo_ratio.same_ratio([("00-cover.jpg", jpeg_bytes(cov, 88, dpi=72))])[0][1]
+    etsy.replace_main_image(lid, data, f"{title} - cover")
+    assets.upload(p["id"], {"photo__00-cover.jpg": data})
+    p["photos"] = ["00-cover.jpg"] + list(p.get("photos", []))[1:]
+    p.update({"cover_layout": layout, "cover_at": int(time.time()), "topic_cover": True})
+    return data, layout
+
+
 def _needs_refresh(p):
     if p["type"] == "planner":  # planners already have their own best-seller cover; rebuilt only once
         return not p.get("cover_refreshed")
@@ -319,6 +371,31 @@ def run(arg):
             lines.append("Hepsini yenilemek için <code>/kapak hepsi</code> (her seferinde 5 ilan), tek ilan için <code>/kapak &lt;id&gt;</code>.")
         telegram.send("\n".join(lines))
         return False
+    if arg.lower().startswith(("konu", "topic")):
+        rest = arg.split(maxsplit=1)[1].strip() if " " in arg else ""
+        allp = [p for p in storage.all_products() if p.get("status") == "published"]
+        if rest:
+            targets = [p for p in allp if rest in (p["id"], str(p.get("etsy", {}).get("listing_id")))]
+        else:
+            targets = sorted([p for p in allp if not p.get("topic_cover")], key=lambda p: -p.get("created_at", 0))[:6]
+        if not targets:
+            telegram.send("✅ Yayındaki bütün ilanların kapağı zaten kendi konusuna göre." if not rest else
+                          "Ürün bulunamadı. Kullanım: <code>/kapak konu</code> veya <code>/kapak konu &lt;id&gt;</code>")
+            return False
+        changed = False
+        for p in targets:
+            try:
+                data, layout = topic_refresh(p)
+                storage.add_event(p, f"Konu kapağı ({layout})")
+                storage.save_product(p)
+                changed = True
+                telegram.album([("cover.jpg", data)], caption=f"🎨 Konuya özel yeni kapak ({layout}): <b>{esc(p['title'][:80])}</b>")
+            except Exception as e:
+                telegram.send(f"⚠️ {esc(p['id'])} konu kapağı yapılamadı: <code>{esc(str(e)[:300])}</code>")
+        left = len([p for p in storage.all_products() if p.get("status") == "published" and not p.get("topic_cover")])
+        if left and not rest:
+            telegram.send(f"Kalan {left} ilan için tekrar <code>/kapak konu</code> yazın (her seferinde 6 ilan).")
+        return changed
     if arg.lower() in ("hepsi", "all"):
         targets = [p for p in pub if _needs_refresh(p)]
         # newest first (they matter most); a few per run so one GitHub job finishes in time
