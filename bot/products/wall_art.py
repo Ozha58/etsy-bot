@@ -1,6 +1,7 @@
 from PIL import Image
 
 from .. import images, mockups
+from ..bundle_cover import bundle_cover
 from ..imgutil import crop_ratio, jpeg_bytes, make_zips, thumb_b64, upscale, hex2rgb
 
 LABEL_TR = "Duvar sanatı (3'lü set)"
@@ -93,6 +94,14 @@ def build(spec, slug):
         mock.append(("09-flatlay.jpg", mockups.mosaic(arts, spec.get("set_name", "Wall Art Set"), 3, palette)))
     except Exception:
         pass
+
+    # İLK GÖRSEL: "bundle" kapağı (3'lü set, 5 oran = 15 dosya)
+    mock.insert(0, ("00-bundle.jpg", bundle_cover(
+        arts, len(arts), "Wall Art Prints", spec.get("set_name", "Wall Art Set"), palette,
+        top_word="SET OF", bundle_word="PRINTABLE", ribbon="5 RATIOS",
+        sticker=("15 FILES", "300", "DPI"),
+        features=["5 RATIOS", "15 JPG FILES", "300 DPI", "INSTANT DOWNLOAD"])))
+    mock = mock[:10]
 
     return {
         "delivery": delivery,

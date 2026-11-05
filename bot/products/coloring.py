@@ -2,13 +2,15 @@ import io
 from PIL import Image
 
 from .. import images, mockups, mockups_coloring
+from ..bundle_cover import bundle_cover
 from ..imgutil import jpeg_bytes, thumb_b64
 
-LABEL_TR = "Boyama sayfaları (8 sayfa, PDF)"
+N_PAGES = 20  # one AI image per page
+LABEL_TR = "Boyama sayfaları (20 sayfa, PDF)"
 SPEC_FIELDS = """
   "audience": "adults or kids",
   "book_name": "short collection name, 2-5 words",
-  "pages": [ exactly 8 objects {"name": "...", "prompt": "detailed English prompt describing ONE coloring page scene/subject and its composition. Line art only."} ]
+  "pages": [ exactly 20 objects {"name": "...", "prompt": "detailed English prompt describing ONE coloring page scene/subject and its composition. Line art only."} ]
 """
 
 LETTER = (2550, 3300)  # 8.5x11 in @300dpi
@@ -46,14 +48,14 @@ def _pdf(pages):
 def build(spec, slug):
     audience = spec.get("audience", "adults")
     raws = []
-    for p in spec["pages"][:8]:
+    for p in spec["pages"][:N_PAGES]:
         r = images.try_generate(f"{p['prompt']}. {_suffix(audience)}", 1488, 1920)
         if r is None:
             if images.quota_exhausted():
                 break
             continue
         raws.append(r)
-    images.need(len(raws), len(spec["pages"][:8]), ratio=0.75)
+    images.need(len(raws), len(spec["pages"][:N_PAGES]), ratio=0.75)
     letter = [_page(r, LETTER) for r in raws]
     a4 = [_page(r, A4) for r in raws]
     delivery = [
@@ -99,7 +101,7 @@ def build(spec, slug):
     
     # 5, 6, 7. GÖRSEL: Rastgele sayfa önizlemeleri
     for i, pv in enumerate(previews[1:4], 5):
-        mock.append((f"0{i}-page.jpg", mockups.info_card(name.upper(), [p["name"] for p in spec["pages"][:8]][:6], palette, pv)))
+        mock.append((f"0{i}-page.jpg", mockups.info_card(name.upper(), [p["name"] for p in spec["pages"][:N_PAGES]][:6], palette, pv)))
         
     # 8. GÖRSEL: Kağıt boyutları ve detaylar
     mock.append(("08-sizes.jpg", mockups.info_card("WHAT YOU GET", [
@@ -111,7 +113,14 @@ def build(spec, slug):
     
     # 9. GÖRSEL: Nasıl çalışır?
     mock.append(("09-how.jpg", mockups.how_it_works(palette)))
-    
+
+    # İLK GÖRSEL: "bundle" kapağı – gerçek sayfa sayısı, arkada sayfaların kolajı (+ renkli örnek)
+    mock.insert(0, ("00-bundle.jpg", bundle_cover(
+        previews + [colored, colored.convert("RGB")], len(letter), "Coloring Pages", name, palette,
+        ribbon="PRINTABLE", sticker=("US LETTER", "A4", "PDF"),
+        features=["PRINTABLE PDF", "US LETTER + A4", "300 DPI", "INSTANT DOWNLOAD"])))
+    mock = mock[:10]
+
     return {
         "delivery": delivery,
         "mockups": [(n, jpeg_bytes(im, 88, dpi=72)) for n, im in mock],

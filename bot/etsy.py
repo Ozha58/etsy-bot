@@ -268,7 +268,7 @@ def _clean_styles(styles):
     return out[:2]
 
 
-_ALT = {"cover": "cover preview", "mosaic": "all designs included", "all": "all designs included",
+_ALT = {"bundle": "bundle cover with all items", "cover": "cover preview", "mosaic": "all designs included", "all": "all designs included",
         "wall": "framed on a wall", "room": "shown in a room", "lifestyle": "printed page on a desk",
         "info": "what is included", "sizes": "included sizes", "example": "colored example", "page": "page preview",
         "detail": "close-up detail", "how": "how to download", "print": "print preview", "flatlay": "all prints together"}

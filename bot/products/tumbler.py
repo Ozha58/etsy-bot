@@ -1,4 +1,5 @@
 from .. import images, mockups
+from ..bundle_cover import bundle_cover
 from ..imgutil import jpeg_bytes, make_zips, png_bytes, thumb_b64, upscale
 
 LABEL_TR = "Tumbler sublimasyon baskısı (20 oz, 2 tasarım PNG)"
@@ -40,6 +41,10 @@ def build(spec, slug):
         ], palette, designs[0][1])),
         ("05-how.jpg", mockups.how_it_works(palette)),
     ]
+    mock.insert(0, ("00-bundle.jpg", bundle_cover(
+        [im for _, im in designs], len(designs), "Tumbler Wraps", name, palette,
+        bundle_word="20 OZ SKINNY", ribbon="SUBLIMATION", sticker=("20 OZ", "PNG", "300 DPI"),
+        features=["20 OZ SKINNY", "SUBLIMATION PNG", "300 DPI", "COMMERCIAL USE"])))
     return {
         "delivery": delivery,
         "mockups": [(n, jpeg_bytes(im, 88, dpi=72)) for n, im in mock],

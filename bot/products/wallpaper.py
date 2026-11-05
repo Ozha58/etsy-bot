@@ -1,14 +1,15 @@
-"""Phone wallpaper pack: 10 vertical painted scenes, iPhone/Android and iPad sizes."""
+"""Phone wallpaper pack: 20 vertical painted scenes, iPhone/Android and iPad sizes."""
 from .. import images, mockups, mockups_wallpaper
+from ..bundle_cover import bundle_cover
 from ..imgutil import crop_ratio, jpeg_bytes, make_zips, thumb_b64, upscale
 
-COUNT = 10  # wallpapers per pack (each one is one image-model request)
+COUNT = 20  # wallpapers per pack (each one is one image-model request)
 GEN_W, GEN_H = 1280, 1920
 
-LABEL_TR = "Telefon duvar kağıdı paketi (10 adet, iPhone/Android/iPad)"
+LABEL_TR = "Telefon duvar kağıdı paketi (20 adet, iPhone/Android/iPad)"
 SPEC_FIELDS = """
   "bundle_name": "short collection name, 2-4 words",
-  "elements": [ exactly 10 objects {"name": "short wallpaper name", "prompt": "English prompt describing ONE vertical phone wallpaper scene with a clear main subject in the center (e.g. 'Santa Claus with his reindeer and sleigh on a snowy hill under a starry sky')"} ]
+  "elements": [ exactly 20 objects {"name": "short wallpaper name", "prompt": "English prompt describing ONE vertical phone wallpaper scene with a clear main subject in the center (e.g. 'Santa Claus with his reindeer and sleigh on a snowy hill under a starry sky')"} ]
 """
 
 STYLE = "highly detailed realistic illustration, true-to-life colors, soft natural light"  # used when the plan has no style
@@ -43,12 +44,17 @@ def build(spec, slug):
                 "For personal use only. Please do not share, resell or redistribute the files.\n")
     delivery = []
     for tag, ratio, (pw, ph), _ in SIZES:
-        files = []
-        for i, art in enumerate(arts, 1):
-            safe = "".join(c if c.isalnum() else "-" for c in names[i - 1].lower()).strip("-")[:30] or "wallpaper"
-            img = upscale(crop_ratio(art, ratio), pw, ph)
-            files.append((f"{i:02d}-{safe}-{tag}.jpg", jpeg_bytes(img, 90)))
-        delivery += make_zips(f"{slug}-{tag}", files, readme)
+        sized = [upscale(crop_ratio(art, ratio), pw, ph) for art in arts]
+        # Etsy allows 5 files: keep each device at most 2 ZIPs (<= 37 MB) by lowering JPEG quality if needed
+        for quality in (90, 85, 80, 74, 68):
+            files = []
+            for i, img in enumerate(sized, 1):
+                safe = "".join(c if c.isalnum() else "-" for c in names[i - 1].lower()).strip("-")[:30] or "wallpaper"
+                files.append((f"{i:02d}-{safe}-{tag}.jpg", jpeg_bytes(img, quality)))
+            if sum(len(b) for _, b in files) < 36 * 1024 * 1024:
+                break
+        delivery += make_zips(f"{slug}-{tag}", files, readme, max_zips=2)
+        del sized
 
     name = spec.get("bundle_name", "Phone Wallpapers")
     pal = mockups.palette_colors(palette)
@@ -63,6 +69,10 @@ def build(spec, slug):
         ], palette, arts[1 % n])),
         ("04-how.jpg", mockups.how_it_works(palette)),
     ]
+    mock.insert(0, ("00-bundle.jpg", bundle_cover(
+        arts, n, "Phone Wallpapers", name, palette, ribbon="AESTHETIC",
+        sticker=("iPHONE", "iPAD", "ANDROID"),
+        features=["iPHONE", "ANDROID", "iPAD", "INSTANT DOWNLOAD"])))
     return {
         "delivery": delivery,
         "mockups": [(nm, jpeg_bytes(im, 88, dpi=72)) for nm, im in mock],

@@ -8,6 +8,7 @@ import zipfile
 from PIL import Image
 
 from . import assets, etsy, mockups_scenes, mockups_wallpaper, storage, telegram, watermark
+from .bundle_cover import bundle_cover
 from .imgutil import jpeg_bytes
 from .telegram import esc
 
@@ -37,12 +38,16 @@ def new_cover(p):
         ims = _images_from_zips(p, limit=15)
         if not ims:
             raise RuntimeError("ürün dosyalarında görsel bulunamadı")
-        return mockups_scenes.collage_cover(ims, spec.get("bundle_name", "Illustration Bundle"), len(ims), palette)
+        return bundle_cover(ims, len(ims), "Illustrations", spec.get("bundle_name", "Illustration Bundle"), palette,
+                            sticker=("4096 PX", "300", "DPI"),
+                            features=["HIGH RES JPG", "4096 x 4096 PX", "300 DPI", "COMMERCIAL USE"])
     if p["type"] == "wallpaper":
         ims = _images_from_zips(p, want="iPhone", limit=10) or _images_from_zips(p, limit=10)
         if not ims:
             raise RuntimeError("ürün dosyalarında görsel bulunamadı")
-        return mockups_wallpaper.cover(ims, spec.get("bundle_name", "Phone Wallpapers"), len(ims), palette)
+        return bundle_cover(ims, len(ims), "Phone Wallpapers", spec.get("bundle_name", "Phone Wallpapers"), palette,
+                            ribbon="AESTHETIC", sticker=("iPHONE", "iPAD", "ANDROID"),
+                            features=["iPHONE", "ANDROID", "iPAD", "INSTANT DOWNLOAD"])
     if p["type"] == "planner":
         return _planner_cover(p)
     raise RuntimeError(f"bu ürün türü için kapak yenileme yok ({p['type']})")

@@ -80,16 +80,17 @@ def mosaic(arts, title, count, palette):
     hf = fit_text(d, head, "serif", W - 500, 110, 50)
     d.text(((W - d.textlength(head, font=hf)) / 2, 100), head, font=hf, fill=CREAM + (255,))
     n = len(arts)
-    per_row = 5 if n > 5 else n
+    per_row = n if n <= 5 else 5 if n <= 10 else 7
     rows = [list(range(i, min(i + per_row, n))) for i in range(0, n, per_row)]
-    ph = 600 if len(rows) > 1 else 1000
+    top = 300 if len(rows) > 1 else 330
+    row_gap = 70 if len(rows) <= 2 else 40
+    ph = int(min(1000, (H - top - 60 - row_gap * (len(rows) - 1)) / len(rows)))
     pw = int(ph * 0.485)
     gap = 48
-    top = 300 if len(rows) > 1 else 330
     for ri, row in enumerate(rows):
         total = len(row) * pw + (len(row) - 1) * gap
         x = (W - total) // 2
-        y = top + ri * (ph + 70)
+        y = top + ri * (ph + row_gap)
         for idx in row:
             paste_with_shadow(canvas, _phone(arts[idx], ph), (x, y), radius=16, offset=(0, 10), opacity=130)
             x += pw + gap

@@ -305,8 +305,9 @@ Return JSON with these fields:
     raise RuntimeError(f"Ürün planı oluşturulamadı: {problems}")
 
 
-_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 10),"wall_art": ("prints", 3), "coloring": ("pages", 8), "clipart": ("elements", 15), "pattern": ("papers", 10), "tumbler": ("designs", 2),
-               "junk_journal": [("scenes", 6), ("objects", 8)],
+# must match the counts in each product module (wallpaper.COUNT, coloring.N_PAGES, junk_journal.N_SCENES/N_OBJECTS)
+_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 20), "wall_art": ("prints", 3), "coloring": ("pages", 20), "clipart": ("elements", 15), "pattern": ("papers", 10), "tumbler": ("designs", 2),
+               "junk_journal": [("scenes", 10), ("objects", 12)],
                "planner": ("stickers", 8)}
 
 

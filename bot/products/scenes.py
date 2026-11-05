@@ -2,6 +2,7 @@
 from PIL import Image, ImageFilter
 
 from .. import images, mockups, mockups_scenes
+from ..bundle_cover import bundle_cover
 from ..imgutil import jpeg_bytes, make_zips, thumb_b64
 
 COUNT = 15
@@ -72,6 +73,10 @@ def build(spec, slug):
         ("07-detail2.jpg", mockups.info_card("PREVIEW", ["Beautiful painterly style"], palette, ims[3 % n])),
         ("08-detail3.jpg", mockups.info_card("PREVIEW", ["Perfect for cards & crafts"], palette, ims[4 % n])),
     ]
+    # İLK GÖRSEL: "bundle" kapağı
+    mock.insert(0, ("00-bundle.jpg", bundle_cover(
+        ims, n, "Illustrations", name, palette, sticker=("4096 PX", "300", "DPI"),
+        features=["HIGH RES JPG", "4096 x 4096 PX", "300 DPI", "COMMERCIAL USE"])))
     
     return {
         "delivery": delivery,

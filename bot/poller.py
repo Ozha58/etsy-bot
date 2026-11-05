@@ -40,7 +40,12 @@ def publish_product(p: dict) -> str:
         from PIL import Image
         from . import etsy_video
         ims = [Image.open(io.BytesIO(b)) for _, b in photos[:5]]
-        vb = etsy_video.make(ims)
+        try:
+            items = etsy_video.items_from_delivery(delivery)
+        except Exception as e:
+            print(f"[publish] video için ürün öğeleri alınamadı: {e}")
+            items = []
+        vb = etsy_video.make(ims, items)
         if isinstance(vb, (bytes, bytearray)):
             video_bytes = bytes(vb)
     except Exception as e:
