@@ -13,7 +13,8 @@ from .imgutil import jpeg_bytes
 from .telegram import esc
 
 SUPPORTED = ("junk_journal", "coloring", "wallpaper", "scenes", "clipart", "pattern", "wall_art", "tumbler", "planner")
-COVER_VERSION = 2  # bump when the cover design changes: "/kapak hepsi" then redoes every listing once
+COVER_VERSION = 3  # bump when the cover design changes: "/kapak hepsi" then redoes every listing once
+# 3 = 4:5 phone cover with neat masonry collage
 
 # type -> name field in the spec, bundle_cover() options (same look as new products)
 STYLE = {
@@ -312,6 +313,14 @@ def _needs_refresh(p):
 def run(arg):
     arg = (arg or "").strip()
     pub = [p for p in storage.all_products() if p.get("status") == "published" and p.get("type") in SUPPORTED]
+    if arg.lower() in ("durum", "status"):
+        left = [p for p in pub if _needs_refresh(p)]
+        lines = [f"🖼 Yayında {len(pub)} ilan, {len(pub) - len(left)} tanesi yeni kapak + videoda, {len(left)} tanesi bekliyor."]
+        lines += [f"• <code>{esc(p['id'])}</code> {esc(p['title'][:50])}" for p in left[:15]]
+        if left:
+            lines.append("Hepsini yenilemek için <code>/kapak hepsi</code> (her seferinde 5 ilan), tek ilan için <code>/kapak &lt;id&gt;</code>.")
+        telegram.send("\n".join(lines))
+        return False
     if arg.lower() in ("hepsi", "all"):
         targets = [p for p in pub if _needs_refresh(p)]
         # newest first (they matter most); a few per run so one GitHub job finishes in time

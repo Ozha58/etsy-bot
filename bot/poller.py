@@ -12,7 +12,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b>
 /bekleyen – onay bekleyen ürünleri tekrar gönder
 /uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün; tür seçmek için: /uret junk, planner, coloring, wallpaper, wall_art, scenes, clipart)
 /nis – Etsy verisiyle niş taraması (/nis frog → tek konuyu derin tara)
-/kapak – eski ilanın kapağını ve videosunu yeni tasarımla yenile (/kapak &lt;id&gt; veya /kapak hepsi)
+/kapak – ilanın kapağını ve videosunu yeni tasarımla baştan yap (/kapak &lt;id&gt;, /kapak hepsi, /kapak durum)
 /etsy – Etsy mağazanı bağla / yeniden bağla
 /pinterest – Pinterest hesabını bağla (otomatik pin)
 /kod &lt;adres&gt; – Etsy/Pinterest onayından sonra çıkan adresi gönder

@@ -20,13 +20,14 @@ from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageOp
 from .imgutil import fit_text, font, paste_with_shadow
 from .mockups import _mix, palette_colors
 
-W = H = 2400  # square cover
+W, H = 2000, 2500  # 4:5 portrait: exactly the shape of the Etsy phone app grid, shown there uncropped
 WHITE = (255, 255, 255)
 INK = (34, 24, 28)
 GOLD_TOP, GOLD_BOTTOM = (255, 226, 120), (214, 140, 28)
-# 4:5 crop keeps x 10..90 %, 4:3 crop keeps y 12.5..87.5 %; keep a small margin inside both
-SAFE_X0, SAFE_X1 = int(W * 0.115), int(W * 0.885)
-SAFE_Y0, SAFE_Y1 = int(H * 0.14), int(H * 0.86)
+# the phone grid shows the whole 4:5 image; a 4:3 desktop crop keeps y 20..80 %, a square crop y 10..90 %.
+# Text and badges stay inside x 6..94 %, y 21..79 % so they survive every crop.
+SAFE_X0, SAFE_X1 = int(W * 0.06), int(W * 0.94)
+SAFE_Y0, SAFE_Y1 = int(H * 0.21), int(H * 0.79)
 
 
 # ---------------------------------------------------------------- colours
@@ -114,15 +115,17 @@ def collage_bg(items, sch, seed=3, hole=None, bottom=0):
     rnd = random.Random(seed)
     items = [im for im in items if im is not None]
     cut = sum(_is_cutout(im) for im in items) > len(items) / 2
-    base = _mix(sch["light"], WHITE, 0.4) if cut else _mix(sch["dark"], INK, 0.2)
+    base = _mix(sch["light"], WHITE, 0.4) if cut else _mix(sch["light"], WHITE, 0.55)
     canvas = Image.new("RGBA", (W, H), base + (255,))
     if cut:  # sunburst behind the cut-out items
         canvas.alpha_composite(_rays((W, H), (W / 2, H * 0.42), _mix(sch["main"], WHITE, 0.72), WHITE, alpha=255, n=36))
     if not items:
         return canvas
-    # 5 x 5 big cells (480 px: ~100 px per item on the phone grid) + a second layer of smaller items in the
+    if not cut:
+        return _masonry(canvas, items, rnd)
+    # 4 x 5 big cells (500 px: ~100 px per item on the phone grid) + a second layer of smaller items in the
     # gaps, so the whole background is packed with real product detail like the best-selling bundle covers
-    cols, rows = 5, 5
+    cols, rows = 4, 5
     cw, ch = W / cols, (H - bottom) / rows
     cells = [(r, c) for r in range(rows) for c in range(cols)]
     if hole:
@@ -148,26 +151,102 @@ def collage_bg(items, sch, seed=3, hole=None, bottom=0):
                               radius=8, offset=(3, 6), opacity=50)
     # layer 2: big items; far cells first so the visible ones overlap them nicely
     for (r, c), im in sorted(zip(cells, order), key=lambda x: visible(x[0])):
-        if cut:
-            t = im.copy()
-            t.thumbnail((int(cw * 1.12), int(ch * 1.12)), Image.LANCZOS)
-            t = t.rotate(rnd.uniform(-12, 12), expand=True, resample=Image.BICUBIC)
-            x = c * cw + cw / 2 - t.width / 2 + rnd.uniform(-cw * 0.1, cw * 0.1)
-            y = r * ch + ch / 2 - t.height / 2 + rnd.uniform(-ch * 0.1, ch * 0.1)
-            paste_with_shadow(canvas, t, (x, y), radius=10, offset=(4, 8), opacity=60)
-        else:
-            flat = im
-            if im.mode in ("RGBA", "LA", "P"):  # transparent pieces on white, never on black
-                flat = Image.alpha_composite(Image.new("RGBA", im.size, WHITE + (255,)), im.convert("RGBA"))
-            t = ImageOps.fit(flat.convert("RGB"), (int(cw * 1.04), int(ch * 1.04)), Image.LANCZOS)
-            t = ImageOps.expand(t, border=max(6, int(cw * 0.02)), fill=WHITE).convert("RGBA")
-            t = t.rotate(rnd.uniform(-5, 5), expand=True, resample=Image.BICUBIC)
-            paste_with_shadow(canvas, t, (c * cw + cw / 2 - t.width / 2, r * ch + ch / 2 - t.height / 2),
-                              radius=12, offset=(4, 10), opacity=90)
-    # punchier colours, like the best-selling thumbnails
-    rgb = ImageEnhance.Color(canvas.convert("RGB")).enhance(1.35)
-    rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
+        t = im.copy()
+        t.thumbnail((int(cw * 1.12), int(ch * 1.12)), Image.LANCZOS)
+        t = t.rotate(rnd.uniform(-12, 12), expand=True, resample=Image.BICUBIC)
+        x = c * cw + cw / 2 - t.width / 2 + rnd.uniform(-cw * 0.1, cw * 0.1)
+        y = r * ch + ch / 2 - t.height / 2 + rnd.uniform(-ch * 0.1, ch * 0.1)
+        paste_with_shadow(canvas, t, (x, y), radius=10, offset=(4, 8), opacity=60)
+    return _punch(canvas)
+
+
+def _punch(canvas):
+    """Punchier colours, like the best-selling thumbnails."""
+    rgb = ImageEnhance.Color(canvas.convert("RGB")).enhance(1.3)
+    rgb = ImageEnhance.Contrast(rgb).enhance(1.06)
     return rgb.convert("RGBA")
+
+
+def _flat(im):
+    """RGB copy; transparent pieces go on white, never on black."""
+    if im.mode in ("RGBA", "LA", "P"):
+        im = Image.alpha_composite(Image.new("RGBA", im.size, WHITE + (255,)), im.convert("RGBA"))
+    return im.convert("RGB")
+
+
+def _detail_pool(items, rnd, want=16):
+    """Full items first, then close-up detail crops of them, so a product with only a few files still fills the
+    cover with varied, real detail instead of the same picture repeated."""
+    full = [_flat(im) for im in items]
+    pool = full[:]
+    k = 0
+    while len(pool) < want and full:
+        im = full[k % len(full)]
+        z = rnd.choice((0.55, 0.42, 0.33))
+        cw, ch = int(im.width * z), int(im.height * z)
+        x, y = rnd.randint(0, im.width - cw), rnd.randint(0, im.height - ch)
+        pool.append(im.crop((x, y, x + cw, y + ch)))
+        k += 1
+    return pool
+
+
+def _masonry(canvas, items, rnd, gutter=22, row_h=440):
+    """Neat justified rows (no rotation, aspect ratios kept, equal gutters), filled from the top and from the
+    bottom so the rows buyers see above and below the title panel show the full items first."""
+    pool = _detail_pool(items, rnd)
+    full_n = min(len(items), len(pool))
+    seq, last = [], None
+
+    def take():
+        nonlocal seq, last
+        if not seq:
+            seq = list(range(len(pool)))
+            head, tail = seq[:full_n], seq[full_n:]
+            rnd.shuffle(head)
+            rnd.shuffle(tail)
+            seq = head + tail
+        i = seq.pop(0)
+        if i == last and seq:  # never the same picture twice in a row
+            seq.append(i)
+            i = seq.pop(0)
+        last = i
+        return pool[i]
+
+    def build_row():
+        row, width = [], gutter
+        while width < W * 0.98 or len(row) < 2:
+            im = take()
+            ratio = max(0.45, min(2.4, im.width / im.height))
+            row.append((im, ratio))
+            width += ratio * row_h + gutter
+            if len(row) >= 5:
+                break
+        s = (W - gutter * (len(row) + 1)) / sum(r * row_h for _, r in row)
+        return row, row_h * s
+
+    def draw_row(row, h, y):
+        x = gutter
+        for im, ratio in row:
+            w = int(round(ratio * h))
+            tile = ImageOps.fit(im, (max(2, w - 12), max(2, int(h) - 12)), Image.LANCZOS)
+            tile = ImageOps.expand(tile, border=6, fill=WHITE).convert("RGBA")
+            paste_with_shadow(canvas, tile, (x, y), radius=10, offset=(0, 8), opacity=70)
+            x += w + gutter
+
+    top, bottom = gutter, H - gutter
+    first_bottom = True
+    while top < bottom:
+        row, h = build_row()
+        draw_row(row, h, top)
+        top += h + gutter
+        if top >= bottom:
+            break
+        if first_bottom:  # the bottom row also starts with the full items
+            seq, first_bottom = [], False
+        row, h = build_row()
+        draw_row(row, h, bottom - h)
+        bottom -= h + gutter
+    return _punch(canvas)
 
 
 # ---------------------------------------------------------------- decorations
@@ -325,8 +404,8 @@ def bundle_cover(items, count, kind_word, title, palette, *, bundle_word="BUNDLE
 
     # ---- build the badge contents first, then size the panel around them.
     # Wide and low (like the gnome bundle covers): two rows of product items stay visible above and below it.
-    pw = int(W * 0.68)
-    inner_w = pw - 150
+    pw = int(W * 0.80)
+    inner_w = pw - 140
     parts = []  # (image, gap_after)
     if top_word:
         parts.append((_pill_img(top_word.upper(), WHITE, INK, size=56), 0))
