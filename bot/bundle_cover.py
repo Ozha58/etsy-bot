@@ -1,10 +1,13 @@
 """Loud "bundle" style first listing image (Pillow only, no image-model quota).
 
-The look follows the best selling digital-bundle thumbnails on Etsy:
-  * the whole canvas is a dense collage of the real product items
-  * a big centre badge with a huge outlined count ("15", "120+"), the product word
-    ("CLIPART PNG") and "BUNDLE" in heavy outlined type
-  * a diagonal corner ribbon, a round sticker and a bottom feature strip
+The look follows the best selling digital-bundle thumbnails on Etsy (e.g. "700+ GNOMES PNG BUNDLE"):
+  * a SQUARE canvas fully covered with big copies of the real product items (top and bottom rows stay visible)
+  * a wide centre badge with a huge outlined count, the product word and "BUNDLE" in heavy outlined type
+  * a tilted tag, a round sticker and feature pills, all on the badge
+
+Etsy crops the first photo differently per screen: the phone app grid shows a 4:5 portrait crop, desktop search
+a ~4:3 landscape crop, other places a square. Everything important (text, badge, tag, sticker, pills) therefore
+sits inside the SAFE box = the part of the square that survives BOTH crops; only collage items reach outside it.
 
 The count always comes from the real number of files in the product: never inflate it.
 """
@@ -15,12 +18,15 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
 from .imgutil import fit_text, font, paste_with_shadow
-from .mockups import H, W, _mix, palette_colors
+from .mockups import _mix, palette_colors
 
+W = H = 2400  # square cover
 WHITE = (255, 255, 255)
 INK = (34, 24, 28)
 GOLD_TOP, GOLD_BOTTOM = (255, 226, 120), (214, 140, 28)
-SAFE_X0, SAFE_X1 = (W - H) // 2 + 20, (W + H) // 2 - 20  # centre square that survives Etsy's square crop
+# 4:5 crop keeps x 10..90 %, 4:3 crop keeps y 12.5..87.5 %; keep a small margin inside both
+SAFE_X0, SAFE_X1 = int(W * 0.115), int(W * 0.885)
+SAFE_Y0, SAFE_Y1 = int(H * 0.14), int(H * 0.86)
 
 
 # ---------------------------------------------------------------- colours
@@ -102,8 +108,9 @@ def _is_cutout(im):
     return (a < 20).mean() > 0.08
 
 
-def collage_bg(items, sch, seed=3):
-    """Fill the whole canvas with the product items (edge to edge, slightly rotated)."""
+def collage_bg(items, sch, seed=3, hole=None, bottom=0):
+    """Fill the canvas with BIG product items. Cells hidden behind `hole` (the title panel) are skipped,
+    so the real items end up where buyers can see them, inside Etsy's centre-square crop first."""
     rnd = random.Random(seed)
     items = [im for im in items if im is not None]
     cut = sum(_is_cutout(im) for im in items) > len(items) / 2
@@ -113,39 +120,50 @@ def collage_bg(items, sch, seed=3):
         canvas.alpha_composite(_rays((W, H), (W / 2, H * 0.42), _mix(sch["main"], WHITE, 0.72), WHITE, alpha=255, n=36))
     if not items:
         return canvas
-    # enough cells to cover the canvas; repeat items only when there are too few
-    target = max(len(items), 35 if cut else 20)
-    cols = max(4, round(math.sqrt(target * W / H)))
-    rows = math.ceil(target / cols)
-    cw, ch = W / cols, H / rows
+    # 5 x 5 big cells (480 px: ~100 px per item on the phone grid) + a second layer of smaller items in the
+    # gaps, so the whole background is packed with real product detail like the best-selling bundle covers
+    cols, rows = 5, 5
+    cw, ch = W / cols, (H - bottom) / rows
+    cells = [(r, c) for r in range(rows) for c in range(cols)]
+    if hole:
+        hx0, hy0, hx1, hy1 = hole
+        inset = 0.25
+        cells = [(r, c) for r, c in cells
+                 if not (hx0 + cw * inset < (c + 0.5) * cw < hx1 - cw * inset and hy0 + ch * inset < (r + 0.5) * ch < hy1 - ch * inset)]
+    visible = lambda rc: SAFE_X0 <= (rc[1] + 0.5) * cw <= SAFE_X1 and SAFE_Y0 - ch <= (rc[0] + 0.5) * ch <= SAFE_Y1 + ch
+    # cells that survive every Etsy crop get the first (unique) items
+    cells.sort(key=lambda rc: (not visible(rc), rnd.random()))
     order = []
-    while len(order) < cols * rows:
+    while len(order) < len(cells) * 2:
         batch = items[:]
         rnd.shuffle(batch)
         order += batch
-    k = 0
-    for r in range(rows):
-        for c in range(cols):
-            im = order[k]
-            k += 1
-            if cut:
-                t = im.copy()
-                t.thumbnail((int(cw * 1.4), int(ch * 1.4)), Image.LANCZOS)
-                ang = rnd.uniform(-12, 12)
-                t = t.rotate(ang, expand=True, resample=Image.BICUBIC)
-                x = c * cw + cw / 2 - t.width / 2 + rnd.uniform(-cw * 0.12, cw * 0.12)
-                y = r * ch + ch / 2 - t.height / 2 + rnd.uniform(-ch * 0.12, ch * 0.12)
-                paste_with_shadow(canvas, t, (x, y), radius=10, offset=(4, 8), opacity=60)
-            else:
-                flat = im
-                if im.mode in ("RGBA", "LA", "P"):  # transparent pieces on white, never on black
-                    flat = Image.alpha_composite(Image.new("RGBA", im.size, WHITE + (255,)), im.convert("RGBA"))
-                t = ImageOps.fit(flat.convert("RGB"), (int(cw * 1.02), int(ch * 1.02)), Image.LANCZOS)
-                t = ImageOps.expand(t, border=max(6, int(cw * 0.02)), fill=WHITE).convert("RGBA")
-                ang = rnd.uniform(-5, 5)
-                t = t.rotate(ang, expand=True, resample=Image.BICUBIC)
-                paste_with_shadow(canvas, t, (c * cw + cw / 2 - t.width / 2, r * ch + ch / 2 - t.height / 2),
-                                  radius=12, offset=(4, 10), opacity=90)
+    # layer 1: smaller items on the cell corners (fills every gap)
+    if cut:
+        for k, (r, c) in enumerate(cells):
+            t = order[len(cells) + k].copy()
+            t.thumbnail((int(cw * 0.62), int(ch * 0.62)), Image.LANCZOS)
+            t = t.rotate(rnd.uniform(-20, 20), expand=True, resample=Image.BICUBIC)
+            paste_with_shadow(canvas, t, ((c + 1) * cw - t.width / 2, (r + 1) * ch - t.height / 2),
+                              radius=8, offset=(3, 6), opacity=50)
+    # layer 2: big items; far cells first so the visible ones overlap them nicely
+    for (r, c), im in sorted(zip(cells, order), key=lambda x: visible(x[0])):
+        if cut:
+            t = im.copy()
+            t.thumbnail((int(cw * 1.12), int(ch * 1.12)), Image.LANCZOS)
+            t = t.rotate(rnd.uniform(-12, 12), expand=True, resample=Image.BICUBIC)
+            x = c * cw + cw / 2 - t.width / 2 + rnd.uniform(-cw * 0.1, cw * 0.1)
+            y = r * ch + ch / 2 - t.height / 2 + rnd.uniform(-ch * 0.1, ch * 0.1)
+            paste_with_shadow(canvas, t, (x, y), radius=10, offset=(4, 8), opacity=60)
+        else:
+            flat = im
+            if im.mode in ("RGBA", "LA", "P"):  # transparent pieces on white, never on black
+                flat = Image.alpha_composite(Image.new("RGBA", im.size, WHITE + (255,)), im.convert("RGBA"))
+            t = ImageOps.fit(flat.convert("RGB"), (int(cw * 1.04), int(ch * 1.04)), Image.LANCZOS)
+            t = ImageOps.expand(t, border=max(6, int(cw * 0.02)), fill=WHITE).convert("RGBA")
+            t = t.rotate(rnd.uniform(-5, 5), expand=True, resample=Image.BICUBIC)
+            paste_with_shadow(canvas, t, (c * cw + cw / 2 - t.width / 2, r * ch + ch / 2 - t.height / 2),
+                              radius=12, offset=(4, 10), opacity=90)
     # punchier colours, like the best-selling thumbnails
     rgb = ImageEnhance.Color(canvas.convert("RGB")).enhance(1.35)
     rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
@@ -195,8 +213,7 @@ def _sticker(canvas, cx, cy, radius, top, mid, bottom, sch):
     paste_with_shadow(canvas, st, (cx - size / 2, cy - size / 2), radius=16, offset=(6, 12), opacity=120)
 
 
-def _feature_strip(canvas, features, sch):
-    strip_h = 150
+def _feature_strip(canvas, features, sch, strip_h=150):
     y0 = H - strip_h
     layer = Image.new("RGBA", (W, strip_h), sch["dark"] + (245,))
     d = ImageDraw.Draw(layer)
@@ -204,7 +221,7 @@ def _feature_strip(canvas, features, sch):
     # Etsy's phone/search views crop to the centre square (x SAFE_X0..SAFE_X1): keep the text inside it
     n = len(features)
     seg = (SAFE_X1 - SAFE_X0) / n
-    f = _fit_font(max(features, key=len), "sans_bold", seg - 90, 50, 24)
+    f = _fit_font(max(features, key=len), "sans_bold", seg - 90, 60, 24)
     for i, feat in enumerate(features):
         cx = SAFE_X0 + seg * i + seg / 2
         tw = d.textlength(feat, font=f)
@@ -305,35 +322,36 @@ def bundle_cover(items, count, kind_word, title, palette, *, bundle_word="BUNDLE
     top_word   – optional pill above the number, e.g. "SET OF"
     """
     sch = scheme(palette)
-    canvas = collage_bg(items, sch)
-    strip_h = 150
 
-    # ---- build the badge contents first, then size the panel around them
-    pw = int(W * 0.56)
-    inner_w = pw - 160
+    # ---- build the badge contents first, then size the panel around them.
+    # Wide and low (like the gnome bundle covers): two rows of product items stay visible above and below it.
+    pw = int(W * 0.68)
+    inner_w = pw - 150
     parts = []  # (image, gap_after)
     if top_word:
-        parts.append((_pill_img(top_word.upper(), WHITE, INK), 4))
+        parts.append((_pill_img(top_word.upper(), WHITE, INK, size=56), 0))
     num = f"{count:,}{'+' if plus else ''}"
-    nf = _fit_font(num, "sans_bold", inner_w * 0.95, 430, 120)
+    nf = _fit_font(num, "sans_bold", inner_w * 0.95, 400, 120)
     parts.append((_shrink(outlined_text(num, nf, _mix(sch["main"], WHITE, 0.25), sch["main"], outer=sch["dark"]), inner_w), 0))
-    kf = _fit_font(kind_word.upper(), "sans_bold", inner_w * 0.98, 160, 50)
+    kf = _fit_font(kind_word.upper(), "sans_bold", inner_w * 0.98, 170, 50)
     parts.append((_shrink(outlined_text(kind_word.upper(), kf, (70, 70, 80), INK, inner=WHITE, outer=WHITE, inner_w=0,
-                                        outer_w=max(4, kf.size // 14), depth=max(2, kf.size // 30)), inner_w), 10))
-    parts.append((_shrink(_banner(bundle_word, sch), inner_w), 14))
+                                        outer_w=max(4, kf.size // 14), depth=max(2, kf.size // 30)), inner_w), 6))
+    parts.append((_shrink(_banner(bundle_word, sch), inner_w * 0.8), 8))
     if title:
-        parts.append((_title_img(title, inner_w * 0.95, sch["dark"]), 0))
+        parts.append((_title_img(title, inner_w * 0.92, sch["dark"]), 0))
 
-    pad_y = 80
+    pad_y = 55
     content_h = sum(im.height + g for im, g in parts)
-    ph = min(content_h + 2 * pad_y, H - strip_h - 120)
+    pills_h = 120
+    ph = min(content_h + 2 * pad_y, SAFE_Y1 - SAFE_Y0 - pills_h - 120)
     px = (W - pw) // 2
-    py = int((H - strip_h - ph) / 2)
+    py = int((H - ph - pills_h * 0.6) / 2)
+    canvas = collage_bg(items, sch, hole=(px, py, px + pw, py + ph))
 
-    # glowing coloured burst behind the panel so it pops off the collage
+    # tight glow behind the panel so it pops off the collage without hiding the items
     glow = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(glow).rounded_rectangle((px - 50, py - 50, px + pw + 50, py + ph + 50), radius=150, fill=210)
-    glow = glow.filter(ImageFilter.GaussianBlur(55))
+    ImageDraw.Draw(glow).rounded_rectangle((px - 25, py - 25, px + pw + 25, py + ph + 25), radius=120, fill=200)
+    glow = glow.filter(ImageFilter.GaussianBlur(30))
     canvas = Image.composite(Image.new("RGBA", (W, H), _mix(sch["main"], WHITE, 0.15) + (255,)), canvas, glow)
 
     panel = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
@@ -366,11 +384,25 @@ def bundle_cover(items, count, kind_word, title, palette, *, bundle_word="BUNDLE
             canvas.alpha_composite(im, (x, int(y)))
         y += im.height + gap
 
-    if ribbon:
-        _corner_ribbon(canvas, ribbon.upper(), sch["second"])
+    if ribbon:  # tilted tag on the panel's top-left corner: stays inside Etsy's square crop
+        tag = _pill_img(ribbon.upper(), WHITE, sch["second"], size=60).rotate(8, expand=True, resample=Image.BICUBIC)
+        paste_with_shadow(canvas, tag, (max(SAFE_X0, px - tag.width * 0.35), py - tag.height * 0.55),
+                          radius=12, offset=(4, 10), opacity=120)
     if sticker:
-        r = 165
-        _sticker(canvas, min(SAFE_X1 - r, px + pw - 30), py + 30, r, *sticker, sch)
-    _feature_strip(canvas, features or ["INSTANT DOWNLOAD", "300 DPI", "COMMERCIAL USE"], sch)
+        r = 150
+        _sticker(canvas, min(SAFE_X1 - r, px + pw - 20), py + 20, r, *sticker, sch)
+    # feature pills hanging under the panel (inside the safe box, readable on a phone)
+    feats = (features or ["INSTANT DOWNLOAD", "300 DPI", "COMMERCIAL USE"])[:3]
+    pills = [_pill_img(f, WHITE, sch["dark"], size=50) for f in feats]
+    gap = 24
+    total = sum(p.width for p in pills) + gap * (len(pills) - 1)
+    if total > pw - 40:
+        s = (pw - 40) / total
+        pills = [p.resize((int(p.width * s), int(p.height * s)), Image.LANCZOS) for p in pills]
+        total = sum(p.width for p in pills) + gap * (len(pills) - 1)
+    x = (W - total) / 2
+    for p in pills:
+        paste_with_shadow(canvas, p, (x, py + ph - p.height * 0.35), radius=10, offset=(0, 8), opacity=110)
+        x += p.width + gap
     return canvas.convert("RGB")
 

@@ -157,7 +157,9 @@ def make(photos, items=None):
     photos = [p for p in list(photos)[:5] if p is not None]
     if not photos:
         return None
-    cover = _fit(photos[0])
+    first = photos[0].convert("RGB")
+    # square bundle covers keep all text inside the 4:3 band, so fill the frame instead of letterboxing
+    cover = ImageOps.fit(first, (W, H), Image.LANCZOS) if 0.95 <= first.width / first.height <= 1.05 else _fit(first)
     rest = [_fit(p) for p in photos[1:5]]
     items = list(items or [])[:14]
     rnd = random.Random(7)
