@@ -6,7 +6,7 @@ from PIL import Image
 
 from .. import ephemera as E
 from .. import images, mockups, mockups_jj
-from ..bundle_cover import bundle_cover
+from ..bundle_cover import bundle_cover, delivery_items
 from ..imgutil import color_to_alpha_background, hex2rgb, jpeg_bytes, make_zips, png_bytes, thumb_b64, trim_alpha
 
 N_SCENES, N_OBJECTS = 10, 12  # 22 AI images -> about 115 printable pieces
@@ -158,7 +158,7 @@ def build(spec, slug):
         ("07-how.jpg", mockups.how_it_works(spec.get("palette", []))),
     ]
     mock.insert(0, ("00-bundle.jpg", bundle_cover(
-        pages + cards + papers, total, "Journal Pieces", name, spec.get("palette", []),
+        delivery_items(delivery) or pages + cards + papers, total, "Journal Pieces", name, spec.get("palette", []),
         bundle_word="JUNK JOURNAL", ribbon="PRINTABLE",
         sticker=("PAGES", "TAGS", "STICKERS"),
         features=["PRINTABLE", "US LETTER", "300 DPI", "INSTANT DOWNLOAD"])))

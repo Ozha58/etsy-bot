@@ -1,6 +1,6 @@
 """Phone wallpaper pack: 20 vertical painted scenes, iPhone/Android and iPad sizes."""
 from .. import images, mockups, mockups_wallpaper
-from ..bundle_cover import bundle_cover
+from ..bundle_cover import bundle_cover, delivery_items
 from ..imgutil import crop_ratio, jpeg_bytes, make_zips, thumb_b64, upscale
 
 COUNT = 20  # wallpapers per pack (each one is one image-model request)
@@ -70,7 +70,7 @@ def build(spec, slug):
         ("04-how.jpg", mockups.how_it_works(palette)),
     ]
     mock.insert(0, ("00-bundle.jpg", bundle_cover(
-        arts, n, "Phone Wallpapers", name, palette, ribbon="AESTHETIC",
+        delivery_items(delivery, want="iphone") or arts, n, "Phone Wallpapers", name, palette, ribbon="AESTHETIC",
         sticker=("iPHONE", "iPAD", "ANDROID"),
         features=["iPHONE", "ANDROID", "iPAD", "INSTANT DOWNLOAD"])))
     return {

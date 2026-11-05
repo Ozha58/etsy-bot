@@ -113,7 +113,7 @@ def _pop(stage, card, t, angle):
 
 # ---------------------------------------------------------------- items from the delivery files
 def items_from_delivery(delivery, limit=14):
-    """Pick product images out of the delivery ZIPs / PDFs (evenly spread)."""
+    """Pick product images out of the buyer's delivery ZIPs / PDFs (every folder represented, evenly spread)."""
     names = []
     for fname, data in delivery:
         low = fname.lower()
@@ -132,8 +132,28 @@ def items_from_delivery(delivery, limit=14):
             print(f"[video] {fname} okunamadı: {e}")
     if not names:
         return []
-    step = max(1, len(names) / limit)
-    picks = [names[int(i * step)] for i in range(min(limit, len(names)))]
+    # round-robin over the folders (pages, cards, tags, stamps, stickers, papers... / each ZIP) so every kind of
+    # piece the buyer gets shows up, then spread evenly inside each folder
+    groups = {}
+    for kind, src, key in names:
+        folder = (id(src), key.rsplit("/", 1)[0] if kind == "zip" and "/" in key else "")
+        groups.setdefault(folder, []).append((kind, src, key))
+    queues = []
+    for g in groups.values():
+        share = max(1, -(-limit // len(groups)))
+        step = max(1.0, len(g) / share)
+        queues.append([g[int(i * step)] for i in range(min(share, len(g)))] + g)  # spread picks first, rest as spare
+    picks, seen = [], set()
+    while len(picks) < min(limit, len(names)) and any(queues):
+        for q in queues:
+            while q:
+                it = q.pop(0)
+                if (id(it[1]), it[2]) not in seen:
+                    seen.add((id(it[1]), it[2]))
+                    picks.append(it)
+                    break
+            if len(picks) >= limit:
+                break
     out = []
     for kind, src, key in picks:
         try:
@@ -142,7 +162,7 @@ def items_from_delivery(delivery, limit=14):
                 im.draft("RGB", (900, 900))
                 im = im.convert("RGBA")
             else:
-                im = src[key].render(scale=0.6).to_pil().convert("RGBA")
+                im = src[key].render(scale=1.0).to_pil().convert("RGBA")
             im.thumbnail((900, 900), Image.LANCZOS)
             out.append(im)
         except Exception as e:

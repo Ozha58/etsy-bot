@@ -73,14 +73,12 @@ def new_cover(p, delivery=None):
         return _planner_cover(p)
     if p["type"] not in STYLE:
         raise RuntimeError(f"bu ürün türü için kapak yenileme yok ({p['type']})")
-    from . import etsy_video
+    from .bundle_cover import delivery_items
     delivery = delivery if delivery is not None else _delivery(p)
     spec = p.get("spec", {})
     name_field, opts = STYLE[p["type"]]
-    src = delivery
-    if p["type"] == "wallpaper":  # the phone ZIP shows the wallpapers best
-        src = [d for d in delivery if "iphone" in d[0].lower()] or delivery
-    items = etsy_video.items_from_delivery(src, limit=24)
+    # collage from the buyer's own files (the phone ZIP shows wallpapers best)
+    items = delivery_items(delivery, want="iphone" if p["type"] == "wallpaper" else None)
     if not items:
         raise RuntimeError("ürün dosyalarında görsel bulunamadı")
     count = real_count(p, delivery)

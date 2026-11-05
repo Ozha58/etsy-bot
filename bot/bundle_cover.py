@@ -136,7 +136,7 @@ def collage_bg(items, sch, seed=3, hole=None, bottom=0):
     visible = lambda rc: SAFE_X0 <= (rc[1] + 0.5) * cw <= SAFE_X1 and SAFE_Y0 - ch <= (rc[0] + 0.5) * ch <= SAFE_Y1 + ch
     # cells that survive every Etsy crop get the first (unique) items
     cells.sort(key=lambda rc: (not visible(rc), rnd.random()))
-    order = []
+    order = items[:]  # most-varied first: the visible cells get the different pictures
     while len(order) < len(cells) * 2:
         batch = items[:]
         rnd.shuffle(batch)
@@ -199,10 +199,9 @@ def _masonry(canvas, items, rnd, gutter=22, row_h=440):
 
     def take():
         nonlocal seq, last
-        if not seq:
+        if not seq:  # items come most-varied first: keep that order, shuffle only the extra detail crops
             seq = list(range(len(pool)))
             head, tail = seq[:full_n], seq[full_n:]
-            rnd.shuffle(head)
             rnd.shuffle(tail)
             seq = head + tail
         i = seq.pop(0)
@@ -233,16 +232,15 @@ def _masonry(canvas, items, rnd, gutter=22, row_h=440):
             paste_with_shadow(canvas, tile, (x, y), radius=10, offset=(0, 8), opacity=70)
             x += w + gutter
 
+    # rows alternate top / bottom and share one sequence: the visible rows above and below the panel all get
+    # different pictures before anything repeats
     top, bottom = gutter, H - gutter
-    first_bottom = True
     while top < bottom:
         row, h = build_row()
         draw_row(row, h, top)
         top += h + gutter
         if top >= bottom:
             break
-        if first_bottom:  # the bottom row also starts with the full items
-            seq, first_bottom = [], False
         row, h = build_row()
         draw_row(row, h, bottom - h)
         bottom -= h + gutter
@@ -388,6 +386,62 @@ def _title_img(title, max_w, color):
     im = Image.new("RGBA", (x1 - x0 + 8, y1 - y0 + 8), (0, 0, 0, 0))
     ImageDraw.Draw(im).text((4 - x0, 4 - y0), title, font=f, fill=color + (255,))
     return im
+
+
+def _art_signature(im):
+    """Colour fingerprint of a piece's artwork: hue/saturation histogram of the centre, ignoring paper, frames and
+    white (low saturation). The page, card, tag, stamp and sticker made from the same picture get similar ones."""
+    t = im.convert("RGBA")
+    w, h = t.size
+    t = t.crop((int(w * 0.18), int(h * 0.12), int(w * 0.82), int(h * 0.7))).resize((48, 48), Image.BILINEAR)
+    a = np.asarray(t).astype(np.float32) / 255.0
+    rgb, alpha = a[..., :3], a[..., 3]
+    mx, mn = rgb.max(axis=2), rgb.min(axis=2)
+    sat = (mx - mn) / np.maximum(mx, 1e-3)
+    keep = (alpha > 0.5) & (sat > 0.18) & (mx > 0.12)
+    if keep.sum() < 20:  # almost no colour (line art, plain paper): fall back to a tiny grey thumbnail
+        g = np.asarray(t.convert("L").resize((12, 12))).astype(np.float32).ravel()
+        return ("grey", (g - g.mean()) / (g.std() + 1e-3))
+    r, g_, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    hue = np.where(mx == r, (g_ - b) / np.maximum(mx - mn, 1e-3) % 6,
+                   np.where(mx == g_, (b - r) / np.maximum(mx - mn, 1e-3) + 2, (r - g_) / np.maximum(mx - mn, 1e-3) + 4)) / 6
+    hb = np.clip((hue[keep] * 16).astype(int), 0, 15)
+    sb = np.clip((sat[keep] * 3).astype(int), 0, 2)
+    vb = np.clip((mx[keep] * 3).astype(int), 0, 2)
+    hist = np.bincount(hb * 9 + sb * 3 + vb, minlength=144).astype(np.float32)
+    return ("hist", hist / hist.sum())
+
+
+def _similar(s1, s2):
+    if s1[0] != s2[0]:
+        return 0.0
+    if s1[0] == "hist":
+        return float(np.minimum(s1[1], s2[1]).sum())  # histogram intersection, 1 = same colours
+    return float(np.clip(np.dot(s1[1], s2[1]) / len(s1[1]), 0, 1))  # correlation of grey thumbnails
+
+
+def most_varied(items, limit, same=0.72):
+    """Order items so every DIFFERENT artwork comes first; other versions of an artwork already shown (its card,
+    tag, stamp...) only follow after that, least similar first."""
+    sigs = [_art_signature(im) for im in items]
+    chosen, rest = [], []
+    for i in range(len(items)):
+        if all(_similar(sigs[i], sigs[j]) < same for j in chosen):
+            chosen.append(i)
+        else:
+            rest.append(i)
+    rest.sort(key=lambda i: max((_similar(sigs[i], sigs[j]) for j in chosen), default=0))
+    return [items[i] for i in (chosen + rest)[:limit]]
+
+
+def delivery_items(delivery, want=None, limit=40):
+    """The cover collage ALWAYS comes from the files the buyer downloads (the delivery ZIPs / PDFs). Every folder
+    (pages, tags, stickers, papers...) is sampled, then each different picture is shown once before any other
+    version of a picture already on the cover, so the cover is as varied as the product really is.
+    want: only use delivery files whose name contains this (e.g. 'iphone' for wallpapers)."""
+    from .etsy_video import items_from_delivery
+    src = [d for d in delivery if want and want.lower() in d[0].lower()] or list(delivery)
+    return most_varied(items_from_delivery(src, limit=max(limit, 120)), limit)
 
 
 # ---------------------------------------------------------------- main

@@ -1,7 +1,7 @@
 from PIL import Image
 
 from .. import images, mockups
-from ..bundle_cover import bundle_cover
+from ..bundle_cover import bundle_cover, delivery_items
 from ..imgutil import jpeg_bytes, make_zips, offset_seamless, thumb_b64, tile_fill
 
 LABEL_TR = "Dijital kağıt / desen paketi (10 adet, 12x12 inç)"
@@ -47,7 +47,7 @@ def build(spec, slug):
         ("04-how.jpg", mockups.how_it_works(palette)),
     ]
     mock.insert(0, ("00-bundle.jpg", bundle_cover(
-        prevs, len(papers), "Digital Papers", name, palette, ribbon="SEAMLESS",
+        delivery_items(delivery) or prevs, len(papers), "Digital Papers", name, palette, ribbon="SEAMLESS",
         sticker=("12 x 12", "INCH", "300 DPI"),
         features=["SEAMLESS", "12x12 INCH", "300 DPI", "COMMERCIAL USE"])))
     return {

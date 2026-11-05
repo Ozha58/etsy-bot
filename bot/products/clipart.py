@@ -3,7 +3,7 @@ import math
 from PIL import Image, ImageDraw
 
 from .. import images, mockups
-from ..bundle_cover import bundle_cover
+from ..bundle_cover import bundle_cover, delivery_items
 from ..imgutil import color_to_alpha_background, fit_text, jpeg_bytes, make_zips, png_bytes, thumb_b64, trim_alpha
 
 LABEL_TR = "Clipart paketi (15 şeffaf PNG)"
@@ -93,7 +93,7 @@ def build(spec, slug):
 
     # İLK GÖRSEL: Etsy aramasında dikkat çeken "bundle" kapağı (gerçek dosya sayısıyla)
     mock.insert(0, ("00-bundle.jpg", bundle_cover(
-        thumbs, len(els), "Clipart PNG", name, palette,
+        delivery_items(delivery) or thumbs, len(els), "Clipart PNG", name, palette,
         sticker=("TRANSPARENT", "PNG", "300 DPI"),
         features=["TRANSPARENT PNG", "300 DPI", "COMMERCIAL USE", "INSTANT DOWNLOAD"])))
 

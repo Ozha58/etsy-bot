@@ -1,7 +1,7 @@
 from PIL import Image
 
 from .. import images, mockups
-from ..bundle_cover import bundle_cover
+from ..bundle_cover import bundle_cover, delivery_items
 from ..imgutil import crop_ratio, jpeg_bytes, make_zips, thumb_b64, upscale, hex2rgb
 
 LABEL_TR = "Duvar sanatı (3'lü set)"
@@ -97,7 +97,7 @@ def build(spec, slug):
 
     # İLK GÖRSEL: "bundle" kapağı (3'lü set, 5 oran = 15 dosya)
     mock.insert(0, ("00-bundle.jpg", bundle_cover(
-        arts, len(arts), "Wall Art Prints", spec.get("set_name", "Wall Art Set"), palette,
+        delivery_items(delivery) or arts, len(arts), "Wall Art Prints", spec.get("set_name", "Wall Art Set"), palette,
         top_word="SET OF", bundle_word="PRINTABLE", ribbon="5 RATIOS",
         sticker=("15 FILES", "300", "DPI"),
         features=["5 RATIOS", "15 JPG FILES", "300 DPI", "INSTANT DOWNLOAD"])))

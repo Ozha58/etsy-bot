@@ -2,7 +2,7 @@ import io
 from PIL import Image
 
 from .. import images, mockups, mockups_coloring
-from ..bundle_cover import bundle_cover
+from ..bundle_cover import bundle_cover, delivery_items
 from ..imgutil import jpeg_bytes, thumb_b64
 
 N_PAGES = 20  # one AI image per page
@@ -116,7 +116,7 @@ def build(spec, slug):
 
     # İLK GÖRSEL: "bundle" kapağı – gerçek sayfa sayısı, arkada sayfaların kolajı (+ renkli örnek)
     mock.insert(0, ("00-bundle.jpg", bundle_cover(
-        previews + [colored, colored.convert("RGB")], len(letter), "Coloring Pages", name, palette,
+        delivery_items(delivery) or previews, len(letter), "Coloring Pages", name, palette,
         ribbon="PRINTABLE", sticker=("US LETTER", "A4", "PDF"),
         features=["PRINTABLE PDF", "US LETTER + A4", "300 DPI", "INSTANT DOWNLOAD"])))
     mock = mock[:10]
