@@ -454,6 +454,22 @@ def replace_all_images(listing_id, photos: list, title=""):
          files={"image": (name, data, "image/jpeg")}, data={"rank": 1, "alt_text": _alt_text(title, name)}, timeout=300)
 
 
+def replace_video(listing_id, video: bytes):
+    """Swap the listing video for a new mp4 (Etsy keeps one video per listing)."""
+    tok = token()
+    shop_id = tok.get("shop_id") or get_shop(tok)["shop_id"]
+    try:
+        old = _req("GET", f"/listings/{listing_id}/videos", tok).get("results", [])
+    except Exception:
+        old = []
+    for v in old:
+        vid = v.get("video_id") or v.get("listing_video_id")
+        if vid:
+            _req("DELETE", f"/shops/{shop_id}/listings/{listing_id}/videos/{vid}", tok)
+    _req("POST", f"/shops/{shop_id}/listings/{listing_id}/videos", tok,
+         files={"video": ("video.mp4", video, "video/mp4")}, data={"name": "video.mp4"}, timeout=600)
+
+
 def replace_files(listing_id, delivery: list):
     """Swap the digital files of a listing for new ones [(name, bytes)] (max 5 x 20 MB)."""
     for name, data in delivery:

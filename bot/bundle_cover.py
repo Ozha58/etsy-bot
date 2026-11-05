@@ -137,7 +137,10 @@ def collage_bg(items, sch, seed=3):
                 y = r * ch + ch / 2 - t.height / 2 + rnd.uniform(-ch * 0.12, ch * 0.12)
                 paste_with_shadow(canvas, t, (x, y), radius=10, offset=(4, 8), opacity=60)
             else:
-                t = ImageOps.fit(im.convert("RGB"), (int(cw * 1.02), int(ch * 1.02)), Image.LANCZOS)
+                flat = im
+                if im.mode in ("RGBA", "LA", "P"):  # transparent pieces on white, never on black
+                    flat = Image.alpha_composite(Image.new("RGBA", im.size, WHITE + (255,)), im.convert("RGBA"))
+                t = ImageOps.fit(flat.convert("RGB"), (int(cw * 1.02), int(ch * 1.02)), Image.LANCZOS)
                 t = ImageOps.expand(t, border=max(6, int(cw * 0.02)), fill=WHITE).convert("RGBA")
                 ang = rnd.uniform(-5, 5)
                 t = t.rotate(ang, expand=True, resample=Image.BICUBIC)

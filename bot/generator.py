@@ -115,6 +115,7 @@ def build_one(idea: dict, day: dt.date) -> dict:
         "files": [{"name": n, "size": len(b)} for n, b in built["delivery"]],
         "photos": [n for n, _ in built["mockups"]],
         "thumb": built["thumb"],
+        "cover_version": 2,  # built with today's bundle cover (recover.COVER_VERSION): /kapak hepsi skips it
         "build_seconds": int(time.time() - t0),
     }
     storage.add_event(p, "oluşturuldu")

@@ -12,45 +12,82 @@ from .bundle_cover import bundle_cover
 from .imgutil import jpeg_bytes
 from .telegram import esc
 
-SUPPORTED = ("scenes", "wallpaper", "planner")
+SUPPORTED = ("junk_journal", "coloring", "wallpaper", "scenes", "clipart", "pattern", "wall_art", "tumbler", "planner")
+COVER_VERSION = 2  # bump when the cover design changes: "/kapak hepsi" then redoes every listing once
+
+# type -> name field in the spec, bundle_cover() options (same look as new products)
+STYLE = {
+    "junk_journal": ("kit_name", dict(kind_word="Journal Pieces", bundle_word="JUNK JOURNAL", ribbon="PRINTABLE",
+                                      sticker=("PAGES", "TAGS", "STICKERS"),
+                                      features=["PRINTABLE", "US LETTER", "300 DPI", "INSTANT DOWNLOAD"])),
+    "coloring": ("book_name", dict(kind_word="Coloring Pages", ribbon="PRINTABLE", sticker=("US LETTER", "A4", "PDF"),
+                                   features=["PRINTABLE PDF", "US LETTER + A4", "300 DPI", "INSTANT DOWNLOAD"])),
+    "wallpaper": ("bundle_name", dict(kind_word="Phone Wallpapers", ribbon="AESTHETIC", sticker=("iPHONE", "iPAD", "ANDROID"),
+                                      features=["iPHONE", "ANDROID", "iPAD", "INSTANT DOWNLOAD"])),
+    "scenes": ("bundle_name", dict(kind_word="Illustrations", sticker=("4096 PX", "300", "DPI"),
+                                   features=["HIGH RES JPG", "4096 x 4096 PX", "300 DPI", "COMMERCIAL USE"])),
+    "clipart": ("bundle_name", dict(kind_word="Clipart PNG", sticker=("TRANSPARENT", "PNG", "300 DPI"),
+                                    features=["TRANSPARENT PNG", "300 DPI", "COMMERCIAL USE", "INSTANT DOWNLOAD"])),
+    "pattern": ("pack_name", dict(kind_word="Digital Papers", ribbon="SEAMLESS", sticker=("12 x 12", "INCH", "300 DPI"),
+                                  features=["SEAMLESS", "12x12 INCH", "300 DPI", "COMMERCIAL USE"])),
+    "wall_art": ("set_name", dict(kind_word="Wall Art Prints", top_word="SET OF", bundle_word="PRINTABLE",
+                                  ribbon="5 RATIOS", sticker=("15 FILES", "300", "DPI"),
+                                  features=["5 RATIOS", "15 JPG FILES", "300 DPI", "INSTANT DOWNLOAD"])),
+    "tumbler": ("collection_name", dict(kind_word="Tumbler Wraps", bundle_word="20 OZ SKINNY", ribbon="SUBLIMATION",
+                                        sticker=("20 OZ", "PNG", "300 DPI"),
+                                        features=["20 OZ SKINNY", "SUBLIMATION PNG", "300 DPI", "COMMERCIAL USE"])),
+}
+IMG_EXT = (".jpg", ".jpeg", ".png")
 
 
-def _images_from_zips(p, want=None, limit=15):
-    ims = []
-    for f in p.get("files", []):
-        if not f["name"].endswith(".zip") or (want and want not in f["name"]):
-            continue
-        z = zipfile.ZipFile(io.BytesIO(assets.download(p["id"], "file__" + f["name"])))
-        for n in sorted(z.namelist()):
-            if n.lower().endswith((".jpg", ".jpeg", ".png")):
-                im = Image.open(io.BytesIO(z.read(n))).convert("RGB")
-                im.thumbnail((1400, 1400), Image.LANCZOS)
-                ims.append(im)
-                if len(ims) >= limit:
-                    return ims
-    return ims
+def _delivery(p):
+    return [(f["name"], assets.download(p["id"], "file__" + f["name"])) for f in p.get("files", [])]
 
 
-def new_cover(p):
-    spec = p.get("spec", {})
-    palette = spec.get("palette", [])
-    if p["type"] == "scenes":
-        ims = _images_from_zips(p, limit=15)
-        if not ims:
-            raise RuntimeError("ürün dosyalarında görsel bulunamadı")
-        return bundle_cover(ims, len(ims), "Illustrations", spec.get("bundle_name", "Illustration Bundle"), palette,
-                            sticker=("4096 PX", "300", "DPI"),
-                            features=["HIGH RES JPG", "4096 x 4096 PX", "300 DPI", "COMMERCIAL USE"])
-    if p["type"] == "wallpaper":
-        ims = _images_from_zips(p, want="iPhone", limit=10) or _images_from_zips(p, limit=10)
-        if not ims:
-            raise RuntimeError("ürün dosyalarında görsel bulunamadı")
-        return bundle_cover(ims, len(ims), "Phone Wallpapers", spec.get("bundle_name", "Phone Wallpapers"), palette,
-                            ribbon="AESTHETIC", sticker=("iPHONE", "iPAD", "ANDROID"),
-                            features=["iPHONE", "ANDROID", "iPAD", "INSTANT DOWNLOAD"])
+def _zip_images(delivery, want=None):
+    """Names of the image files inside the delivery ZIPs (optionally only ZIPs whose name contains `want`)."""
+    out = []
+    for name, data in delivery:
+        if name.lower().endswith(".zip") and (not want or want.lower() in name.lower()):
+            out += [n for n in zipfile.ZipFile(io.BytesIO(data)).namelist() if n.lower().endswith(IMG_EXT)]
+    return out
+
+
+def real_count(p, delivery):
+    """Honest number for the cover, counted from the files the buyer really gets."""
+    t = p["type"]
+    if t == "coloring":
+        import pypdfium2 as pdfium
+        pdfs = sorted(((n, d) for n, d in delivery if n.lower().endswith(".pdf")), key=lambda x: "letter" not in x[0].lower())
+        return len(pdfium.PdfDocument(pdfs[0][1])) if pdfs else 0
+    if t == "wallpaper":
+        return len(_zip_images(delivery, "iphone")) or len(_zip_images(delivery)) // 2
+    if t == "wall_art":
+        return len(p.get("spec", {}).get("prints", [])[:3]) or 3
+    return len(_zip_images(delivery))
+
+
+def new_cover(p, delivery=None):
     if p["type"] == "planner":
         return _planner_cover(p)
-    raise RuntimeError(f"bu ürün türü için kapak yenileme yok ({p['type']})")
+    if p["type"] not in STYLE:
+        raise RuntimeError(f"bu ürün türü için kapak yenileme yok ({p['type']})")
+    from . import etsy_video
+    delivery = delivery if delivery is not None else _delivery(p)
+    spec = p.get("spec", {})
+    name_field, opts = STYLE[p["type"]]
+    src = delivery
+    if p["type"] == "wallpaper":  # the phone ZIP shows the wallpapers best
+        src = [d for d in delivery if "iphone" in d[0].lower()] or delivery
+    items = etsy_video.items_from_delivery(src, limit=24)
+    if not items:
+        raise RuntimeError("ürün dosyalarında görsel bulunamadı")
+    count = real_count(p, delivery)
+    if count < 1:
+        raise RuntimeError("ürün dosyaları sayılamadı")
+    opts = dict(opts)
+    kind = opts.pop("kind_word")
+    return bundle_cover(items, count, kind, spec.get(name_field) or p["title"][:40], spec.get("palette", []), **opts)
 
 
 def _planner_cover(p):
@@ -223,14 +260,27 @@ def clean_title(title):
     return etsy.nice_title(t[:1].upper() + t[1:])
 
 
+def _new_video(p, cover_jpeg, delivery):
+    """Fast listing video from the new cover + the listing's other photos + the real product items."""
+    from . import etsy_video
+    photos = [Image.open(io.BytesIO(cover_jpeg))]
+    for n in p.get("photos", [])[1:5]:
+        try:
+            photos.append(Image.open(io.BytesIO(assets.download(p["id"], "photo__" + n))))
+        except Exception as e:
+            print(f"[recover] {n} fotoğrafı alınamadı: {e}")
+    return etsy_video.make(photos, etsy_video.items_from_delivery(delivery))
+
+
 def refresh(p):
+    """New bundle cover as photo 1 + a new fast video for an already published listing (no image quota)."""
     lid = p.get("etsy", {}).get("listing_id")
     if p.get("status") != "published" or not lid:
         raise RuntimeError("ürün Etsy'de yayında değil")
-    cover = new_cover(p)
+    delivery = _delivery(p)
+    cover = new_cover(p, delivery)
     data = jpeg_bytes(cover, 88, dpi=72)
-    if p["type"] != "planner":
-        data = watermark.apply_all([("01-cover.jpg", data)])[0][1]
+    data = watermark.apply_all([("00-bundle.jpg", data)])[0][1]
     title = clean_title(p["title"])
     if title and title != p["title"]:
         try:
@@ -238,21 +288,43 @@ def refresh(p):
             p["title"] = title
         except Exception as e:
             print(f"[recover] başlık düzeltilemedi: {e}")
-    etsy.replace_main_image(lid, data, f"{p['title']} - cover preview")
-    return data
+    etsy.replace_main_image(lid, data, f"{p['title']} - bundle cover with all items")
+    # keep our own copy in sync with Etsy: the new cover replaces photo 1
+    assets.upload(p["id"], {"photo__00-bundle.jpg": data})
+    p["photos"] = ["00-bundle.jpg"] + list(p.get("photos", []))[1:]
+    video_ok = False
+    try:
+        vb = _new_video(p, data, delivery)
+        if vb:
+            etsy.replace_video(lid, vb)
+            video_ok = True
+    except Exception as e:
+        print(f"[recover] video yenilenemedi: {e}")
+    return data, video_ok
+
+
+def _needs_refresh(p):
+    if p["type"] == "planner":  # planners already have their own best-seller cover; rebuilt only once
+        return not p.get("cover_refreshed")
+    return p.get("cover_version", 0) < COVER_VERSION
 
 
 def run(arg):
     arg = (arg or "").strip()
     pub = [p for p in storage.all_products() if p.get("status") == "published" and p.get("type") in SUPPORTED]
     if arg.lower() in ("hepsi", "all"):
-        targets = [p for p in pub if not p.get("cover_refreshed")]
-        targets = [p for p in targets if p["type"] != "planner"][:6] + [p for p in targets if p["type"] == "planner"][:1]
+        targets = [p for p in pub if _needs_refresh(p)]
+        # newest first (they matter most); a few per run so one GitHub job finishes in time
+        targets.sort(key=lambda p: p.get("created_at", 0), reverse=True)
+        targets = [p for p in targets if p["type"] != "planner"][:5] + [p for p in targets if p["type"] == "planner"][:1]
     else:
         targets = [p for p in pub if arg in (p["id"], str(p.get("etsy", {}).get("listing_id")))]
+    if not targets and arg.lower() in ("hepsi", "all"):
+        telegram.send("✅ Tüm yayındaki ilanlar zaten yeni kapak ve videoya sahip.")
+        return False
     if not targets:
         telegram.send("Kapağı yenilenecek ürün bulunamadı. Kullanım: <code>/kapak 20261101-03</code> veya <code>/kapak hepsi</code> "
-                      "veya Etsy ilan numarasıyla <code>/kapak 4610043051</code> (sahne paketi, wallpaper ve planlayıcı).")
+                      "veya Etsy ilan numarasıyla <code>/kapak 4610043051</code>.")
         return False
     changed = False
     for p in targets:
@@ -267,15 +339,17 @@ def run(arg):
                 changed = True
                 telegram.album(photos[:10], caption=f"✅ Yenilendi: <b>{esc(p['title'][:80])}</b>")
                 continue
-            data = refresh(p)
+            data, video_ok = refresh(p)
             p["cover_refreshed"] = True
-            storage.add_event(p, "Kapak yenilendi")
+            p["cover_version"] = COVER_VERSION
+            storage.add_event(p, "Kapak + video yenilendi" if video_ok else "Kapak yenilendi (video yenilenemedi)")
             storage.save_product(p)
             changed = True
-            telegram.album([("cover.jpg", data)], caption=f"🖼 Kapak yenilendi: <b>{esc(p['title'][:80])}</b>")
+            telegram.album([("cover.jpg", data)], caption=f"🖼 Kapak {'+ video ' if video_ok else ''}yenilendi: "
+                                                          f"<b>{esc(p['title'][:80])}</b>")
         except Exception as e:
             telegram.send(f"⚠️ {esc(p['id'])} kapak yenilenemedi: <code>{esc(str(e)[:300])}</code>")
-    left = len([p for p in pub if not p.get("cover_refreshed")])
+    left = len([p for p in pub if _needs_refresh(p)])
     if arg.lower() in ("hepsi", "all") and left:
         telegram.send(f"Kalan {left} ürün için tekrar <code>/kapak hepsi</code> yazın.")
     return changed

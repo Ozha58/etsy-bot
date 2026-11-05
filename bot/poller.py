@@ -12,7 +12,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b>
 /bekleyen – onay bekleyen ürünleri tekrar gönder
 /uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün; tür seçmek için: /uret junk, planner, coloring, wallpaper, wall_art, scenes, clipart)
 /nis – Etsy verisiyle niş taraması (/nis frog → tek konuyu derin tara)
-/kapak – eski ilanın kapağını yeni tasarımla yenile (/kapak &lt;id&gt; veya /kapak hepsi)
+/kapak – eski ilanın kapağını ve videosunu yeni tasarımla yenile (/kapak &lt;id&gt; veya /kapak hepsi)
 /etsy – Etsy mağazanı bağla / yeniden bağla
 /pinterest – Pinterest hesabını bağla (otomatik pin)
 /kod &lt;adres&gt; – Etsy/Pinterest onayından sonra çıkan adresi gönder
@@ -285,7 +285,7 @@ def _handle_message(m, meta):
             telegram.send(f"⚠️ Başlatılamadı: <code>{esc(str(e))}</code>")
     elif cmd == "/kapak":
         from . import recover
-        telegram.send("🖼 Kapak yenileniyor… (ürün başına ~30 sn)")
+        telegram.send("🖼 Kapak + video yenileniyor… (ürün başına ~1 dk, görsel kotası harcanmaz)")
         try:
             changed |= recover.run(arg)
         except Exception as e:
