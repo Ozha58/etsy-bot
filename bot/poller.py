@@ -7,22 +7,40 @@ import requests
 from . import assets, config, etsy, storage, telegram
 from .telegram import esc
 
-HELP = """🤖 <b>Etsy Bot komutları</b>
-/durum – ürün sayıları ve Etsy bağlantısı
-/bekleyen – onay bekleyen ürünleri tekrar gönder
-/uret – şimdi 1 ek ürün üret (/uret 2 → 2 ürün; tür: /uret journal, junk, planner, stickers, coloring, wallpaper, wall_art, scenes, clipart; konu da verebilirsiniz: /uret planner migraine)
-/nis – Etsy verisiyle niş taraması (/nis frog → tek konuyu derin tara)
-/kapak – ilanın kapağını ve videosunu yeni tasarımla baştan yap (/kapak &lt;id&gt;, /kapak hepsi, /kapak durum)\n/kapak konu – yayındaki ilanların 1. fotoğrafını kendi konusuna özel, hepsi farklı kapakla değiştir (6 ilan / sefer)
-/kesif – bot onlarca 'belirli kişi + belirli ihtiyaç' nişini Etsy'de tarar, en iyi 20'yi getirir
-/foto – ilandaki bütün fotoğrafları kare yap (/foto &lt;ilan no&gt; veya /foto hepsi)
-/etsy – Etsy mağazanı bağla / yeniden bağla
-/pinterest – Pinterest hesabını bağla (otomatik pin)
-/kod &lt;adres&gt; – Etsy/Pinterest onayından sonra çıkan adresi gönder
-/sosyal – son yayınlanan ürün için Pinterest pini + video (/sosyal 3 → son 3 ürün, /sosyal &lt;id&gt; → o ürün)
-/pin – sıradaki 3 pini elle paylaşmak için buraya gönder (normalde her gün 5 pin kendiliğinden Pinterest'e gider)
-/pinler – yeni haftanın pin listesini hemen hazırla (her pazartesi otomatik, 35 pin)
-/panel – web panel adresi
-/yardim – bu mesaj"""
+HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
+/uret – hemen 1 ek ürün üretir
+/uret_2 – 2 ürün üretir
+/uret_journal – yazdırılabilir günlük paketi
+/uret_planner – dijital planner
+/uret_stickers – sticker paketi
+/uret_junk – junk journal kiti
+/uret_coloring – boyama sayfaları
+/uret_wallpaper – telefon duvar kâğıdı
+/uret_wall_art – duvar posteri
+/uret_scenes – illüstrasyon paketi
+/uret_clipart – clipart
+/uret_stickers_migraine – migren sticker paketi (konuyu sen verirsin)
+/uret_planner_migraine – migren planner
+/bekleyen – onay bekleyen ürünleri tekrar gönderir
+/durum – ürün sayıları ve Etsy bağlantısının durumu
+/kapak_konu – yayındaki ilanların 1. fotoğrafını kendi konusuna göre, hepsi farklı kapakla değiştirir (6 ilan / sefer)
+/kapak_hepsi – bütün ilanlara büyük sayılı kapak ve video yapar
+/kapak_durum – kaç ilanın yenilendiğini gösterir
+/foto_hepsi – bütün ilanların fotoğraflarını kare yapar
+/nis – genel niş taraması
+/nis_migraine – tek konuyu derin tarar (başka konu: /nis konu yazın)
+/kesif – onlarca "kişi + ihtiyaç" nişini tarar, en iyi 20'yi getirir
+/pinterest – Pinterest hesabını bağlar
+/sosyal – son ürün için pin ve video hazırlar
+/sosyal_3 – son 3 ürün için pin ve video
+/pin – sıradaki 3 pini elle paylaşman için gönderir
+/pinler – haftanın 35 pinlik listesini hemen hazırlar
+/etsy – Etsy mağazasını bağlar veya yeniden bağlar
+/panel – web panelinin adresi
+/yardim – bu liste
+
+Tek ilan için yazarak: /kapak_konu_4610043051, /kapak_4610043051, /foto_4610043051
+Onaydan sonra: /kod &lt;adres&gt;"""
 
 
 def _status_line(p):
@@ -188,6 +206,9 @@ def _handle_message(m, meta):
     text = (m.get("text") or "").strip()
     cmd, _, arg = text.partition(" ")
     cmd = cmd.split("@")[0].lower()
+    if "_" in cmd and not arg:  # tappable forms: /uret_stickers_migraine == /uret stickers migraine
+        cmd, _, arg = cmd.partition("_")
+        arg = arg.replace("_", " ").replace("wall art", "wall_art").replace("junk journal", "junk_journal")
     changed = False
     if cmd in ("/start", "/yardim", "/help"):
         telegram.send(HELP)

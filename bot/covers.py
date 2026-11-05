@@ -42,6 +42,23 @@ def _fill(im, w, h, focus=0.5):
     return im.crop((l, t, l + w, t + h))
 
 
+def _best_photo(items):
+    """The most colourful, detailed full picture among the product images (a scene, not a text page or a cut-out)."""
+    from PIL import ImageStat
+    best, score = None, -1
+    for im in items:
+        if _is_cutout(im) or min(im.size) < 300:
+            continue
+        sm = im.convert("RGB").copy()
+        sm.thumbnail((256, 256))
+        sat = ImageStat.Stat(sm.convert("HSV")).mean[1]
+        white = sum(1 for v in sm.convert("L").getdata() if v > 235) / (sm.width * sm.height)
+        sc = sat * (1 - white)
+        if sc > score:
+            best, score = im, sc
+    return _fill(best or items[0], 1024, 1024)
+
+
 def _is_cutout(im):
     if im.mode != "RGBA":
         return False
@@ -291,8 +308,8 @@ def choose_layout(slug, recent):
 def make(layout, hero, items, *, title, kicker, count=None, unit="", features=(), palette=None, seed="x"):
     rnd = random.Random(seed)
     items = [i for i in items if i is not None] or [hero]
-    if hero is None:  # no scene today: a soft blurred close-up of the product itself
-        hero = _fill(items[0], 1024, 1024).filter(ImageFilter.GaussianBlur(6))
+    if hero is None:  # no AI scene today: the product's own most photo-like picture, sharp (never blurred)
+        hero = _best_photo(items)
     t = {"title": title, "kicker": kicker.upper(), "count": count, "unit": unit.upper(),
          "features": list(features) or ["Instant download", "Print or digital", "High quality"], "p": _pal(palette)}
     return FUNCS[layout](hero, items, t, rnd).convert("RGB")

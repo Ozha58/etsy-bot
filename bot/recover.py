@@ -350,8 +350,10 @@ def topic_refresh(p):
     etsy.replace_main_image(lid, data, f"{title} - cover")
     assets.upload(p["id"], {"photo__00-cover.jpg": data})
     p["photos"] = ["00-cover.jpg"] + list(p.get("photos", []))[1:]
-    p.update({"cover_layout": layout, "cover_at": int(time.time()), "topic_cover": True})
-    return data, layout
+    # without an AI scene (image quota used up) the cover is made from the product's own photo; the listing stays
+    # on the list so the next /kapak konu gives it a real scene
+    p.update({"cover_layout": layout, "cover_at": int(time.time()), "topic_cover": hero is not None})
+    return data, (layout if hero is not None else f"{layout}, sahne çizilemedi: ürün fotoğrafı kullanıldı")
 
 
 def _needs_refresh(p):
