@@ -169,38 +169,40 @@ def pick_niches(n: int, used: list, today=None) -> list:
     return chosen, reserve
 
 
-# Etsy's 2025 guidance: short, clear titles a buyer understands at a glance; keywords belong in the tags
-TITLE_RULE = ("short clear Etsy title a buyer understands at a glance: 5-12 words and max 90 characters, "
-              "says exactly what the item is with the main search phrase first, at most one ' - ' or ', ' separator, "
-              "no keyword lists, no repeated words, no words already covered only by tags, no ALL CAPS, English")
+# Shop decision (Nov 2026): use the full 140 characters - the main phrase first, then a few natural phrases
+TITLE_RULE = ("full Etsy title of 110-140 characters (never more than 140): the main search phrase first, then 2-3 "
+              "natural phrases separated by ', ' that a buyer would really type (use, style, occasion, recipient), "
+              "readable as a sentence, no repeated words, no ALL CAPS, no brand or app names, English")
 
 
 def title_problems(title: str) -> list:
     t = (title or "").strip()
     probs = []
     words = t.split()
-    if len(words) > 13 or len(t) > 100:
-        probs.append(f"title too long ({len(words)} words, {len(t)} chars) - use 5-12 words, max 90 characters")
-    if t.count(",") + t.count("|") + t.count(" - ") > 1:
-        probs.append("title has a keyword list - use at most one separator")
+    if len(t) > 140:
+        probs.append(f"title too long ({len(t)} chars) - max 140 characters")
+    if t.count(",") + t.count("|") + t.count(" - ") > 3:
+        probs.append("title has a keyword list - use at most three separators")
     low = [w.strip(",|-").lower() for w in words if len(w) > 3]
-    if len(low) != len(set(low)):
-        probs.append("title repeats words")
+    if any(low.count(w) > 2 for w in set(low)):
+        probs.append("title repeats words (a word may appear at most twice)")
     return probs
 
 
 def fix_title(title: str) -> str:
     """Drop repeated words and extra separators, cut to 12 words."""
-    seen, out = set(), []
+    seen, out = [], []
     for w in (title or "").replace("|", ",").split():
         key = w.strip(",-").lower()
-        if len(key) > 3 and key in seen:
+        if len(key) > 3 and seen.count(key) >= 2:
             continue
-        seen.add(key)
+        seen.append(key)
         out.append(w)
-    t = " ".join(out[:12]).strip(" ,-")
-    first, _, rest = t.partition(",")
-    return first + ("," + rest.replace(",", "") if rest else "")
+    t = " ".join(out).strip(" ,-")
+    while len(t) > 140 and " " in t:
+        t = t.rsplit(" ", 1)[0].strip(" ,-")
+    parts = [x.strip() for x in t.split(",") if x.strip()]
+    return ", ".join(parts[:4])
 
 
 SPEC_COMMON = """

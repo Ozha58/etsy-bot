@@ -25,11 +25,11 @@ def compose_description(spec: dict, built: dict) -> str:
     def section(title, lines):
         return title + "\n" + "\n".join(f"• {l}" for l in lines)
 
-    parts = [spec["intro"].strip()]
-    parts.append(section("WHAT'S INCLUDED", built["included"]))
+    parts = ["✨ " + spec["intro"].strip()]  # a few emojis (3-4) look friendly; never more
+    parts.append(section("🎁 WHAT'S INCLUDED", built["included"]))
     parts.append(section("FILE DETAILS", built["details"]))
-    parts.append(section("HOW TO USE", built["usage"]))
-    parts.append(section("PLEASE NOTE", [
+    parts.append(section("💡 HOW TO USE", built["usage"]))
+    parts.append(section("📌 PLEASE NOTE", [
         "This is a digital download. No physical item will be shipped.",
         "Your files are available right after purchase under Purchases & Reviews.",
         "Colors may vary slightly between screens and printers.",
