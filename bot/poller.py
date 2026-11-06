@@ -27,6 +27,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /kapak_konu – yayındaki ilanların 1. fotoğrafını kendi konusuna göre, hepsi farklı kapakla değiştirir (6 ilan / sefer)
 /kapak_hepsi – bütün ilanlara büyük sayılı kapak ve video yapar
 /kapak_durum – kaç ilanın yenilendiğini gösterir
+/bolum – bölümü (kategorisi) olmayan ilanları kendi bölümüne yerleştirir
 /foto_hepsi – bütün ilanların fotoğraflarını kare yapar
 /nis – genel niş taraması
 /nis_migraine – tek konuyu derin tarar (başka konu: /nis konu yazın)
@@ -325,6 +326,19 @@ def _handle_message(m, meta):
             images.usage_today()  # count this run's images in today's total (for /kota)
         except Exception as e:
             print(f"[poller] kota kaydedilemedi: {e}")
+    elif cmd in ("/bolum", "/kategori"):
+        telegram.send("🗂 Bölümsüz ilanlar bölümlerine yerleştiriliyor…")
+        try:
+            r = etsy.fix_sections()
+            lines = [f"• {k}: {v}" for k, v in r["done"].items()] or ["• (bölümsüz ilan yoktu)"]
+            msg = "✅ Bölümlere yerleştirildi:\n" + "\n".join(lines)
+            if r["skipped"]:
+                msg += "\n\nTürü anlaşılamayan (elle seç): " + "; ".join(esc(s) for s in r["skipped"][:10])
+            if r["failed"]:
+                msg += "\n\n⚠️ " + "; ".join(esc(s) for s in r["failed"][:5])
+            telegram.send(msg)
+        except Exception as e:
+            telegram.send(f"⚠️ <code>{esc(str(e)[:300])}</code>")
     elif cmd == "/foto":
         from . import photo_ratio
         telegram.send("🖼 İlan fotoğrafları kareye getiriliyor… (ilan başına ~1 dk)")

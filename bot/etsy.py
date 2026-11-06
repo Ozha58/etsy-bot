@@ -495,6 +495,40 @@ def update_listing(listing_id, **fields) -> dict:
     return _req("PATCH", f"/shops/{shop_id}/listings/{listing_id}", tok, json=fields)
 
 
+_GUESS = [("junk journal", "junk_journal"), ("sticker", "stickers"), ("bullet journal", "journal"),
+          ("journal bundle", "journal"), ("planner", "planner"), ("wallpaper", "wallpaper"), ("lock screen", "wallpaper"),
+          ("coloring", "coloring"), ("colouring", "coloring"), ("clipart", "clipart"), ("clip art", "clipart"),
+          ("tumbler", "tumbler"), ("digital paper", "pattern"), ("wall art", "wall_art"), ("poster", "wall_art"),
+          ("print", "wall_art"), ("illustration", "scenes")]
+
+
+def fix_sections() -> dict:
+    """Puts every active listing without a shop section into the section of its product type."""
+    from . import storage
+    tok = token()
+    shop_id = tok.get("shop_id") or get_shop(tok)["shop_id"]
+    by_id = {str(p.get("etsy", {}).get("listing_id")): p.get("type") for p in storage.all_products()}
+    done, skipped, failed = {}, [], []
+    for l in shop_listings():
+        if l.get("shop_section_id"):
+            continue
+        lid = str(l["listing_id"])
+        ptype = by_id.get(lid)
+        if not ptype:
+            t = (l.get("title") or "").lower()
+            ptype = next((v for k, v in _GUESS if k in t), None)
+        sec = section_for(ptype, tok, shop_id) if ptype else None
+        if not sec:
+            skipped.append(l.get("title", lid)[:50])
+            continue
+        try:
+            _req("PATCH", f"/shops/{shop_id}/listings/{lid}", tok, json={"shop_section_id": sec})
+            done[SECTIONS[ptype]] = done.get(SECTIONS[ptype], 0) + 1
+        except Exception as e:
+            failed.append(f"{lid}: {str(e)[:80]}")
+    return {"done": done, "skipped": skipped, "failed": failed}
+
+
 def shop_listings(state="active") -> list:
     tok = token()
     out, offset = [], 0
