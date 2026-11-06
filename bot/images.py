@@ -18,6 +18,7 @@ CF_MULTIPART_MODELS = ["@cf/black-forest-labs/flux-2-klein-4b"]
 CF_JSON_MODELS = ["@cf/black-forest-labs/flux-1-schnell"]
 
 _disabled = set()  # providers that hit a daily quota during this run
+_auth_fail = set()  # providers whose key was refused (not a quota problem)
 stats = {"cloudflare": 0, "pollinations": 0, "failed": 0, "neurons": 0.0}
 DAILY_NEURONS = 10000  # Cloudflare free allowance, resets 00:00 UTC (03:00 Istanbul)
 
@@ -91,7 +92,11 @@ def _cloudflare(prompt, w, h, seed):
                 else:
                     errs.append(f"{model.split('/')[-1]}: HTTP {r.status_code} {r.text[:160]}")
                     print(f"[images] {errs[-1]}", flush=True)
-                    if _quota_error(r.text) or r.status_code in (401, 403):
+                    if r.status_code in (401, 403):
+                        _disabled.add(model)
+                        _auth_fail.add("cloudflare")
+                        break
+                    if _quota_error(r.text):
                         _disabled.add(model)
                         break
             except Exception as e:
@@ -170,6 +175,9 @@ def generate(prompt: str, width: int, height: int, seed: int = None) -> Image.Im
         except Exception as e:
             errors.append(f"{name}: {e}")
     stats["failed"] += 1
+    if "cloudflare" in _auth_fail:
+        raise ImageError("Görsel üretilemedi → Cloudflare anahtarı reddedildi (kota değil; /kota ile kontrol et) | "
+                         + " | ".join(errors))
     if quota_exhausted():
         raise ImageError("Görsel üretilemedi → " + QUOTA_MSG)
     raise ImageError("Görsel üretilemedi → " + " | ".join(errors))
@@ -202,7 +210,82 @@ def usage_today() -> dict:
         u = {"day": day, "neurons": 0.0}
     u["neurons"] = round(u.get("neurons", 0.0) + stats["neurons"], 1)
     stats["neurons"] = 0.0
+    if quota_exhausted() or any(m in _disabled for m in CF_MULTIPART_MODELS):
+        u["exhausted"] = True  # Cloudflare itself said the free allowance is used up
     meta["cf_usage"] = u
     storage.save_meta(meta)
-    used = min(DAILY_NEURONS, u["neurons"]) if not quota_exhausted() else DAILY_NEURONS
-    return {"used": int(used), "left_images": int((DAILY_NEURONS - used) // 104)}
+    used = DAILY_NEURONS if u.get("exhausted") else min(DAILY_NEURONS, u["neurons"])
+    return {"used": int(used), "left_images": int((DAILY_NEURONS - used) // 104), "exhausted": bool(u.get("exhausted"))}
+
+
+def _explain(code, text):
+    t = text.lower()
+    if code in (401, 403) or "authentication" in t or "unauthorized" in t:
+        return "anahtar (API token) geçersiz, süresi dolmuş ya da Workers AI izni yok"
+    if "4006" in t or "neuron" in t or "allocation" in t:
+        return "günlük ücretsiz kota dolu"
+    if code == 402:
+        return "ücretsiz limit doldu"
+    if code == 429:
+        return "çok sık istek, birkaç dakika sonra düzelir"
+    return text[:160]
+
+
+def probe() -> list:
+    """One tiny real request to each image provider (~0.3% of the daily allowance), so the user sees the real answer."""
+    out = []
+    if not (config.CLOUDFLARE_ACCOUNT_ID and config.CLOUDFLARE_API_TOKEN):
+        out.append("❌ Cloudflare: anahtar GitHub secrets'ta yok (CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN)")
+    else:
+        base = f"https://api.cloudflare.com/client/v4/accounts/{config.CLOUDFLARE_ACCOUNT_ID}/ai/run/"
+        try:
+            r = requests.post(base + CF_MULTIPART_MODELS[0], headers={"Authorization": f"Bearer {config.CLOUDFLARE_API_TOKEN}"},
+                              files={"prompt": (None, "a small red apple"), "width": (None, "512"), "height": (None, "512")},
+                              timeout=120)
+            if r.status_code == 200 and (r.json().get("result") or {}).get("image"):
+                stats["neurons"] += 26.05
+                out.append("✅ Cloudflare: çalışıyor, resim çizebiliyor")
+            else:
+                out.append(f"❌ Cloudflare: HTTP {r.status_code} → {_explain(r.status_code, r.text)}")
+                print(f"[images] probe cloudflare: {r.status_code} {r.text[:300]}", flush=True)
+        except Exception as e:
+            out.append(f"❌ Cloudflare: bağlantı hatası ({str(e)[:120]})")
+    try:
+        headers = {"Authorization": f"Bearer {config.POLLINATIONS_TOKEN}"} if config.POLLINATIONS_TOKEN else {}
+        url = ("https://gen.pollinations.ai/image/" if config.POLLINATIONS_TOKEN else "https://image.pollinations.ai/prompt/") + "a%20small%20red%20apple"
+        r = requests.get(url, params={"width": 256, "height": 256, "model": "flux", "nologo": "true", "private": "true"},
+                         headers=headers, timeout=180)
+        if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
+            out.append("✅ Pollinations (yedek): çalışıyor")
+        else:
+            out.append(f"❌ Pollinations (yedek): HTTP {r.status_code} → {_explain(r.status_code, r.text)}")
+            print(f"[images] probe pollinations: {r.status_code} {r.text[:300]}", flush=True)
+    except Exception as e:
+        out.append(f"❌ Pollinations (yedek): bağlantı hatası ({str(e)[:120]})")
+    return out
+
+
+def quota_report() -> str:
+    """Telegram text for /kota: today's use, images left, and exactly when the allowance resets."""
+    import datetime as _dt
+    live = probe()
+    u = usage_today()
+    now = _dt.datetime.now(_dt.timezone.utc)
+    reset = (now + _dt.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    left = reset - now
+    hh, mm = left.seconds // 3600, left.seconds % 3600 // 60
+    cf_ok = live[0].startswith("✅")
+    state = ("⛔ <b>Şu an Cloudflare resim çizmiyor</b> (sebebi aşağıdaki testte)" if not cf_ok else
+             "⛔ <b>Bugünkü kota doldu.</b>" if u["exhausted"] else
+             f"✅ Yaklaşık <b>{u['left_images']} görsel</b> hakkın kaldı.")
+    return (f"🔋 <b>Görsel kotası</b> (Cloudflare, günde {DAILY_NEURONS:,} birim ≈ 96 görsel)\n"
+            f"{state}\nBugün kullanılan: ~{u['used']:,}/{DAILY_NEURONS:,}\n"
+            f"♻️ Yenilenme: her gün <b>03:00</b> (Türkiye saati) → <b>{hh} sa {mm} dk</b> sonra\n\n"
+            "🔎 <b>Şu anki canlı test:</b>\n" + "\n".join(live) + "\n\n"
+            "Yaklaşık harcama:\n"
+            "• /kapak_konu → 6 görsel (6 ilan)\n"
+            "• /uret_journal → 12 görsel\n"
+            "• /uret_stickers → 8 görsel\n"
+            "• /uret_junk → 14 görsel\n"
+            "• diğer ürünler → 10-20 görsel\n"
+            "• 11:15 otomatik üretim (4 ürün) → ~50-60 görsel")

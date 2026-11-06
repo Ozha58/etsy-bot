@@ -23,6 +23,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /uret_planner_migraine – migren planner
 /bekleyen – onay bekleyen ürünleri tekrar gönderir
 /durum – ürün sayıları ve Etsy bağlantısının durumu
+/kota – bugün kaç görsel hakkın kaldığı ve ne zaman yenileneceği
 /kapak_konu – yayındaki ilanların 1. fotoğrafını kendi konusuna göre, hepsi farklı kapakla değiştirir (6 ilan / sefer)
 /kapak_hepsi – bütün ilanlara büyük sayılı kapak ve video yapar
 /kapak_durum – kaç ilanın yenilendiğini gösterir
@@ -313,11 +314,17 @@ def _handle_message(m, meta):
             telegram.send(f"⚠️ Başlatılamadı: <code>{esc(str(e))}</code>")
     elif cmd == "/kapak":
         from . import recover
-        telegram.send("🖼 Kapak + video yenileniyor… (ürün başına ~1 dk, görsel kotası harcanmaz)")
+        telegram.send("🖼 Kapaklar yenileniyor… (ilan başına ~1 dk" +
+                      (", ilan başına 1 görsel hakkı harcar)" if arg.lower().startswith(("konu", "topic")) else ", görsel hakkı harcamaz)"))
         try:
             changed |= recover.run(arg)
         except Exception as e:
             telegram.send(f"⚠️ <code>{esc(str(e)[:400])}</code>")
+        try:
+            from . import images
+            images.usage_today()  # count this run's images in today's total (for /kota)
+        except Exception as e:
+            print(f"[poller] kota kaydedilemedi: {e}")
     elif cmd == "/foto":
         from . import photo_ratio
         telegram.send("🖼 İlan fotoğrafları kareye getiriliyor… (ilan başına ~1 dk)")
@@ -339,6 +346,12 @@ def _handle_message(m, meta):
                           "Rapor 5-8 dk içinde burada.")
         except Exception as e:
             telegram.send(f"⚠️ Keşif başlatılamadı: <code>{esc(str(e))}</code>")
+    elif cmd == "/kota":
+        from . import images
+        try:
+            telegram.send(images.quota_report())
+        except Exception as e:
+            telegram.send(f"⚠️ Kota okunamadı: <code>{esc(str(e)[:300])}</code>")
     elif cmd == "/panel":
         telegram.send(f"🌐 Panel: {config.pages_url() or 'henüz yok'}")
     return changed
