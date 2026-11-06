@@ -187,20 +187,39 @@ def _pollinations(prompt: str, system: str, temperature: float):
     raise LLMError(f"Pollinations metin başarısız: {last}")
 
 
+def _short(name, e):
+    t = str(e)
+    tl = t.lower()
+    if "429" in t and name == "Gemini":
+        return "Gemini: günlük kota dolu (11:00'de yenilenir)"
+    if " 401" in t or " 403" in t or "authentication" in tl or "unauthorized" in tl:
+        return f"{name}: anahtar reddedildi (401/403)"
+    if " 402" in t:
+        return f"{name}: ücretsiz limit doldu"
+    if "4006" in t or "neuron" in tl:
+        return f"{name}: günlük kota dolu (03:00'te yenilenir)"
+    if " 429" in t:
+        return f"{name}: çok sık istek (429)"
+    return f"{name}: {t[:90]}"
+
+
 def ask_json(prompt: str, system: str = "", temperature: float = 0.8):
     errors = []
     if config.GEMINI_API_KEY:
         try:
             return _gemini(prompt, system, temperature)
         except Exception as e:
-            errors.append(str(e))
+            errors.append(_short("Gemini", e))
     try:
         return _pollinations(prompt, system, temperature)
     except Exception as e:
-        errors.append(str(e))
+        errors.append(_short("Pollinations", e))
     if config.CLOUDFLARE_ACCOUNT_ID and config.CLOUDFLARE_API_TOKEN:
         try:
             return _cloudflare(prompt, system, temperature)
         except Exception as e:
-            errors.append(str(e))
-    raise LLMError("Hiçbir metin yapay zekâsı çalışmadı: " + " | ".join(e[:160] for e in errors))
+            errors.append(_short("Cloudflare", e))
+    else:
+        errors.append("Cloudflare: anahtar yok")
+    print("[llm] " + " | ".join(errors), flush=True)
+    raise LLMError("Hiçbir metin yapay zekâsı çalışmadı → " + " | ".join(errors))

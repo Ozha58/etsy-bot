@@ -211,7 +211,7 @@ def run(count=None, force=False):
             made.append(build_one(idea, day))
         except Exception as e:
             traceback.print_exc()
-            failed.append(f"{idea['niche']} ({idea['type']}): {str(e)[:180]}")
+            failed.append(f"{idea['niche']} ({idea['type']}): {str(e)[:320]}")
             if len(failed) >= target + 3:
                 break
             if images.quota_exhausted():
