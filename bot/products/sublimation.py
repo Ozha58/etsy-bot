@@ -199,6 +199,54 @@ def mug_mock(dsg, palette):
     return c.convert("RGB")
 
 
+def product_cover(dsgs, n, name, palette):
+    """First photo: the designs ON products (a big shirt, a mug and a tote), so a buyer sees at once what they get."""
+    pal = mockups.palette_colors(palette)
+    S = 2000
+    c = Image.new("RGBA", (S, S), (244, 239, 231, 255))
+    d = ImageDraw.Draw(c)
+    for y in range(S):  # soft warm gradient, a little darker at the bottom like a table
+        k = y / S
+        d.line((0, y, S, y), fill=(int(246 - 18 * k), int(241 - 20 * k), int(233 - 22 * k), 255))
+    # big shirt, centre left
+    t = _tee((247, 245, 240), 1240, 1350)
+    s = dsgs[0].copy()
+    s.thumbnail((int(t.width * .46), int(t.height * .46)), Image.LANCZOS)
+    t.alpha_composite(s, ((t.width - s.width) // 2, int(t.height * .2)))
+    paste_with_shadow(c, t, (90, 470), radius=34, offset=(0, 26), opacity=75)
+    # second shirt (other colour) peeking behind on the right
+    t2 = _tee((214, 196, 184), 820, 900)
+    s2 = dsgs[1 % n].copy()
+    s2.thumbnail((int(t2.width * .44), int(t2.height * .44)), Image.LANCZOS)
+    t2.alpha_composite(s2, ((t2.width - s2.width) // 2, int(t2.height * .2)))
+    paste_with_shadow(c, t2, (1120, 430), radius=30, offset=(0, 22), opacity=65)
+    # mug, bottom right, in front
+    mug = mug_mock(dsgs[2 % n], palette)
+    m = mug.crop((int(mug.width * .18), int(mug.height * .14), int(mug.width * .86), int(mug.height * .94)))
+    m.thumbnail((760, 760), Image.LANCZOS)
+    mm = Image.new("L", m.size, 0)
+    ImageDraw.Draw(mm).rounded_rectangle((0, 0, m.width - 1, m.height - 1), radius=40, fill=255)
+    mr = m.convert("RGBA"); mr.putalpha(mm)
+    paste_with_shadow(c, mr, (S - m.width - 70, S - m.height - 70), radius=30, offset=(0, 20), opacity=70)
+    # title band on top
+    d = ImageDraw.Draw(c)
+    band = pal["accent"]
+    while 0.299 * band[0] + 0.587 * band[1] + 0.114 * band[2] > 105:  # dark enough for white text
+        band = tuple(int(v * 0.85) for v in band)
+    d.rounded_rectangle((60, 50, S - 60, 400), radius=40, fill=band + (255,))
+    f1 = DF.fit(d, f"{n} SUBLIMATION PNG DESIGNS", "bold", S - 220, 170, 70)
+    d.text((S / 2, 175), f"{n} SUBLIMATION PNG DESIGNS", font=f1, fill=(255, 255, 255), anchor="mm")
+    f2 = DF.fit(d, name, "script", S - 300, 120, 60)
+    d.text((S / 2, 310), name, font=f2, fill=(255, 246, 230), anchor="mm")
+    # small badges bottom left
+    fb = mockups.font("sans_bold", 46)
+    for i, txt in enumerate(("SHIRTS", "MUGS", "TUMBLERS")):
+        x, y = 90 + i * 300, S - 150
+        d.rounded_rectangle((x, y, x + 270, y + 80), radius=40, fill=(255, 255, 255, 235))
+        d.text((x + 135, y + 40), txt, font=fb, fill=(60, 50, 45), anchor="mm")
+    return c.convert("RGB")
+
+
 def build(spec, slug):
     style = spec.get("style", "cute illustration")
     palette = spec.get("palette", [])
@@ -240,6 +288,7 @@ def build(spec, slug):
     t.thumbnail((1250, 2200), Image.LANCZOS)  # the visible front of the tumbler = the middle of the wrap
     tumbler_wrap.paste(t, (1395 - t.width // 2, (2460 - t.height) // 2), t)
     mock = [
+        ("00-cover.jpg", product_cover(dsgs, n, name, palette)),
         ("01-bundle.jpg", bundle_cover(dsgs, n, "Sublimation PNG", name, palette, bundle_word="DESIGNS",
                                        sticker=("MUG", "WRAPS", "INCLUDED"),
                                        features=["TRANSPARENT PNG", "COMMERCIAL USE", "SHIRTS & MUGS", "INSTANT DOWNLOAD"])),
@@ -252,9 +301,9 @@ def build(spec, slug):
                                                            "Transparent background, 300 DPI", "Instant download (ZIP)"], palette, dsgs[3 % n])),
         ("08-license.jpg", mockups.info_card("COMMERCIAL USE", ["Personal and small business use", "Up to 500 physical products",
                                                                 "No reselling of the digital files"], palette, dsgs[4 % n])),
-        ("09-how.jpg", mockups.how_it_works(palette)),
     ]
     return {
+        "own_cover": True,
         "delivery": delivery,
         "mockups": [(nm, jpeg_bytes(im, 88, dpi=72)) for nm, im in mock],
         "thumb": thumb_b64(mock[0][1]),

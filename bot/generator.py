@@ -157,7 +157,8 @@ def build_one(idea: dict, day: dt.date) -> dict:
         raise Exception(f"HATA: {mod.__name__} dosyası görselleri üretirken çöktü ve boş döndü.")
     layout = None
     try:  # a topic cover in a layout the shop has not used lately (never the same template on every listing)
-        layout = _topic_cover(idea, spec, slug, built)
+        if not built.get("own_cover"):  # e.g. sublimation: its first photo shows the designs on shirts and mugs
+            layout = _topic_cover(idea, spec, slug, built)
     except Exception as e:
         print(f"[cover] konu kapağı yapılamadı, ürünün kendi kapağı kalıyor: {e}")
     try:
