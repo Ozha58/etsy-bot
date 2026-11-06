@@ -10,9 +10,9 @@ from . import config
 
 _GEMINI_MODELS = None
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
-CF_TEXT_MODELS = [
-    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+CF_TEXT_MODELS = [  # only if settings "cloudflare_text_fallback": true; the 8B model costs ~6x less of the shared allowance
     "@cf/meta/llama-3.1-8b-instruct",
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
 ]
 
 
@@ -214,7 +214,11 @@ def ask_json(prompt: str, system: str = "", temperature: float = 0.8):
         return _pollinations(prompt, system, temperature)
     except Exception as e:
         errors.append(_short("Pollinations", e))
-    if config.CLOUDFLARE_ACCOUNT_ID and config.CLOUDFLARE_API_TOKEN:
+    # Cloudflare text uses the SAME free daily allowance as the images: a few long texts from the 70B model can eat
+    # the whole day's pictures (one product text ~500-1200 units, one picture ~104). Off unless settings say so.
+    if not config.settings().get("cloudflare_text_fallback", False):
+        errors.append("Cloudflare: kapalı (görsel kotası korunuyor)")
+    elif config.CLOUDFLARE_ACCOUNT_ID and config.CLOUDFLARE_API_TOKEN:
         try:
             return _cloudflare(prompt, system, temperature)
         except Exception as e:

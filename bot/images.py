@@ -262,6 +262,22 @@ def probe() -> list:
             print(f"[images] probe pollinations: {r.status_code} {r.text[:300]}", flush=True)
     except Exception as e:
         out.append(f"❌ Pollinations (yedek): bağlantı hatası ({str(e)[:120]})")
+    try:  # text AI (titles, descriptions): Google Gemini, its own quota renews at 11:00 Turkey time
+        from . import llm
+        if not config.GEMINI_API_KEY:
+            out.append("❌ Yazı (Gemini): anahtar yok")
+        else:
+            m = (llm.gemini_models() or ["gemini-flash-latest"])[0]
+            r = requests.post(f"{llm.GEMINI_BASE}/models/{m}:generateContent", params={"key": config.GEMINI_API_KEY},
+                              json={"contents": [{"parts": [{"text": "Say OK"}]}]}, timeout=60)
+            if r.status_code == 200:
+                out.append("✅ Yazı (Gemini): çalışıyor")
+            elif r.status_code == 429:
+                out.append("❌ Yazı (Gemini): günlük kota dolu → her gün 11:00'de yenilenir")
+            else:
+                out.append(f"❌ Yazı (Gemini): HTTP {r.status_code} → {_explain(r.status_code, r.text)}")
+    except Exception as e:
+        out.append(f"❌ Yazı (Gemini): bağlantı hatası ({str(e)[:100]})")
     return out
 
 
@@ -288,4 +304,5 @@ def quota_report() -> str:
             "• /uret_stickers → 8 görsel\n"
             "• /uret_junk → 14 görsel\n"
             "• diğer ürünler → 10-20 görsel\n"
-            "• 11:15 otomatik üretim (4 ürün) → ~50-60 görsel")
+            "• 11:15 otomatik üretim (4 ürün) → ~50-60 görsel\n\n"
+            "Not: Yazı kotası (Gemini) ayrı: her gün 11:00'de yenilenir.")
