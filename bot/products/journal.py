@@ -75,7 +75,7 @@ def prepare(idea, today=None):
         theme_hint = "ONE calm theme that works all year (e.g. 'Wildflower Meadow', 'Cozy Botanical', 'Little Things')"
         phrase = f"{year} bullet journal"
         must = (f"The title MUST start with '{year} Bullet Journal Bundle' and contain 'Printable' (the word 'journal' "
-                "only once in the title, one comma at most)")
+                "only once in the title)")
     else:
         mname = MONTHS[months[0] - 1]
         col = "pre-colored" if variant == "colour" else "black and white (color it yourself)"
@@ -85,7 +85,7 @@ def prepare(idea, today=None):
                       + " (e.g. for December north: 'Cozy Winter', 'Snowy Pines'; for January: 'Fresh Start', 'Winter Walk')")
         phrase = f"{mname.lower()} journal"
         must = (f"The title MUST start with '{mname} {year} Bullet Journal' and contain 'Printable' "
-                "(the word 'journal' only once in the title, one comma at most)"
+                "(the word 'journal' only once in the title)"
                 + (", and 'Pre-Colored'" if variant == "colour" else ", and 'Black and White'")
                 + (", and 'Southern Hemisphere'" if hemi == "south" else ""))
     idea["niche"] = f"{what}"
