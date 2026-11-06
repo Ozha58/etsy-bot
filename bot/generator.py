@@ -89,11 +89,12 @@ def _cover_version():
     return COVER_VERSION
 
 
-KICKERS = {"journal": "Printable Journal Pages", "planner": "Undated Digital Planner", "stickers": "Digital Stickers", "clipart": "Transparent PNG Clipart",
+KICKERS = {"sublimation": "Sublimation PNG Designs", "journal": "Printable Journal Pages", "planner": "Undated Digital Planner", "stickers": "Digital Stickers", "clipart": "Transparent PNG Clipart",
            "junk_journal": "Printable Junk Journal Kit", "coloring": "Printable Coloring Pages", "wallpaper": "Phone Wallpapers",
            "pattern": "Seamless Digital Paper", "wall_art": "Printable Wall Art", "scenes": "Illustration Pack",
            "tumbler": "Tumbler Wrap Design"}
-FEATURES = {"journal": ["Dated pages", "Habit & mood trackers", "A4 · A5 · Letter", "Print at home"],
+FEATURES = {"sublimation": ["Transparent PNG", "Text set sharp", "Mug wrap included", "Commercial use"],
+            "journal": ["Dated pages", "Habit & mood trackers", "A4 · A5 · Letter", "Print at home"],
             "planner": ["Hyperlinked tabs", "Light & dark mode", "Stickers included", "iPad & Android"],
             "stickers": ["Transparent PNG", "Sticker book PDF", "Printable sheets", "Any note app"],
             "clipart": ["Transparent PNG", "Commercial use", "Sticker sheets", "Instant download"],

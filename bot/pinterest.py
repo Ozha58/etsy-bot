@@ -18,6 +18,7 @@ BOARDS = {
     "wall_art": "Printable Wall Art",
     "coloring": "Coloring Pages for Adults & Kids",
     "clipart": "Clipart & PNG Graphics",
+    "sublimation": "Clipart & PNG Graphics",
     "pattern": "Digital Paper & Scrapbook Patterns",
     "tumbler": "Tumbler Wrap Designs",
     "scenes": "Vintage Christmas Art",

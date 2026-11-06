@@ -218,6 +218,7 @@ SPEC_COMMON = """
 TYPE_WORDS = {
     "junk_journal": "junk journal kit, printable junk journal, ephemera, collage sheet, journaling cards, scrapbook, junk journal supplies",
     "scenes": "clipart, illustrations, commercial use, junk journal, card making, sublimation, digital download",
+    "sublimation": "sublimation png, shirt design, mug png, tumbler png, sublimation design, png file, t shirt design, digital download",
     "clipart": "clipart, png, transparent background, commercial use, sublimation, scrapbook, card making",
     "wall_art": "printable wall art, digital download, home decor, gallery wall, set of 3, art print",
     "wallpaper": "phone wallpaper, iphone wallpaper, lock screen, aesthetic wallpaper, background",
@@ -268,7 +269,7 @@ def product_spec(idea: dict) -> dict:
     prompt = f"""Create a complete Etsy digital product listing plan.
 Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
-CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'planner', the title must contain "Digital Planner" and "Undated" and the theme, e.g. "Honey Bee Digital Planner, Undated iPad and Android Journal with Stickers"; never name planner apps or brands. If the product type is 'stickers', the title must start with the subject + "Stickers" and say what they are for, e.g. "Migraine Stickers, Headache Tracker Digital Planner Stickers with Pain Scale and Trigger Icons"; never name planner apps or brands. If the product type is 'journal', it is a PRINTABLE bullet journal page bundle (not a digital planner): follow the JOURNAL PLAN exactly, e.g. "December 2026 Bullet Journal Printable, Pre-Colored Cozy Winter Monthly Pages A5 A4" (the word journal only once); never name apps or brands. If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
+CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'planner', the title must contain "Digital Planner" and "Undated" and the theme, e.g. "Honey Bee Digital Planner, Undated iPad and Android Journal with Stickers"; never name planner apps or brands. If the product type is 'stickers', the title must start with the subject + "Stickers" and say what they are for, e.g. "Migraine Stickers, Headache Tracker Digital Planner Stickers with Pain Scale and Trigger Icons"; never name planner apps or brands. If the product type is 'sublimation', the title starts with the subject + 'Sublimation PNG' (e.g. "Hot Cocoa Sublimation PNG Bundle, Christmas Shirt Design for Mugs and Tote Bags"). If the product type is 'journal', it is a PRINTABLE bullet journal page bundle (not a digital planner): follow the JOURNAL PLAN exactly, e.g. "December 2026 Bullet Journal Printable, Pre-Colored Cozy Winter Monthly Pages A5 A4" (the word journal only once); never name apps or brands. If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
 {idea.get('brief', '')}
 Main search phrase: {idea.get('search_query', '')}
 Buyer words for this product type (use the fitting ones in title/tags): {TYPE_WORDS.get(ptype, '')}
@@ -310,7 +311,7 @@ Return JSON with these fields:
 
 
 # must match the counts in each product module (wallpaper.COUNT, coloring.N_PAGES, junk_journal.N_SCENES/N_OBJECTS)
-_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 20), "wall_art": ("prints", 3), "coloring": ("pages", 20), "clipart": ("elements", 15), "pattern": ("papers", 10), "tumbler": ("designs", 2),
+_LIST_FIELD = {"scenes": ("elements", 15), "wallpaper": ("elements", 20), "wall_art": ("prints", 3), "coloring": ("pages", 20), "clipart": ("elements", 30), "sublimation": ("designs", 8), "pattern": ("papers", 10), "tumbler": ("designs", 2),
                "junk_journal": [("scenes", 10), ("objects", 12)],
                "planner": ("stickers", 8), "stickers": ("themed", 8), "journal": ("doodles", 12)}
 

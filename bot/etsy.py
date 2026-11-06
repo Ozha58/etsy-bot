@@ -165,6 +165,7 @@ TAXONOMY_BY_TYPE = {
     "wallpaper": ["Drawing & Illustration > Digital", "Digital Prints"],
     "planner": ["Templates > Planner Templates", "Planner Templates"],
     "stickers": ["Paper > Stickers", "Stickers", "Clip Art & Image Files"],
+    "sublimation": ["Clip Art & Image Files", "Digital Prints"],
     "journal": ["Templates > Planner Templates", "Planner Templates", "Calendars & Planners"],
     "coloring": ["Books > Coloring Books", "Digital Prints"],
     "clipart": ["Clip Art & Image Files"],
@@ -286,7 +287,7 @@ SECTIONS = {"scenes": "Illustration Packs", "wall_art": "Printable Wall Art",
             "wallpaper": "Phone Wallpapers", "coloring": "Coloring Pages",
             "clipart": "Clipart", "pattern": "Digital Paper", "tumbler": "Tumbler Wraps",
             "junk_journal": "Junk Journal Kits", "planner": "Digital Planners", "stickers": "Digital Stickers",
-            "journal": "Printable Journal Pages"}
+            "journal": "Printable Journal Pages", "sublimation": "Sublimation PNG Designs"}
 
 
 def section_for(ptype, tok, shop_id):
@@ -495,7 +496,7 @@ def update_listing(listing_id, **fields) -> dict:
     return _req("PATCH", f"/shops/{shop_id}/listings/{listing_id}", tok, json=fields)
 
 
-_GUESS = [("junk journal", "junk_journal"), ("sticker", "stickers"), ("bullet journal", "journal"),
+_GUESS = [("sublimation", "sublimation"), ("shirt design", "sublimation"), ("junk journal", "junk_journal"), ("sticker", "stickers"), ("bullet journal", "journal"),
           ("journal bundle", "journal"), ("planner", "planner"), ("wallpaper", "wallpaper"), ("lock screen", "wallpaper"),
           ("coloring", "coloring"), ("colouring", "coloring"), ("clipart", "clipart"), ("clip art", "clipart"),
           ("tumbler", "tumbler"), ("digital paper", "pattern"), ("wall art", "wall_art"), ("poster", "wall_art"),

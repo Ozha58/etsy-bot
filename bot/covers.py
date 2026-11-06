@@ -16,7 +16,7 @@ S = 2000
 LAYOUTS = ("scene_frame", "arch", "split", "flatlay", "magazine")
 SCENE_SUFFIX = ("cozy lifestyle illustration, soft natural light, calm and inviting, rich detail, no people's faces "
                 "in close-up, no text, no letters, no words, no logos, no watermark")
-UNITS = {"planner": "PAGES", "journal": "PAGES", "stickers": "STICKERS", "clipart": "PNG CLIPART", "junk_journal": "PIECES",
+UNITS = {"sublimation": "PNG DESIGNS", "planner": "PAGES", "journal": "PAGES", "stickers": "STICKERS", "clipart": "PNG CLIPART", "junk_journal": "PIECES",
          "coloring": "COLORING PAGES", "wallpaper": "WALLPAPERS", "pattern": "DIGITAL PAPERS", "wall_art": "PRINTS",
          "scenes": "ILLUSTRATIONS", "tumbler": "TUMBLER WRAPS"}
 

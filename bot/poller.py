@@ -18,7 +18,8 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /uret_wallpaper – telefon duvar kâğıdı
 /uret_wall_art – duvar posteri
 /uret_scenes – illüstrasyon paketi
-/uret_clipart – clipart
+/uret_clipart – clipart (30 şeffaf PNG + sticker sayfaları, ~30 görsel hakkı)
+/uret_sublimation – tişört/kupa PNG tasarımı (8 tasarım + kupa şablonu, ~8 görsel hakkı)
 /uret_stickers_migraine – migren sticker paketi (konuyu sen verirsin)
 /uret_planner_migraine – migren planner
 /bekleyen – onay bekleyen ürünleri tekrar gönderir
@@ -240,7 +241,7 @@ def _handle_message(m, meta):
             parts = arg.strip().lower().split(None, 1)
             a = parts[0] if parts else ""
             subject = parts[1] if len(parts) > 1 else ""
-            kinds = {"stickers": "stickers", "sticker": "stickers", "wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "planner": "planner", "planlayici": "planner", "ajanda": "planner", "journal": "journal", "gunluk": "journal", "günlük": "journal", "bujo": "journal",
+            kinds = {"stickers": "stickers", "sticker": "stickers", "wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "png": "clipart", "sublimation": "sublimation", "sublimasyon": "sublimation", "tshirt": "sublimation", "planner": "planner", "planlayici": "planner", "ajanda": "planner", "journal": "journal", "gunluk": "journal", "günlük": "journal", "bujo": "journal",
                      "pattern": "pattern", "kagit": "pattern", "tumbler": "tumbler"}
             only = kinds.get(a)
             n = int(a) if a.isdigit() else 1
