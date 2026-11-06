@@ -19,6 +19,9 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /uret_wall_art – duvar posteri
 /uret_scenes – illüstrasyon paketi
 /uret_clipart – clipart (30 şeffaf PNG + sticker sayfaları, ~30 görsel hakkı)
+/uret_custom_teacher – kişiye özel öğretmen adı PNG (alıcı adı yazar, sipariş gelince bot dosyayı hazırlar)
+/uret_tattoo – kişiye özel doğum çiçeği + isim dövme tasarımı (alıcı "İsim - Ay" yazar; ~12 görsel hakkı)
+/ozel – kişiye özel siparişi elle hazırla: /ozel &lt;sipariş no&gt; İsim
 /uret_sublimation – tişört/kupa PNG tasarımı (8 tasarım + kupa şablonu, ~8 görsel hakkı)
 /uret_stickers_migraine – migren sticker paketi (konuyu sen verirsin)
 /uret_planner_migraine – migren planner
@@ -241,7 +244,7 @@ def _handle_message(m, meta):
             parts = arg.strip().lower().split(None, 1)
             a = parts[0] if parts else ""
             subject = parts[1] if len(parts) > 1 else ""
-            kinds = {"stickers": "stickers", "sticker": "stickers", "wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "png": "clipart", "sublimation": "sublimation", "sublimasyon": "sublimation", "tshirt": "sublimation", "planner": "planner", "planlayici": "planner", "ajanda": "planner", "journal": "journal", "gunluk": "journal", "günlük": "journal", "bujo": "journal",
+            kinds = {"stickers": "stickers", "sticker": "stickers", "wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "png": "clipart", "sublimation": "sublimation", "sublimasyon": "sublimation", "custom": "custom", "tattoo": "tattoo", "dovme": "tattoo", "dövme": "tattoo", "ozel": "custom", "kisiye": "custom", "tshirt": "sublimation", "planner": "planner", "planlayici": "planner", "ajanda": "planner", "journal": "journal", "gunluk": "journal", "günlük": "journal", "bujo": "journal",
                      "pattern": "pattern", "kagit": "pattern", "tumbler": "tumbler"}
             only = kinds.get(a)
             n = int(a) if a.isdigit() else 1
@@ -327,6 +330,12 @@ def _handle_message(m, meta):
             images.usage_today()  # count this run's images in today's total (for /kota)
         except Exception as e:
             print(f"[poller] kota kaydedilemedi: {e}")
+    elif cmd == "/ozel":
+        from . import orders
+        try:
+            orders.manual(arg)
+        except Exception as e:
+            telegram.send(f"⚠️ <code>{esc(str(e)[:300])}</code>")
     elif cmd in ("/bolum", "/kategori"):
         telegram.send("🗂 Bölümsüz ilanlar bölümlerine yerleştiriliyor…")
         try:
@@ -489,6 +498,13 @@ def run(loop_seconds=0):
             if _maybe_release_pins():
                 any_change = True
                 storage.commit_and_push("Pinterest pinleri", extra_paths=("panel/pins",))
+            try:  # personalized orders: render the buyer's name and send the files to Telegram
+                from . import orders
+                if orders.check():
+                    any_change = True
+                    storage.commit_and_push("Kişiye özel siparişler")
+            except Exception as e:
+                print(f"[poll] kişiye özel sipariş kontrolü: {e}", flush=True)
             if _maybe_fix_listings():
                 any_change = True
                 storage.commit_and_push("İlan kategorileri onarıldı")

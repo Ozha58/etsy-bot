@@ -166,6 +166,8 @@ TAXONOMY_BY_TYPE = {
     "planner": ["Templates > Planner Templates", "Planner Templates"],
     "stickers": ["Paper > Stickers", "Stickers", "Clip Art & Image Files"],
     "sublimation": ["Clip Art & Image Files", "Digital Prints"],
+    "custom": ["Clip Art & Image Files", "Digital Prints"],
+    "tattoo": ["Digital Prints", "Drawing & Illustration"],
     "journal": ["Templates > Planner Templates", "Planner Templates", "Calendars & Planners"],
     "coloring": ["Books > Coloring Books", "Digital Prints"],
     "clipart": ["Clip Art & Image Files"],
@@ -287,7 +289,8 @@ SECTIONS = {"scenes": "Illustration Packs", "wall_art": "Printable Wall Art",
             "wallpaper": "Phone Wallpapers", "coloring": "Coloring Pages",
             "clipart": "Clipart", "pattern": "Digital Paper", "tumbler": "Tumbler Wraps",
             "junk_journal": "Junk Journal Kits", "planner": "Digital Planners", "stickers": "Digital Stickers",
-            "journal": "Printable Journal Pages", "sublimation": "Sublimation PNG Designs"}
+            "journal": "Printable Journal Pages", "sublimation": "Sublimation PNG Designs",
+            "custom": "Custom Name PNG", "tattoo": "Custom Tattoo Designs"}
 
 
 def section_for(ptype, tok, shop_id):
@@ -370,12 +373,18 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
     sec = config.settings().get("shop_section_id") or section_for(p.get("type"), tok, shop_id)
     if sec:
         data["shop_section_id"] = sec
+    data.update(build_meta.get("listing", {}))  # e.g. personalization for made-to-order custom PNGs
     listing_id = p.get("etsy", {}).get("listing_id")
     if not listing_id:
         try:
             res = _create(shop_id, tok, data)
         except EtsyError as e:
-            if "when_made" in str(e):
+            if "personaliz" in str(e).lower() and build_meta.get("listing"):
+                print(f"[etsy] kişiselleştirme alanı reddedildi, ilan alansız açılıyor (Etsy'den elle aç): {e}")
+                for k in build_meta["listing"]:
+                    data.pop(k, None)
+                res = _create(shop_id, tok, data)
+            elif "when_made" in str(e):
                 data["when_made"] = "made_to_order"
                 res = _create(shop_id, tok, data)
             elif "styles" in str(e).lower() and "styles" in data:
@@ -496,7 +505,7 @@ def update_listing(listing_id, **fields) -> dict:
     return _req("PATCH", f"/shops/{shop_id}/listings/{listing_id}", tok, json=fields)
 
 
-_GUESS = [("sublimation", "sublimation"), ("shirt design", "sublimation"), ("junk journal", "junk_journal"), ("sticker", "stickers"), ("bullet journal", "journal"),
+_GUESS = [("tattoo", "tattoo"), ("custom", "custom"), ("personalized", "custom"), ("sublimation", "sublimation"), ("shirt design", "sublimation"), ("junk journal", "junk_journal"), ("sticker", "stickers"), ("bullet journal", "journal"),
           ("journal bundle", "journal"), ("planner", "planner"), ("wallpaper", "wallpaper"), ("lock screen", "wallpaper"),
           ("coloring", "coloring"), ("colouring", "coloring"), ("clipart", "clipart"), ("clip art", "clipart"),
           ("tumbler", "tumbler"), ("digital paper", "pattern"), ("wall art", "wall_art"), ("poster", "wall_art"),

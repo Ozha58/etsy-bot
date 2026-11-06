@@ -199,7 +199,7 @@ def mug_mock(dsg, palette):
     return c.convert("RGB")
 
 
-def product_cover(dsgs, n, name, palette):
+def product_cover(dsgs, n, name, palette, title=None):
     """First photo: the designs ON products (a big shirt, a mug and a tote), so a buyer sees at once what they get."""
     pal = mockups.palette_colors(palette)
     S = 2000
@@ -234,8 +234,9 @@ def product_cover(dsgs, n, name, palette):
     while 0.299 * band[0] + 0.587 * band[1] + 0.114 * band[2] > 105:  # dark enough for white text
         band = tuple(int(v * 0.85) for v in band)
     d.rounded_rectangle((60, 50, S - 60, 400), radius=40, fill=band + (255,))
-    f1 = DF.fit(d, f"{n} SUBLIMATION PNG DESIGNS", "bold", S - 220, 170, 70)
-    d.text((S / 2, 175), f"{n} SUBLIMATION PNG DESIGNS", font=f1, fill=(255, 255, 255), anchor="mm")
+    title = title or f"{n} SUBLIMATION PNG DESIGNS"
+    f1 = DF.fit(d, title, "bold", S - 220, 170, 70)
+    d.text((S / 2, 175), title, font=f1, fill=(255, 255, 255), anchor="mm")
     f2 = DF.fit(d, name, "script", S - 300, 120, 60)
     d.text((S / 2, 310), name, font=f2, fill=(255, 246, 230), anchor="mm")
     # small badges bottom left

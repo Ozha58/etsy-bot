@@ -186,15 +186,17 @@ def build_one(idea: dict, day: dt.date) -> dict:
         "tags": spec["tags"],
         "price_usd": spec["price_usd"],
         "spec": spec,
-        "build": {k: built[k] for k in ("taxonomy", "taxonomy_fallback_id", "is_supply", "skip_attributes") if k in built},
+        "build": {k: built[k] for k in ("taxonomy", "taxonomy_fallback_id", "is_supply", "skip_attributes", "listing") if k in built},
         "files": [{"name": n, "size": len(b)} for n, b in built["delivery"]],
         "photos": [n for n, _ in built["mockups"]],
         "thumb": built["thumb"],
         "cover_version": _cover_version(),  # built with today's bundle cover: /kapak hepsi skips it
         "build_seconds": int(time.time() - t0),
     }
+    p.update(built.get("product_extra", {}))
     storage.add_event(p, "oluşturuldu")
     payload = {f"file__{n}": b for n, b in built["delivery"]}
+    payload.update(built.get("extra_assets", {}))  # e.g. custom: the artwork kept for rendering each order
     payload.update({f"photo__{n}": b for n, b in built["mockups"]})
     assets.upload(pid, payload)
     storage.save_product(p)

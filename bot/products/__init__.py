@@ -5,7 +5,7 @@
                               thumb=PIL.Image, included=[str], details=[str], usage=[str],
                               license=str, taxonomy=[names], is_supply=bool)
 """
-from . import clipart, coloring, journal, junk_journal, pattern, planner, scenes, stickers, sublimation, tumbler, wall_art, wallpaper
+from . import clipart, coloring, custom, journal, junk_journal, pattern, planner, scenes, stickers, sublimation, tattoo, tumbler, wall_art, wallpaper
 
 TYPES = {
     "wall_art": wall_art,
@@ -20,6 +20,8 @@ TYPES = {
     "stickers": stickers,
     "journal": journal,
     "sublimation": sublimation,
+    "custom": custom,
+    "tattoo": tattoo,
 }
 
 

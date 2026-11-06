@@ -19,6 +19,8 @@ BOARDS = {
     "coloring": "Coloring Pages for Adults & Kids",
     "clipart": "Clipart & PNG Graphics",
     "sublimation": "Clipart & PNG Graphics",
+    "custom": "Clipart & PNG Graphics",
+    "tattoo": "Clipart & PNG Graphics",
     "pattern": "Digital Paper & Scrapbook Patterns",
     "tumbler": "Tumbler Wrap Designs",
     "scenes": "Vintage Christmas Art",

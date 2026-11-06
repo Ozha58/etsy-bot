@@ -50,6 +50,14 @@
     "sublimation": [
       2.99,
       4.99
+    ],
+    "custom": [
+      2.99,
+      3.99
+    ],
+    "tattoo": [
+      9.99,
+      12.99
     ]
   },
   "niche_memory_days": 60,
