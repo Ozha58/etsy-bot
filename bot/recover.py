@@ -337,6 +337,12 @@ def topic_refresh(p):
         except Exception as e:
             print(f"[recover] sahne yazılamadı: {e}")
             scene = f"a cozy calm scene about {p.get('niche') or p['title']}"
+    subject = f"{spec.get('edition', '')} {p['title']} {p.get('niche', '')}".lower()
+    for key, scenes in generator.SUBJECT_SCENES.items():  # known needs (migraine...) always get their own world
+        if key in subject:
+            import random
+            scene = random.Random(p["id"]).choice(scenes)
+            break
     hero = images.try_generate(f"{scene}, {spec.get('style', '')}, {covers.SCENE_SUFFIX}", 1024, 1024)
     recent = [q.get("cover_layout") for q in sorted(storage.all_products(), key=lambda q: -q.get("cover_at", q.get("created_at", 0)))
               if q.get("cover_layout") and q["id"] != p["id"]]

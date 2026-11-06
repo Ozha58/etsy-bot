@@ -1,5 +1,6 @@
 """Daily run: research niches, build products, store them and ask for approval on Telegram."""
 import datetime as dt
+import random
 import time
 import traceback
 from zoneinfo import ZoneInfo
@@ -99,6 +100,21 @@ FEATURES = {"journal": ["Dated pages", "Habit & mood trackers", "A4 · A5 · Let
             "junk_journal": ["Pages, cards & tags", "Stickers & stamps", "Print at home", "300 DPI"]}
 
 
+SUBJECT_SCENES = {
+    "migraine": [
+        "a calm dim bedroom in soft lavender light, a silk sleep mask and a cold compress on the pillow, a glass of water "
+        "and a cup of herbal tea on the nightstand, closed curtains, a tablet showing a planner page",
+        "a cozy bedside table at dusk with a glass of water, a small pill organizer, peppermint oil, a cup of chamomile "
+        "tea and an open planner with a pain tracker, soft blue and lavender tones, curtains drawn",
+        "a quiet rest corner with a soft blanket, an eye mask, a hot water bottle, lavender sprigs and a tablet with a "
+        "headache diary on the screen, very soft dim light, calm muted colors",
+    ],
+    "adhd": ["a tidy colorful desk with sticky notes, a timer, a checklist planner on a tablet and a cup of coffee, bright morning light"],
+    "budget": ["a calm desk with a tablet showing a budget planner, a calculator, coins in a jar, receipts and a cup of coffee, soft daylight"],
+    "student": ["a study desk with books, highlighters, a laptop and a tablet planner, warm lamp light, campus window"],
+}
+
+
 def _topic_cover(idea, spec, slug, built):
     """Replace the first photo with a cover made around an AI scene of this product's own subject."""
     from . import covers
@@ -107,6 +123,11 @@ def _topic_cover(idea, spec, slug, built):
               if p.get("cover_layout")]
     layout = covers.choose_layout(slug, recent)
     scene = spec.get("cover_scene") or f"a cozy scene about {idea.get('niche', spec.get('title', ''))}"
+    subject = (spec.get("edition") or "") + " " + spec.get("title", "") + " " + spec.get("subject", "")
+    for key, scenes in SUBJECT_SCENES.items():  # a known need: the cover always shows THAT world, never a generic decor
+        if key in subject.lower():
+            scene = random.Random(slug).choice(scenes)
+            break
     hero = images.try_generate(f"{scene}, {spec.get('style', '')}, {covers.SCENE_SUFFIX}", 1024, 1024)
     items = built.get("cover_items") or delivery_items(built["delivery"], limit=12)
     title = (spec.get("title") or "").split(",")[0].strip()
