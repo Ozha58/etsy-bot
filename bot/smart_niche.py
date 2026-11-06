@@ -122,7 +122,10 @@ def _slots(n_cand, today):
         if subj:  # /uret planner migraine: every idea is about this subject (it overrides the shop theme)
             slots.append({"type": t, "theme": f"MANDATORY SUBJECT (overrides the shop theme): {subj}. The product must be "
                                               f"made for exactly this need or person, e.g. a {subj} {t.replace('_', ' ')}. "
-                                              + (shop.slot_theme(today, t) if t == "planner" else "")})
+                                              + (f"PLANNER STYLE (mandatory): {random.choice(shop.PLANNER_STYLES)}. Calm, pretty, adult; "
+                                                 "no animals, no people. Do NOT add another planner edition (no business, "
+                                                 "budget or student planner): the subject above is the edition."
+                                                 if t == "planner" else "")})
             continue
         if best and i < min(2, len(best)):
             w = best[i]
@@ -280,6 +283,15 @@ def find_trending_niches(count=1):
     j = 0
     while len(chosen) + len(reserve) < count + 2 and j < len(types):
         t = types[j]
+        if subj:  # /uret planner migraine: even the fallback stays on the requested subject
+            sub = random.choice(shop.PLANNER_STYLES).split(":")[0] if t == "planner" else ""
+            word = {"planner": "tracker planner", "journal": "journal", "stickers": "stickers"}.get(t, t.replace("_", " "))
+            niche = f"{sub} {subj} {word}".strip()
+            idea = {"type": t, "niche": niche, "search_query": f"{subj} {word.split()[0]}",
+                    "why": f"Yedek niş (konu: {subj}).", "etsy_results": None}
+            (chosen if len(chosen) < count else reserve).append(idea)
+            j += 1
+            continue
         if t == "planner":  # planners: an aesthetic, never an animal
             sub = random.choice(shop.PLANNER_STYLES).split(":")[0]
             ed = random.choice(["", "budget ", "student ", "ADHD ", "wellness ", "small business "])
