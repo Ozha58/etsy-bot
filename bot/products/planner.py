@@ -201,8 +201,9 @@ def boho_art(palette, w=1536, h=1152, seed=5):
 def pick_edition_look(spec, slug=""):
     """Edition from the product's own words (title / niche), else the least used one; look = least used so far."""
     import zlib
-    text = " ".join(str(spec.get(k, "")) for k in ("edition", "title", "planner_name", "niche"))
-    ed = spec.get("edition") if spec.get("edition") in planner_pdf.EDITIONS else planner_pdf.edition_of(text)
+    # the product's own subject wins: a "Migraine ... Planner" gets the migraine pages even if the theme said "business"
+    words = planner_pdf.edition_of(" ".join(str(spec.get(k, "")) for k in ("title", "planner_name", "niche")))
+    ed = words if words != "life" else (spec.get("edition") if spec.get("edition") in planner_pdf.EDITIONS else "life")
     used_ed, used_look = {}, {}
     try:
         from .. import storage

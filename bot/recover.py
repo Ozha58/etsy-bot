@@ -165,6 +165,11 @@ REBUILD_LOOKS = [  # (name, palette, tag) calm, animal-free looks for rebuilt pl
     ("Dusty Rose", [(190, 130, 130), (200, 170, 150), (150, 130, 140)], "pink planner"),
 ]
 ED_COPY = {  # edition -> (heading, rest of title, edition tags, intro)
+    "migraine": ("Migraine Tracker Planner", "Undated Digital Headache Diary with Pain Scale, Trigger and Medication Log",
+                 ["migraine tracker", "headache diary", "migraine planner", "chronic pain journal", "symptom tracker"],
+                 "Track your migraines and headaches in one calm place: a 0-10 pain scale, possible triggers, medication "
+                 "and what helped, sleep and water, a monthly pain calendar, attack log and notes for your doctor. A "
+                 "tracking tool only, not medical advice."),
     "life": ("Digital Planner", "Undated Hyperlinked iPad and Android Life Planner with Stickers",
              ["life planner", "daily planner", "weekly planner", "aesthetic planner"],
              "Plan your whole life in one calm, beautiful place. This undated digital planner is fully hyperlinked, so every "
@@ -217,7 +222,10 @@ def rebuild_planner(p):
     spec = dict(p.get("spec", {}))
     others = [q.get("spec", {}) for q in storage.all_products() if q.get("type") == "planner" and q["id"] != p["id"]]
     used_ed = [o.get("edition", "life") for o in others]
-    edition = min(ED_COPY, key=lambda e: (used_ed.count(e), list(ED_COPY).index(e)))
+    edition = min((e for e in ED_COPY if e != "migraine"), key=lambda e: (used_ed.count(e), list(ED_COPY).index(e)))
+    from . import planner_pdf as _pp
+    if _pp.edition_of(f"{p.get('title', '')} {p.get('niche', '')}") == "migraine":
+        edition = "migraine"  # a migraine listing must contain the migraine pages (pain scale, triggers, meds, doctor notes)
     used_names = [o.get("planner_name", "") for o in others]
     aname, pal, ltag = min(REBUILD_LOOKS, key=lambda l: (sum(n.startswith(l[0]) for n in used_names), REBUILD_LOOKS.index(l)))
     heading, rest, etags, intro = ED_COPY[edition]

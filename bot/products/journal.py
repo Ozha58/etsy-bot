@@ -815,7 +815,7 @@ def build(spec, slug):
                                        bundle_word=name_word[:22], ribbon="PRINTABLE",
                                        sticker=("A4", "A5", "LETTER"),
                                        features=["DATED PAGES", "TRACKERS", "A4 · A5 · LETTER"])),
-        ("02-spread.jpg", _spread(get("calendar"), get("glance"), pal)),
+        ("02-spread.jpg", _spread(get("calendar"), get("january-glance" if year_scope else "glance"), pal)),
         ("03-inside.jpg", mockups.grid(thumbs[:12], f"{n_pages} Pages Inside", hexpal, cols=4)),
         ("04-trackers.jpg", _spread(get("mood"), get("habits"), pal)),
         ("05-week.jpg", _spread(get("week1"), get("memories"), pal)),
