@@ -6,6 +6,7 @@ python -m bot etsy-connect [CALLBACK_URL]
 python -m bot selftest
 python -m bot panel
 python -m bot import-abacus
+python -m bot shopfix [--audit] [--dry-run] [--limit N]
 """
 import argparse
 import sys
@@ -105,6 +106,15 @@ def cmd_retitle(a):
     storage.commit_and_push("İlan başlıkları kısaltıldı")
 
 
+def cmd_shopfix(a):
+    from . import shopfix
+    try:
+        shopfix.run(audit_only=a.audit, dry_run=a.dry_run, limit=a.limit, shop_part=not a.no_shop)
+    finally:
+        if not a.audit:
+            storage.commit_and_push("Mağaza tedavisi")
+
+
 def cmd_pinweek(a):
     from . import pinweek
     if a.notify:
@@ -157,16 +167,21 @@ def main(argv=None):
     sc.add_argument("--keyword", default="")
     r = sub.add_parser("retitle")
     r.add_argument("--dry-run", action="store_true")
+    sf = sub.add_parser("shopfix")
+    sf.add_argument("--audit", action="store_true", help="only measure, change nothing")
+    sf.add_argument("--dry-run", action="store_true")
+    sf.add_argument("--limit", type=int, default=None)
+    sf.add_argument("--no-shop", action="store_true", help="skip shop texts, banner and manual steps")
     a = ap.parse_args(argv)
     fn = {"generate": cmd_generate, "poll": cmd_poll, "etsy-connect": cmd_etsy_connect, "selftest": cmd_selftest,
           "panel": cmd_panel, "import-abacus": cmd_import_abacus,
           "retitle": cmd_retitle, "pinweek": cmd_pinweek,
-          "inspect": cmd_inspect, "scan": cmd_scan}[a.cmd]
+          "inspect": cmd_inspect, "scan": cmd_scan, "shopfix": cmd_shopfix}[a.cmd]
     try:
         fn(a)
     except Exception as e:
         traceback.print_exc()
-        if a.cmd in ("generate", "etsy-connect", "import-abacus", "retitle", "pinweek", "scan"):
+        if a.cmd in ("generate", "etsy-connect", "import-abacus", "retitle", "pinweek", "scan", "shopfix"):
             try:
                 telegram.send(f"⚠️ <b>{a.cmd}</b> hata verdi: <code>{esc(str(e)[:600])}</code>\n{config.GITHUB_RUN_URL}")
             except Exception:

@@ -273,10 +273,31 @@ def _clean_styles(styles):
     return out[:2]
 
 
-_ALT = {"bundle": "bundle cover with all items", "cover": "cover preview", "mosaic": "all designs included", "all": "all designs included",
+_ALT = {"filedetails": "file formats and details", "bundle": "bundle cover with all items", "cover": "cover preview", "mosaic": "all designs included", "all": "all designs included",
         "wall": "framed on a wall", "room": "shown in a room", "lifestyle": "printed page on a desk",
         "info": "what is included", "sizes": "included sizes", "example": "colored example", "page": "page preview",
         "detail": "close-up detail", "how": "how to download", "print": "print preview", "flatlay": "all prints together"}
+
+
+_MAT_BY_EXT = {"pdf": "PDF", "png": "PNG", "jpg": "JPG", "jpeg": "JPG", "svg": "SVG", "zip": None, "goodnotes": "PDF"}
+_MAT_BY_TYPE = {"coloring": ["PDF"], "planner": ["PDF", "PNG"], "journal": ["PDF"], "wall_art": ["JPG"],
+                "wallpaper": ["PNG"], "clipart": ["PNG"], "sublimation": ["PNG"], "stickers": ["PNG"],
+                "junk_journal": ["PDF", "PNG"], "pattern": ["JPG"], "tumbler": ["PNG"], "scenes": ["PNG"],
+                "custom": ["PNG"], "tattoo": ["PNG"]}
+
+
+def materials_for(file_names, ptype=None) -> list:
+    """Etsy 'materials' (searchable, the shop audit found them empty): the real file formats of the download."""
+    out = ["Digital File"]
+    for n in file_names or []:
+        m = _MAT_BY_EXT.get(str(n).rsplit(".", 1)[-1].lower())
+        if m and m not in out:
+            out.append(m)
+    for m in _MAT_BY_TYPE.get(ptype or "", []):
+        if m not in out:
+            out.append(m)
+    out += [x for x in ("Instant Download", "Printable") if x not in out]
+    return out[:13]
 
 
 def _alt_text(title, photo_name):
@@ -365,6 +386,7 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
         "type": "download",
         "is_supply": bool(build_meta.get("is_supply")),
         "tags": _clean_tags(p.get("tags", [])),
+        "materials": materials_for([n for n, _ in delivery], p.get("type")),
         "should_auto_renew": True,
     }
     styles = _clean_styles(p.get("styles") or p.get("spec", {}).get("styles"))
@@ -627,3 +649,71 @@ def sold_listings(limit=100) -> dict:
         e = out.setdefault(lid, {"title": html.unescape(t.get("title") or ""), "sales": 0})
         e["sales"] += int(t.get("quantity") or 1)
     return out
+
+
+# ---------------- shop audit helpers ----------------
+
+def shop_id_of(tok=None):
+    tok = tok or token()
+    return tok.get("shop_id") or get_shop(tok)["shop_id"]
+
+
+def shop_details() -> dict:
+    tok = token()
+    return _req("GET", f"/shops/{shop_id_of(tok)}", tok)
+
+
+def update_shop(**fields) -> dict:
+    """Shop title (headline), announcement, sale_message, digital_sale_message, policy_additional."""
+    tok = token()
+    return _req("PUT", f"/shops/{shop_id_of(tok)}", tok, json=fields)
+
+
+def shop_sections() -> list:
+    tok = token()
+    return _req("GET", f"/shops/{shop_id_of(tok)}/sections", tok).get("results", [])
+
+
+def listing_images(listing_id) -> list:
+    tok = token()
+    res = _req("GET", f"/listings/{listing_id}/images", tok).get("results", [])
+    return sorted(res, key=lambda i: i.get("rank", 99))
+
+
+def listing_files(listing_id) -> list:
+    tok = token()
+    return _req("GET", f"/shops/{shop_id_of(tok)}/listings/{listing_id}/files", tok).get("results", [])
+
+
+def listing_video_count(listing_id) -> int:
+    tok = token()
+    try:
+        return int(_req("GET", f"/listings/{listing_id}/videos", tok).get("count", 0))
+    except Exception:
+        return 0
+
+
+def download_image(img: dict) -> bytes:
+    url = img.get("url_fullxfull") or img.get("url_1140xN") or img.get("url_570xN")
+    r = requests.get(url, timeout=60)
+    r.raise_for_status()
+    return r.content
+
+
+def set_alt_text(listing_id, listing_image_id, rank, alt_text):
+    """Etsy re-uses an existing photo when its listing_image_id is posted again; this sets its alt text."""
+    tok = token()
+    return _req("POST", f"/shops/{shop_id_of(tok)}/listings/{listing_id}/images", tok,
+                data={"listing_image_id": listing_image_id, "rank": rank, "alt_text": alt_text[:250]}, timeout=120)
+
+
+def add_image(listing_id, name, data: bytes, rank, alt_text):
+    tok = token()
+    return _req("POST", f"/shops/{shop_id_of(tok)}/listings/{listing_id}/images", tok,
+                files={"image": (name, data, "image/jpeg")}, data={"rank": rank, "alt_text": alt_text[:250]}, timeout=300)
+
+
+def add_video(listing_id, video: bytes):
+    tok = token()
+    return _req("POST", f"/shops/{shop_id_of(tok)}/listings/{listing_id}/videos", tok,
+                files={"video": ("video.mp4", video, "video/mp4")}, data={"name": "video.mp4"}, timeout=600)

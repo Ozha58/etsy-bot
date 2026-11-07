@@ -169,46 +169,115 @@ def pick_niches(n: int, used: list, today=None) -> list:
     return chosen, reserve
 
 
-# Shop decision (Nov 2026): use the full 140 characters - the main phrase first, then a few natural phrases
-TITLE_RULE = ("full Etsy title of 110-140 characters (never more than 140): the main search phrase first, then 2-3 "
-              "natural phrases separated by ', ' that a buyer would really type (use, style, occasion, recipient), "
-              "readable as a sentence, no repeated words, no ALL CAPS, no brand or app names, English")
+# Shop audit (Nov 2026, score 18/100): titles must be 3 comma separated parts
+# [main buyer search phrase], [product type / format], [use, style or recipient], at most 14 words,
+# no filler words (Beautiful, Unique, Perfect...) and no repeated words. Etsy and Google read the
+# first 4-6 words most, so part 1 is the exact phrase a buyer types.
+TITLE_MAX_WORDS = 14
+FILLER_WORDS = {"beautiful", "unique", "perfect", "cute", "lovely", "amazing", "awesome", "gorgeous", "stunning",
+                "best", "great", "nice", "pretty", "adorable", "charming", "elegant", "high quality", "quality",
+                "premium", "fantastic", "wonderful", "fabulous", "must have", "trendy", "special", "magical"}
+TITLE_RULE = ("Etsy title of EXACTLY 3 parts separated by ', ' (exactly two commas): "
+              "[main buyer search phrase of 3-6 words], [product type and format, e.g. 'Printable PDF Coloring Book' or "
+              "'Digital Download PNG Bundle'], [use, style, room, occasion or recipient a buyer would type]. "
+              "8-14 words in total, max 140 characters, every word only ONCE, no filler words (beautiful, unique, perfect, "
+              "cute, lovely, amazing, best, high quality), no dashes or | separators, no ALL CAPS, no brand or app names, English")
+
+
+def _title_words(title):
+    return [w.strip(",|-:()").lower() for w in (title or "").split() if w.strip(",|-:()")]
+
+
+def filler_in(title: str) -> list:
+    low = " " + " ".join(_title_words(title)) + " "
+    return sorted(f for f in FILLER_WORDS if f" {f} " in low)
 
 
 def title_problems(title: str) -> list:
     t = (title or "").strip()
     probs = []
-    words = t.split()
+    words = _title_words(t)
     if len(t) > 140:
         probs.append(f"title too long ({len(t)} chars) - max 140 characters")
-    if t.count(",") + t.count("|") + t.count(" - ") > 3:
-        probs.append("title has a keyword list - use at most three separators")
-    low = [w.strip(",|-").lower() for w in words if len(w) > 3]
-    if any(low.count(w) > 2 for w in set(low)):
-        probs.append("title repeats words (a word may appear at most twice)")
+    if len(words) > TITLE_MAX_WORDS:
+        probs.append(f"title has {len(words)} words - use at most {TITLE_MAX_WORDS}")
+    if "|" in t or " - " in t:
+        probs.append("use ', ' between the 3 parts, not ' - ' or '|'")
+    parts = [x for x in t.split(",") if x.strip()]
+    if len(parts) != 3:
+        probs.append(f"title has {len(parts)} part(s) - it must have exactly 3 parts separated by two commas")
+    long = [w for w in words if len(w) > 3]
+    rep = sorted({w for w in long if long.count(w) > 1})
+    if rep:
+        probs.append(f"title repeats words ({', '.join(rep)}) - every word only once")
+    fill = filler_in(t)
+    if fill:
+        probs.append(f"title has filler words that nobody searches ({', '.join(fill)}) - remove them")
     return probs
 
 
 def fix_title(title: str) -> str:
-    """Drop repeated words and extra separators, cut to 12 words."""
-    seen, out = [], []
-    for w in (title or "").replace("|", ",").split():
-        key = w.strip(",-").lower()
-        if len(key) > 3 and seen.count(key) >= 2:
-            continue
-        seen.append(key)
-        out.append(w)
-    t = " ".join(out).strip(" ,-")
+    """Best effort repair: drop filler and repeated words, use commas, keep 3 parts and max 14 words."""
+    t = (title or "").replace("|", ",").replace(" - ", ", ").replace(" – ", ", ")
+    for f in sorted(FILLER_WORDS, key=len, reverse=True):
+        t = re.sub(rf"\b{re.escape(f)}\b", "", t, flags=re.I)
+    seen, parts = set(), []
+    for part in t.split(","):
+        out = []
+        for w in part.split():
+            key = w.strip(",-:()").lower()
+            if not key:
+                continue
+            if len(key) > 3 and key in seen:
+                continue
+            seen.add(key)
+            out.append(w)
+        while out and out[-1].lower() in ("and", "or", "with", "for", "of", "the", "a", "&"):
+            out.pop()
+        if out:
+            parts.append(" ".join(out))
+    if len(parts) > 3:
+        parts = parts[:2] + [" ".join(parts[2:]).replace(",", "")]
+    total = sum(len(p.split()) for p in parts)
+    while total > TITLE_MAX_WORDS and parts:
+        last = parts[-1].split()
+        if len(last) > 1:
+            parts[-1] = " ".join(last[:-1])
+        else:
+            parts.pop()
+        total = sum(len(p.split()) for p in parts)
+    t = ", ".join(p.strip() for p in parts if p.strip())
     while len(t) > 140 and " " in t:
         t = t.rsplit(" ", 1)[0].strip(" ,-")
-    parts = [x.strip() for x in t.split(",") if x.strip()]
-    return ", ".join(parts[:4])
+    return t
+
+
+def tag_problems(tags: list, title: str = "") -> list:
+    """Audit rule: all 13 tags, at least 10 of them 2-3 word buyer phrases, max 20 characters,
+    and most tags add words the title does not already have (synonyms, room, color, occasion, gift)."""
+    probs = []
+    tags = [str(t).strip() for t in tags or [] if str(t).strip()]
+    if len(tags) < 13:
+        probs.append(f"only {len(tags)} tags - use all 13")
+    multi = [t for t in tags if len(t.split()) >= 2]
+    if len(multi) < 10:
+        probs.append(f"only {len(multi)} tags have 2-3 words - at least 10 must be 2-3 word buyer phrases")
+    long = [t for t in tags if len(t) > 20]
+    if long:
+        probs.append(f"tags longer than 20 characters: {long}")
+    tw = set(_title_words(title))
+    if tw:
+        echo = [t for t in tags if all(w.lower() in tw for w in t.split())]
+        if len(echo) > 5:
+            probs.append(f"{len(echo)} tags only repeat title words ({echo[:6]}) - add synonyms, colors, rooms, "
+                         "occasions and gift phrases the title does not have")
+    return probs
 
 
 SPEC_COMMON = """
   "title": "TITLE_RULE",
-  "intro": "2 short persuasive paragraphs (English). The FIRST sentence must contain the main search phrase naturally (Google shows it). Describe the style, the feeling, who it is for and how they will use it (gift, decor, crafts); no file details, no emojis, no trademarks",
-  "tags": [exactly 13 Etsy tags, each 2-3 words and max 20 characters, phrases real buyers type. Cover different angles: product type, subject, art style, occasion/holiday, room or use, recipient/gift, color. Tag 1 = the main search phrase. Do not repeat the same tag idea. Count characters: a tag longer than 20 characters is invalid. Never use tags about our art style (no "realistic illustration", "vintage style"), English],
+  "intro": "2 short persuasive paragraphs (English). The FIRST sentence must start with or contain the exact first part of the title (Etsy and Google show it). Describe the style, the feeling, who it is for and how they will use it (gift, decor, crafts); no file details, no emojis, no trademarks",
+  "tags": [exactly 13 Etsy tags, each 2-3 words and max 20 characters, phrases real buyers type. Cover different angles: product type, subject, art style, occasion/holiday, room or use, recipient/gift, color. Tag 1 = the main search phrase. At least 10 tags must be 2-3 word phrases; at least 8 tags must add words that are NOT in the title (synonyms, color, room, occasion, gift recipient). Do not repeat the same tag idea. Count characters: a tag longer than 20 characters is invalid. Never use tags about our art style (no "realistic illustration", "vintage style"), English],
   "styles": [2 short Etsy style words for this artwork, e.g. "Vintage", "Watercolor", "Minimalist", "Boho", "Rustic"],
   "price_usd": number,
   "style": "visual style description used for every image of this product (medium, technique, mood), e.g. 'soft watercolor with loose ink outlines'",
@@ -273,11 +342,11 @@ def product_spec(idea: dict) -> dict:
     prompt = f"""Create a complete Etsy digital product listing plan.
 Product type: {ptype} ({mod.LABEL_TR})
 Niche: {idea['niche']}
-CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'planner', the title must contain "Digital Planner" and "Undated" and the theme, e.g. "Honey Bee Digital Planner, Undated iPad and Android Journal with Stickers"; never name planner apps or brands. If the product type is 'stickers', the title must start with the subject + "Stickers" and say what they are for, e.g. "Migraine Stickers, Headache Tracker Digital Planner Stickers with Pain Scale and Trigger Icons"; never name planner apps or brands. If the product type is 'tattoo', it is a PERSONALIZED digital tattoo DESIGN (name + birth month flower, fine line): the title starts with 'Custom Birth Flower Name Tattoo Design' and says digital design, e.g. "Custom Birth Flower Name Tattoo Design, Fine Line Floral Name Tattoo, Personalized Birth Month Flower Stencil". If the product type is 'custom', it is a PERSONALIZED made-to-order PNG: the title starts with 'Custom' + who + 'Name PNG' (e.g. "Custom Teacher Name PNG, Personalized Pencil Bow Sublimation Design for Mugs and Tumblers") and says Personalized. If the product type is 'sublimation', the title starts with the subject + 'Sublimation PNG' (e.g. "Hot Cocoa Sublimation PNG Bundle, Christmas Shirt Design for Mugs and Tote Bags"). If the product type is 'journal', it is a PRINTABLE bullet journal page bundle (not a digital planner): follow the JOURNAL PLAN exactly, e.g. "December 2026 Bullet Journal Printable, Pre-Colored Cozy Winter Monthly Pages A5 A4" (the word journal only once); never name apps or brands. If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera and Stickers".
+CRITICAL RULE: The "title" MUST strictly match the product type. If the product type is 'coloring' (pages), the title must clearly state "Coloring Pages" and the artwork will be black and white line art. If the product type is 'scenes' (illustrations), the title MUST NOT contain the words "coloring", "color", or "line art". It must be described as "Illustrations", "Art Prints", or "Scene Pack". If the product type is 'planner', the title must contain "Digital Planner" and "Undated" and the theme, e.g. "Honey Bee Digital Planner, Undated iPad Android Journal, Hyperlinked Bee Stickers"; never name planner apps or brands. If the product type is 'stickers', the title must start with the subject + "Stickers" and say what they are for, e.g. "Migraine Tracker Stickers, Digital Planner PNG Pack, Headache Pain Scale Icons"; never name planner apps or brands. If the product type is 'tattoo', it is a PERSONALIZED digital tattoo DESIGN (name + birth month flower, fine line): the title starts with 'Custom Birth Flower Name Tattoo Design' and says digital design, e.g. "Custom Birth Flower Name Tattoo Design, Personalized Digital Stencil, Fine Line Floral Gift". If the product type is 'custom', it is a PERSONALIZED made-to-order PNG: the title starts with 'Custom' + who + 'Name PNG' (e.g. "Custom Teacher Name PNG, Personalized Sublimation Design, Pencil Bow Mug Tumbler") and says Personalized. If the product type is 'sublimation', the title starts with the subject + 'Sublimation PNG' (e.g. "Hot Cocoa Sublimation PNG, Christmas Shirt Design Bundle, Mug Tote Bag Gift"). If the product type is 'journal', it is a PRINTABLE bullet journal page bundle (not a digital planner): follow the JOURNAL PLAN exactly, e.g. "December 2026 Bullet Journal Printable, Pre-Colored A5 A4 Pages, Cozy Winter Monthly Spread" (the word journal only once); never name apps or brands. If the product type is 'junk_journal', the title must contain "Junk Journal Kit" (or "Junk Journal Printable") and the subject, e.g. "Honey Bee Junk Journal Kit, Printable Ephemera Collage Sheets, Spring Scrapbook Supplies".
 {idea.get('brief', '')}
 Main search phrase: {idea.get('search_query', '')}
 Buyer words for this product type (use the fitting ones in title/tags): {TYPE_WORDS.get(ptype, '')}
-The title must START with the main search phrase (or a very close natural wording of it), then add the most important second keyword.
+The title must START with the main search phrase (or a very close natural wording of it) as part 1, part 2 = product type + format (Printable / Digital Download / PNG / PDF), part 3 = use, style, room, occasion or recipient.
 Price must be between {lo} and {hi} USD (end with .99 or .49 is fine).
 Never use trademarks, brand names, characters, celebrities or copyrighted styles in any field.
 The artwork can NOT contain any readable text, so do not plan quotes, words or lettering in the images.
@@ -294,7 +363,8 @@ Return JSON with these fields:
         if problems and attempt == 2 and spec.get("title"):
             # last try: small title problems are fixed by us instead of throwing the product away
             spec["title"] = fix_title(spec["title"])
-            problems = _validate(spec, ptype)
+            # a 2-part title after repair is still far better than losing the whole product
+            problems = [x for x in _validate(spec, ptype) if "part(s)" not in x]
         if not problems:
             if ptype != "coloring" and theme.style()[:30].lower() not in str(spec.get("style", "")).lower():
                 spec["style"] = f"{theme.style()}, {str(spec.get('style', ''))[:80]}".strip(", ")
