@@ -31,6 +31,8 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /kapak_konu – yayındaki ilanların 1. fotoğrafını kendi konusuna göre, hepsi farklı kapakla değiştirir (6 ilan / sefer)
 /kapak_hepsi – bütün ilanlara büyük sayılı kapak ve video yapar
 /kapak_durum – kaç ilanın yenilendiğini gösterir
+/tedavi – mağaza denetimindeki eksikleri giderir (başlık, etiket, açıklama, foto, video, duyuru, banner)
+/tedavi_denetim – sadece ölçer · /tedavi_onizleme – ne değişeceğini gösterir
 /bolum – bölümü (kategorisi) olmayan ilanları kendi bölümüne yerleştirir
 /foto_hepsi – bütün ilanların fotoğraflarını kare yapar
 /nis – genel niş taraması
@@ -336,6 +338,15 @@ def _handle_message(m, meta):
             orders.manual(arg)
         except Exception as e:
             telegram.send(f"⚠️ <code>{esc(str(e)[:300])}</code>")
+    elif cmd == "/tedavi":
+        mode = {"denetim": "denetim", "audit": "denetim", "onizleme": "onizleme", "önizleme": "onizleme"}.get(
+            arg.lower().split()[0] if arg else "", "uygula")
+        try:
+            _dispatch("shopfix.yml", {"mode": mode, "limit": ""})
+            telegram.send("🩺 Mağaza tedavisi başlatıldı (" + mode + "). En zayıf ilanlardan başlar; "
+                          "bitince rapor gelir (44 ilan için ~1 saat).")
+        except Exception as e:
+            telegram.send(f"⚠️ başlatılamadı: <code>{esc(str(e)[:300])}</code>")
     elif cmd in ("/bolum", "/kategori"):
         telegram.send("🗂 Bölümsüz ilanlar bölümlerine yerleştiriliyor…")
         try:
