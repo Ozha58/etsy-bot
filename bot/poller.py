@@ -27,7 +27,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /uret_tattoo – kişiye özel doğum çiçeği + isim dövme tasarımı (alıcı "İsim - Ay" yazar; ~12 görsel hakkı)
 /ozel – kişiye özel siparişi elle hazırla: /ozel &lt;sipariş no&gt; İsim
 /uret_sublimation – tişört/kupa PNG tasarımı (8 tasarım + kupa şablonu, ~8 görsel hakkı)
-/uret_sublimation_vintagexmas – vintage Noel tişört paketi: 12 retro tasarım, komik sloganlar, eskitilmiş baskı dokusu (~12 görsel hakkı)
+/uret_sublimation_vintagexmas – vintage Noel tişört paketi: 12 retro tasarım, komik sloganlar, eskitilmiş baskı dokusu, gerçek tişört fotoğrafı (~14 görsel hakkı)
 /uret_stickers_migraine – migren sticker paketi (konuyu sen verirsin)
 /uret_planner_migraine – migren planner
 /bekleyen – onay bekleyen ürünleri tekrar gönderir
