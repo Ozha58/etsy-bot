@@ -1,7 +1,7 @@
 name: Günlük ürün üretimi
 on:
-  # GitHub's own cron is unreliable (fired 9 hours late), so there is no schedule here:
-  # the always-on Telegram listener (poll.yml) starts this every day at 09:20 Turkey time.
+  # No schedule here: the 11:20 (Turkey time) run of poll.yml starts this once a day,
+  # or the owner starts it from Telegram (/uret).
   workflow_dispatch:
     inputs:
       count:
@@ -30,6 +30,7 @@ jobs:
       panel: "true"
     env:
       PYTHONUNBUFFERED: "1"
+      DEFER_COMMIT: "1"
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ETSY_KEYSTRING: ${{ secrets.ETSY_KEYSTRING }}
@@ -60,11 +61,6 @@ jobs:
           else
             python -m bot generate
           fi
-      - name: Onayları dinlemeye başla (~1 saat)
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run poll.yml --repo "$GITHUB_REPOSITORY" -f chain=6
       - name: Paneli hazırla
         if: always()
         run: python -m bot panel --out _site

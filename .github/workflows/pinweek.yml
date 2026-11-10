@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 30
     env:
       PYTHONUNBUFFERED: "1"
+      DEFER_COMMIT: "1"
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ETSY_KEYSTRING: ${{ secrets.ETSY_KEYSTRING }}
@@ -67,6 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONUNBUFFERED: "1"
+      DEFER_COMMIT: "1"
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ETSY_KEYSTRING: ${{ secrets.ETSY_KEYSTRING }}

@@ -7,6 +7,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATE_DIR = ROOT / "state"
 FONTS_DIR = ROOT / "assets" / "fonts"
+
+
+def _load_dotenv():
+    """Local run (own computer): secrets come from a .env file next to settings.json (never committed)."""
+    p = ROOT / ".env"
+    if not p.exists():
+        return
+    for line in p.read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        k, v = k.strip(), v.strip().strip("'\"")
+        if k and v and not os.environ.get(k):
+            os.environ[k] = v
+
+
+_load_dotenv()
 WORK_DIR = Path(os.environ.get("BOT_WORK_DIR", ROOT / ".work"))
 
 DEFAULT_SETTINGS = {
@@ -78,6 +96,7 @@ STATE_KEY = env("STATE_KEY")
 PANEL_PASSWORD = env("PANEL_PASSWORD")
 GITHUB_TOKEN = env("GITHUB_TOKEN")
 GITHUB_REPOSITORY = env("GITHUB_REPOSITORY")  # "owner/repo"
+LOCAL = not GITHUB_REPOSITORY  # running on the owner's own computer, not on GitHub Actions
 GITHUB_RUN_URL = (
     f"{env('GITHUB_SERVER_URL', 'https://github.com')}/{GITHUB_REPOSITORY}/actions/runs/{env('GITHUB_RUN_ID')}"
     if env("GITHUB_RUN_ID") else ""

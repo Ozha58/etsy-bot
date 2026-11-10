@@ -2,14 +2,9 @@
   "products_per_day": 4,
   "publish_mode": "active",
   "product_types": {
-    "junk_journal": 4,
-    "planner": 3,
-    "coloring": 2,
-    "wallpaper": 1,
-    "journal": 3,
-    "sublimation": 2
+    "custom": 1
   },
-  "max_same_type_per_day": 1,
+  "max_same_type_per_day": 4,
   "price_ranges_usd": {
     "scenes": [
       1.99,
@@ -62,5 +57,6 @@
   },
   "niche_memory_days": 60,
   "timezone": "Europe/Istanbul",
-  "christmas_share": 0.5
+  "christmas_share": 0.5,
+  "auto_daily": false
 }

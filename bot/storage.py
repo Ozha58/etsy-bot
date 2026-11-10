@@ -8,9 +8,11 @@ Layout:
   state/meta.enc            Telegram offset etc. (poller only)
   state/etsy.enc            Etsy OAuth tokens (poller / connect only)
 """
+import atexit
 import base64
 import hashlib
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -50,7 +52,14 @@ def _write(path: Path, obj) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_bytes(encrypt_bytes(json.dumps(obj, ensure_ascii=False, indent=1).encode("utf-8")))
-    tmp.replace(path)
+    for attempt in range(10):  # Windows: the file may be open in the other process for a moment
+        try:
+            tmp.replace(path)
+            return
+        except PermissionError:
+            if attempt == 9:
+                raise
+            time.sleep(0.3)
 
 
 # ---------------- products ----------------
@@ -112,8 +121,37 @@ def _git(*args, check=True):
     return subprocess.run(["git", *args], cwd=config.ROOT, capture_output=True, text=True, check=check)
 
 
-def commit_and_push(message: str, extra_paths=()) -> bool:
-    """Commit state/ (and extra_paths) and push, retrying with rebase if another run pushed first."""
+_DEFERRED = {"msgs": [], "paths": set()}
+
+
+def _flush_deferred():
+    msgs = _DEFERRED["msgs"]
+    if not msgs:
+        return
+    msg = msgs[-1] if len(set(msgs)) == 1 else f"{msgs[-1]} (+{len(msgs) - 1} işlem)"
+    _DEFERRED["msgs"] = []
+    try:
+        commit_and_push(msg, tuple(sorted(_DEFERRED["paths"])), _final=True)
+    except Exception as e:
+        print(f"[git] tek commit gönderilemedi: {e}", flush=True)
+
+
+def commit_and_push(message: str, extra_paths=(), _final=False) -> bool:
+    """Commit state/ (and extra_paths) and push, retrying with rebase if another run pushed first.
+    With DEFER_COMMIT=1 (all workflows) everything is saved in ONE commit when the job ends, so the repository
+    gets a few commits per day instead of dozens (GitHub flags very frequent automated commits)."""
+    if os.environ.get("DEFER_COMMIT") == "1" and not _final:
+        if not _DEFERRED["msgs"]:
+            atexit.register(_flush_deferred)
+            try:  # a cancelled / timed-out job gets SIGTERM: still save what was done
+                import signal
+                import sys
+                signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+            except Exception:
+                pass
+        _DEFERRED["msgs"].append(message)
+        _DEFERRED["paths"].update(extra_paths)
+        return False
     if not config.GITHUB_REPOSITORY:
         return False  # local run
     _git("config", "user.name", "etsy-bot")

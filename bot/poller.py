@@ -38,6 +38,9 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /nis – genel niş taraması
 /nis_migraine – tek konuyu derin tarar (başka konu: /nis konu yazın)
 /kesif – onlarca "kişi + ihtiyaç" nişini tarar, en iyi 20'yi getirir
+/radar – kişiye özel PNG pazarında şu an en hızlı favori alan ilanlar (yükselen fikirler)
+/etiket_custom_teacher_png – bir nişin en iyi ilanlarının kullandığı etiketler, fiyat ve rekabet (başka niş: /etiket kelimeler)
+/sira – kendi ilanlarımızın Etsy aramasında kaçıncı sırada olduğu, yükselen ve gömülü olanlar
 /pinterest – Pinterest hesabını bağlar
 /sosyal – son ürün için pin ve video hazırlar
 /sosyal_3 – son 3 ürün için pin ve video
@@ -194,7 +197,31 @@ def _handle_callback(cb, meta):
     return False
 
 
+_LOCAL_JOBS = {}
+
+
+def _local_job(name, args, extra_env=None):
+    """Own computer: run the job (production, pin file, niche scan) as a separate process next to the listener,
+    so Telegram keeps answering while it works. One job of each kind at a time."""
+    import os
+    import subprocess
+    import sys
+    old = _LOCAL_JOBS.get(name)
+    if old and old.poll() is None:
+        raise RuntimeError("bu iş zaten çalışıyor, bitince tekrar deneyin")
+    env = dict(os.environ)
+    env.update({k: v for k, v in (extra_env or {}).items()})
+    log = open(config.WORK_DIR / f"{name}.log", "a", encoding="utf-8")
+    _LOCAL_JOBS[name] = subprocess.Popen([sys.executable, "-m", "bot", *args], cwd=config.ROOT, env=env,
+                                         stdout=log, stderr=subprocess.STDOUT)
+
+
 def _dispatch_generate(count=None, only=None, subject=None):
+    if config.LOCAL:
+        config.WORK_DIR.mkdir(parents=True, exist_ok=True)
+        _local_job("generate", ["generate"] + (["--count", str(count)] if count else []),
+                   {"ONLY_TYPE": only or "", "ONLY_SUBJECT": (subject or "")[:60]})
+        return
     if not (config.GITHUB_TOKEN and config.GITHUB_REPOSITORY):
         raise RuntimeError("GitHub ortamı yok")
     inputs = {"count": str(count)} if count else {}
@@ -374,6 +401,17 @@ def _handle_message(m, meta):
                           + ". Etsy'de ~70 arama yapılacak, rapor 3-5 dk içinde burada.")
         except Exception as e:
             telegram.send(f"⚠️ Tarama başlatılamadı: <code>{esc(str(e))}</code>")
+    elif cmd == "/radar":
+        from . import market
+        telegram.send("📡 Radar çalışıyor: kişiye özel PNG pazarında ~12 arama, 1 dk sürer...")
+        market.radar()
+    elif cmd == "/etiket":
+        from . import market
+        market.tags(arg.strip()[:60])
+    elif cmd == "/sira":
+        from . import market
+        market.ranks(arg.strip() or None)
+        changed = True
     elif cmd == "/kesif":
         try:
             _dispatch("nis-tarama.yml", {"keyword": "kesif"})
@@ -400,6 +438,8 @@ def _maybe_start_daily():
     daily production itself once per day after DAILY_AT (Turkey time)."""
     import datetime as dt
     from zoneinfo import ZoneInfo
+    if not config.settings().get("auto_daily", True):
+        return False  # the owner decides what to make (/uret ...), nothing is produced on its own
     now = dt.datetime.now(ZoneInfo(config.settings()["timezone"]))
     if (now.hour, now.minute) < DAILY_AT:
         return False
@@ -423,6 +463,16 @@ def _maybe_start_daily():
 
 
 def _dispatch(workflow, inputs=None):
+    if config.LOCAL:
+        config.WORK_DIR.mkdir(parents=True, exist_ok=True)
+        inputs = inputs or {}
+        if workflow == "pinweek.yml":
+            _local_job("pinweek", ["pinweek"] + (["--count", inputs["count"]] if inputs.get("count") else []))
+        elif workflow == "nis-tarama.yml":
+            _local_job("scan", ["scan", "--keyword", inputs.get("keyword", "kesif")])
+        else:
+            raise RuntimeError(f"{workflow} bilgisayarda çalışmaz")
+        return
     r = requests.post(
         f"https://api.github.com/repos/{config.GITHUB_REPOSITORY}/actions/workflows/{workflow}/dispatches",
         headers={"Authorization": f"Bearer {config.GITHUB_TOKEN}", "Accept": "application/vnd.github+json"},
@@ -495,12 +545,31 @@ def _maybe_release_pins():
     return bool(rel)
 
 
-def run(loop_seconds=0):
-    """Process Telegram updates. With loop_seconds>0 keep long-polling so buttons react
-    within seconds; state is pushed to git after every batch of changes."""
+def _worker():
+    url, key = config.env("TG_WORKER_URL", ""), config.env("TG_WORKER_KEY", "")
+    return (url.rstrip("/"), key) if url and key else None
+
+
+def _worker_pull(w):
+    r = requests.get(f"{w[0]}/pull", headers={"X-Key": w[1]}, timeout=30)
+    r.raise_for_status()
+    return sorted(r.json().get("updates", []), key=lambda u: u.get("update_id", 0))
+
+
+def _worker_ack(w, ids):
+    if ids:
+        requests.post(f"{w[0]}/ack", headers={"X-Key": w[1]}, json={"ids": ids}, timeout=30)
+
+
+def run(loop_seconds=0, tick=False):
+    """Process Telegram updates.
+    Worker mode (TG_WORKER_URL set): a Cloudflare Worker receives Telegram messages and starts this job only when
+    the owner writes or presses a button; the job takes the queued updates from the Worker, handles them and ends.
+    tick=True (3 scheduled runs a day) also does the housekeeping: starting the daily production, Pinterest pins,
+    personalized orders, the weekly pin file. Nothing runs continuously any more."""
     deadline = time.time() + loop_seconds
     any_change = False
-    if loop_seconds:
+    if loop_seconds or tick:
         try:
             if _maybe_start_daily():
                 any_change = True
@@ -519,8 +588,17 @@ def run(loop_seconds=0):
             if _maybe_fix_listings():
                 any_change = True
                 storage.commit_and_push("İlan kategorileri onarıldı")
+            if tick and _keepalive(storage.load_meta()):
+                any_change = True
         except Exception as e:
             print(f"[poll] günlük kontrol hatası: {e}", flush=True)
+    w = _worker()
+    if w:
+        try:
+            any_change |= _run_worker(w, wait_first=not tick)
+        except Exception as e:
+            print(f"[poll] worker kuyruğu okunamadı: {e}", flush=True)
+        return any_change
     while True:
         remaining = deadline - time.time()
         changed = _run_once(wait=max(0, min(25, remaining)) if loop_seconds else 0)
@@ -547,6 +625,58 @@ def run(loop_seconds=0):
     return any_change
 
 
+def _handle_update(u, meta):
+    src = u.get("callback_query") or u.get("message") or {}
+    chat = (src.get("message", {}).get("chat", {}) if "callback_query" in u else src.get("chat", {}))
+    if str(chat.get("id")) != str(config.TELEGRAM_CHAT_ID):
+        print(f"[poll] yabancı sohbet yok sayıldı: {chat.get('id')}")
+        return False
+    if "callback_query" in u:
+        return _handle_callback(u["callback_query"], meta)
+    if "message" in u:
+        return _handle_message(u["message"], meta)
+    return False
+
+
+def _run_worker(w, wait_first=True):
+    """Take the updates the Worker queued, handle them, acknowledge them. The Worker's store can take up to a minute
+    to show a brand new message, so the first read waits a little; one more read at the end catches late ones."""
+    changed = False
+    tries = 5 if wait_first else 1
+    for rnd in range(2):
+        ups = []
+        for _ in range(tries):
+            ups = _worker_pull(w)
+            if ups:
+                break
+            time.sleep(15)
+        if not ups:
+            break
+        meta = storage.load_meta()
+        seen = set(meta.get("tg_seen", []))
+        done = []
+        for u in ups:
+            uid = u.get("update_id")
+            done.append(uid)
+            if uid in seen:
+                continue
+            seen.add(uid)
+            meta["tg_seen"] = sorted(seen)[-200:]
+            storage.save_meta(meta)  # never handle the same update twice
+            changed = True
+            try:
+                changed |= _handle_update(u, meta)
+            except Exception as e:
+                traceback.print_exc()
+                try:
+                    telegram.send(f"⚠️ Hata: <code>{esc(str(e)[:500])}</code>")
+                except Exception:
+                    pass
+        _worker_ack(w, done)
+        tries = 2
+    return changed
+
+
 def _run_once(wait=0):
     meta = storage.load_meta()
     offset = meta.get("tg_offset", 0)
@@ -558,21 +688,19 @@ def _run_once(wait=0):
         storage.save_meta(meta)  # never process the same update twice
         changed = True
         try:
-            src = u.get("callback_query") or u.get("message") or {}
-            chat = (src.get("message", {}).get("chat", {}) if "callback_query" in u else src.get("chat", {}))
-            if str(chat.get("id")) != str(config.TELEGRAM_CHAT_ID):
-                print(f"[poll] yabancı sohbet yok sayıldı: {chat.get('id')}")
-                continue
-            if "callback_query" in u:
-                changed |= _handle_callback(u["callback_query"], meta)
-            elif "message" in u:
-                changed |= _handle_message(u["message"], meta)
+            changed |= _handle_update(u, meta)
         except Exception as e:
             traceback.print_exc()
             try:
                 telegram.send(f"⚠️ Hata: <code>{esc(str(e)[:500])}</code>")
             except Exception:
                 pass
+    return _keepalive(meta) or changed
+
+
+def _keepalive(meta):
+    """Refresh the Etsy / Pinterest logins (at most once an hour) so they never expire."""
+    changed = False
     if meta.get("last_keepalive", 0) > time.time() - 3600:
         return changed
     meta["last_keepalive"] = int(time.time())

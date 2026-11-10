@@ -16,6 +16,11 @@ BANNED = [
     "peanuts", "sesame", "paw patrol", "spongebob", "lego", "nike", "louis vuitton", "chanel", "gucci", "coca",
     "starbucks", "barbie", "labubu", "stitch", "wednesday addams", "beetlejuice", "jack skellington", "nightmare before",
     "studio ghibli", "ghibli", "anime character", "goodnotes", "notability", "svg", "cut file",
+    # more protected names (list adapted from etsy-engine, MIT): characters, franchises, brands, teams, events
+    "netflix", "nintendo", "pokémon", "spider-man", "spiderman", "elsa and anna", "squid game", "stranger things",
+    "adidas", "real madrid", "fc barcelona", "lakers", "super bowl", "olympic", "fifa", "nhl", "mlb",
+    "lilo", "toy story", "winnie the pooh", "peppa pig", "cocomelon", "sonic the hedgehog", "super mario",
+    "care bears", "my little pony", "hot wheels", "yeti", "owala", "trader joe", "lululemon",
     # note-taking app brands: never in titles or tags
     "xodo", "noteshelf", "penly", "kilonotes", "onenote", "samsung notes", "noteful", "zoomnotes", "flexcil",
 ]
