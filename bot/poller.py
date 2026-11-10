@@ -40,6 +40,8 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /kesif – onlarca "kişi + ihtiyaç" nişini tarar, en iyi 20'yi getirir
 /radar – kişiye özel PNG pazarında şu an en hızlı favori alan ilanlar (yükselen fikirler)
 /etiket_custom_teacher_png – bir nişin en iyi ilanlarının kullandığı etiketler, fiyat ve rekabet (başka niş: /etiket kelimeler)
+/seo – bütün ilanları 100 üzerinden puanlar, en zayıfları ve neyin eksik olduğunu gösterir (hiçbir şeyi değiştirmez)
+/kar – bu ayın geliri, Etsy kesintileri ve net kâr, dolar ve TL (geçen ay: /kar 2026-10)
 /sira – kendi ilanlarımızın Etsy aramasında kaçıncı sırada olduğu, yükselen ve gömülü olanlar
 /pinterest – Pinterest hesabını bağlar
 /sosyal – son ürün için pin ve video hazırlar
@@ -401,6 +403,13 @@ def _handle_message(m, meta):
                           + ". Etsy'de ~70 arama yapılacak, rapor 3-5 dk içinde burada.")
         except Exception as e:
             telegram.send(f"⚠️ Tarama başlatılamadı: <code>{esc(str(e))}</code>")
+    elif cmd == "/seo":
+        from . import shoptools
+        telegram.send("🔍 İlanlar puanlanıyor, ~1 dk...")
+        shoptools.seo_report()
+    elif cmd in ("/kar", "/kâr"):
+        from . import shoptools
+        shoptools.profit_report(arg.strip() or None)
     elif cmd == "/radar":
         from . import market
         telegram.send("📡 Radar çalışıyor: kişiye özel PNG pazarında ~12 arama, 1 dk sürer...")
