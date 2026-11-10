@@ -68,6 +68,7 @@ class VintageBundleTest(unittest.TestCase):
         self.assertEqual(built["count"], 12)
         self.assertEqual(len(fake_image.prompts), 12)
         self.assertIn("flat 2D vector", fake_image.prompts[0])
+        self.assertIn("dense maximalist composition", fake_image.prompts[0])
         self.assertNotIn("realistic illustration", fake_image.prompts[0])  # the preset's own style, not the shop style
         names = []
         for _, data in built["delivery"]:
