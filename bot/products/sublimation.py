@@ -436,6 +436,68 @@ def mug_mock(dsg, palette):
     return c.convert("RGB")
 
 
+# ---------------------------------------------------------------- the print on a photographed shirt
+PHOTO_SHIRTS = {
+    "flatlay": "flat lay product photo taken from directly above of one plain blank forest green cotton t-shirt, neatly "
+               "laid flat and centered on a light oak wooden table, the whole shirt visible, completely blank front, "
+               "soft natural daylight, realistic photography, no print, no logo, no text, no letters",
+    "worn": "realistic photo of a woman wearing a plain blank cream crewneck sweatshirt, cropped from the chin to the "
+            "waist, face not visible, straight front view, centered, hands in jeans pockets, softly blurred cozy "
+            "living room with a Christmas tree and warm lights behind her, completely blank sweatshirt front, "
+            "no print, no logo, no text, no letters",
+}
+
+
+def _shirt_box(a):
+    """Where the shirt front is in a photo (H x W x 3 float array): the area around the centre that has the colour of
+    the centre. Returns (x0, y0, x1, y1); a safe middle box when the picture gives no clear answer."""
+    h, w = a.shape[:2]
+    patch = a[int(h * .45):int(h * .65), int(w * .40):int(w * .60)].reshape(-1, 3)
+    col = np.median(patch, axis=0)
+    same = np.sqrt(((a - col) ** 2).sum(axis=2)) < 62
+
+    def run(frac, mid, need):
+        lo = hi = mid
+        while lo > 0 and frac[lo - 1] >= need:
+            lo -= 1
+        while hi < len(frac) - 1 and frac[hi + 1] >= need:
+            hi += 1
+        return lo, hi
+
+    x0, x1 = run(same[int(h * .35):int(h * .80)].mean(axis=0), w // 2, 0.5)
+    y0, y1 = run(same[:, x0:x1 + 1].mean(axis=1), int(h * .55), 0.55)
+    if x1 - x0 < w * .25 or y1 - y0 < h * .25:
+        return int(w * .28), int(h * .22), int(w * .72), int(h * .90)
+    return x0, y0, x1, y1
+
+
+def photo_mock(dsg, kind):
+    """The design printed on an AI photographed blank shirt (1 image): it follows the light and folds of the fabric.
+    None when no photo could be made; the caller then uses the code-drawn shirt."""
+    im = images.try_generate(PHOTO_SHIRTS[kind], 1024, 1024)
+    if im is None:
+        return None
+    S = 2000
+    photo = im.convert("RGB").resize((S, S), Image.LANCZOS)
+    a = np.asarray(photo).astype(np.float32)
+    x0, y0, x1, y1 = _shirt_box(a)
+    s = dsg.copy()
+    s.thumbnail((int((x1 - x0) * .80), int((y1 - y0) * .66)), Image.LANCZOS)
+    px, py = (x0 + x1) // 2 - s.width // 2, y0 + int((y1 - y0) * (.20 if kind == "flatlay" else .14))
+    py = min(py, S - s.height - 10)
+    # fabric light: the print gets darker in the folds and lighter on the highlights of the shirt under it
+    lum = a[py:py + s.height, px:px + s.width].mean(axis=2)
+    lum = np.asarray(Image.fromarray(np.clip(lum, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(5))).astype(np.float32)
+    shade = np.clip(lum / max(1.0, float(np.median(lum))), 0.55, 1.12)[..., None]
+    d = np.asarray(s).astype(np.float32)
+    d[..., :3] = np.clip(d[..., :3] * shade, 0, 255)
+    d[..., 3] *= 0.96
+    printed = Image.fromarray(d.astype(np.uint8), "RGBA")
+    out = photo.convert("RGBA")
+    out.alpha_composite(printed, (px, py))
+    return out.convert("RGB")
+
+
 def product_cover(dsgs, n, name, palette, title=None, scale=.46, second=(214, 196, 184)):
     """First photo: the designs ON products (a big shirt, a mug and a tote), so a buyer sees at once what they get."""
     pal = mockups.palette_colors(palette)
@@ -529,14 +591,19 @@ def build(spec, slug):
     t = dsgs[0].copy()
     t.thumbnail((1250, 2200), Image.LANCZOS)  # the visible front of the tumbler = the middle of the wrap
     tumbler_wrap.paste(t, (1395 - t.width // 2, (2460 - t.height) // 2), t)
+    # retro look: the first photos show the print on real-looking shirts (2 extra images); without them (quota) the
+    # code-drawn shirts are used
+    flat = photo_mock(dsgs[0], "flatlay") if retro else None
+    worn = photo_mock(dsgs[1 % n], "worn") if retro else None
+    drawn_cover = product_cover(dsgs, n, name, palette, **({"scale": .62, "second": DARK_TEE} if retro else {}))
     mock = [
-        ("00-cover.jpg", product_cover(dsgs, n, name, palette, **({"scale": .62, "second": DARK_TEE} if retro else {}))),
+        ("00-cover.jpg", flat or drawn_cover),
         ("01-bundle.jpg", bundle_cover(dsgs, n, "Sublimation PNG", name, palette, bundle_word="DESIGNS",
                                        sticker=("MUG", "WRAPS", "INCLUDED"),
                                        features=["TRANSPARENT PNG", "COMMERCIAL USE", "SHIRTS & MUGS", "INSTANT DOWNLOAD"])),
         ("02-all.jpg", mockups.grid(dsgs, f"{n} Designs Included", palette, cols=4)),
-        ("03-shirts.jpg", tee_mock(dsgs[1 % n], palette, "PERFECT FOR SHIRTS & SWEATSHIRTS",
-                                   **({"scale": .62, "second": DARK_TEE} if retro else {}))),
+        ("03-shirts.jpg", worn or tee_mock(dsgs[1 % n], palette, "PERFECT FOR SHIRTS & SWEATSHIRTS",
+                                           **({"scale": .62, "second": DARK_TEE} if retro else {}))),
         ("04-mug.jpg", mug_mock(dsgs[2 % n], palette)),
         ("05-tumbler.jpg", mockups.tumbler_mockup(tumbler_wrap, palette, label="TUMBLERS & MORE")),
         ("06-transparent.jpg", mockups.grid(dsgs[:4], "Transparent Background PNG", palette, cols=2, checker=True)),
@@ -545,6 +612,9 @@ def build(spec, slug):
         ("08-license.jpg", mockups.info_card("COMMERCIAL USE", ["Personal and small business use", "Up to 500 physical products",
                                                                 "No reselling of the digital files"], palette, dsgs[4 % n])),
     ]
+    if flat is not None:  # the drawn overview (shirt + mug) stays in the listing, after the photo cover
+        mock.insert(3, ("02b-products.jpg", drawn_cover))
+        mock = mock[:10]  # Etsy shows at most 10 photos
     return {
         "own_cover": True,
         "delivery": delivery,
