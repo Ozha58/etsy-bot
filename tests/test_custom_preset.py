@@ -85,6 +85,14 @@ class PresetTest(unittest.TestCase):
         designs = [(n, b) for n, b in files if "mug-wrap" not in n]
         self.assertEqual([n for n, _ in designs], [f"emma-rose-design-{k}.png" for k in range(1, custom.COUNT + 1)])
         self.assertEqual(len(files), custom.COUNT * 2)
+        # festive look: 7 square listing photos, and the preset's own art style instead of the realistic shop style
+        self.assertEqual(spec["look"], "festive")
+        self.assertEqual(len(built["mockups"]), 7)
+        for name, data in built["mockups"]:
+            self.assertEqual(Image.open(io.BytesIO(data)).size, (2000, 2000), name)
+        self.assertNotIn("realistic", fake_image.prompts[0])
+        long_name = custom._design(spec, Image.new("RGBA", (2400, 3000), (180, 40, 50, 255)), "The Johnson-Williams Family", 0)
+        self.assertEqual(long_name.size, (custom.SIZE, custom.SIZE))
         for k, (name, data) in enumerate(designs):
             im = Image.open(io.BytesIO(data))
             self.assertEqual((im.size, im.mode), ((custom.SIZE, custom.SIZE), "RGBA"), name)
@@ -95,6 +103,13 @@ class PresetTest(unittest.TestCase):
             bare = custom.compose(art, ".", "", ink, layout)
             painted = lambda x: sum(x.getchannel("A").resize((90, 90)).histogram()[41:])
             self.assertGreater(painted(im), painted(bare) * 1.1, name)
+
+    def test_product_without_look_keeps_plain_design(self):
+        art = Image.new("RGBA", (900, 900), (180, 40, 50, 255))
+        spec = {"designs": [{"tagline": "Teach Love Inspire"}] * custom.COUNT, "palette": ["#B3262E"]}
+        tag, ink, layout = custom._style(spec, 0)
+        old = custom.compose(art, "Mrs. Johnson", tag, ink, layout)
+        self.assertEqual(custom._design({"spec": spec}, art, "Mrs. Johnson", 0).tobytes(), old.tobytes())
 
     def test_subject_without_preset_keeps_old_behaviour(self):
         with self._env("teacher"):

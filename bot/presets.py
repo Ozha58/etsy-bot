@@ -12,7 +12,8 @@ from . import config
 DIR = config.ROOT / "presets"
 NAME_OK = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 # taken from the file as they are; everything else is filled in by spec()
-FIXED = ("title", "tags", "palette", "set_name", "kind", "sample_name", "personalization_instructions")
+FIXED = ("title", "tags", "palette", "set_name", "kind", "sample_name", "sample_names", "look",
+         "personalization_instructions")
 
 
 def load(ptype, name):
@@ -129,7 +130,8 @@ def spec(idea):
                  "Ready to press on shirts, mugs, totes and more, with a transparent background.")
     out["intro"] = intro
     style = str(preset.get("style") or extra.get("style") or "")
-    if theme.style()[:30].lower() not in style.lower():  # the shop style is mandatory for every image
+    # the shop style is mandatory for every image, unless the preset brings its own ("own_style": true)
+    if not (preset.get("own_style") and style) and theme.style()[:30].lower() not in style.lower():
         style = f"{theme.style()}, {style[:80]}".strip(", ")
     out["style"] = style
     out["styles"] = [str(s) for s in (preset.get("styles") or extra.get("styles") or [])][:2]

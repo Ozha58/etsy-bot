@@ -56,6 +56,17 @@ def _style(p_or_spec, k):
     return tag, SB._ink(pal, k), LAYOUTS[k % 2]
 
 
+def _design(p_or_spec, art, name, k):
+    """One finished design. A preset can ask for the richer festive look ("look": "festive"); products made
+    before it (no "look" in their spec) keep the plain look their listing photos show."""
+    spec = p_or_spec.get("spec", p_or_spec)
+    tag, ink, layout = _style(spec, k)
+    if spec.get("look") == "festive":
+        from . import custom_festive
+        return custom_festive.compose(art, name, tag, k)
+    return compose(art, name, tag, ink, layout)
+
+
 def render(p, name):
     """All designs of a published custom product with the buyer's name -> [(file name, png bytes)]."""
     name = clean_name(name)
@@ -67,8 +78,7 @@ def render(p, name):
         except Exception as e:
             print(f"[custom] çizim {k + 1} indirilemedi: {e}")
             continue
-        tag, ink, layout = _style(p, k)
-        dsg = compose(art, name, tag, ink, layout)
+        dsg = _design(p, art, name, k)
         out.append((f"{safe}-design-{k + 1}.png", png_bytes(dsg)))
         out.append((f"{safe}-design-{k + 1}-mug-wrap.png", png_bytes(SB.mug_wrap(dsg))))
     return out
@@ -121,10 +131,7 @@ def build(spec, slug):
         arts.append(a.resize((a.width * 3, a.height * 3), Image.LANCZOS))
     images.need(len(arts), COUNT, ratio=0.8)
     n = len(arts)
-    dsgs = []
-    for k, a in enumerate(arts):
-        tag, ink, layout = _style(spec, k)
-        dsgs.append(compose(a, sample, tag, ink, layout))
+    dsgs = [_design(spec, a, sample, k) for k, a in enumerate(arts)]
 
     preview = mockups.grid(dsgs, f"{n} designs with YOUR name", palette, cols=3)
     files = [("HOW-TO-RECEIVE-YOUR-DESIGNS.pdf", _instructions_pdf(spec["title"], n)),
@@ -139,7 +146,7 @@ def build(spec, slug):
     t = dsgs[0].copy()
     t.thumbnail((1250, 2200), Image.LANCZOS)
     tumbler_wrap.paste(t, (1395 - t.width // 2, (2460 - t.height) // 2), t)
-    mock = [
+    mock = [] if spec.get("look") == "festive" else [
         ("00-cover.jpg", SB.product_cover(dsgs, n, set_name, palette, title=f"CUSTOM {kind.upper()} NAME PNG")),
         ("01-all.jpg", mockups.grid(dsgs, f"{n} Designs, All With Your Name", palette, cols=3)),
         ("02-order.jpg", mockups.info_card("HOW TO ORDER", ["1. Type the name in the personalization box",
@@ -153,6 +160,10 @@ def build(spec, slug):
                                                            f"{n} ready 11 oz mug wraps", "Transparent background, 300 DPI",
                                                            "Sent within 24 hours"], palette, dsgs[4 % n])),
     ]
+    if not mock:  # festive look: square photos in deep red and green, the same design shown with several names
+        from . import custom_festive
+        names = [clean_name(x) for x in spec.get("sample_names") or []] or [sample, "Noah", "Emma"]
+        mock = custom_festive.photos(dsgs, arts, n, kind, lambda i, nm: _design(spec, arts[i % n], nm, i % n), names)
     return {
         "delivery": delivery,
         "mockups": [(nm, jpeg_bytes(im, 88, dpi=72)) for nm, im in mock],
