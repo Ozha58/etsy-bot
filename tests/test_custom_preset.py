@@ -173,14 +173,23 @@ class PresetTest(unittest.TestCase):
             self.assertEqual(data.count(b"/Type /Page\n") + data.count(b"/Type /Page "), custom.COUNT, name)
         # the name really is on the page: hollow letters (black outline, white inside), different per name
         art = Image.open(io.BytesIO(built["extra_assets"]["custom__art-1.png"]))
-        emma, noah = custom_coloring.page(art, "Emma", "Go", 0), custom_coloring.page(art, "Noah", "Go", 0)
+        self.assertEqual(spec["page_style"], "bubble")
+        emma, noah = custom_coloring.page(art, "Emma", spec, 0), custom_coloring.page(art, "Noah", spec, 0)
         self.assertEqual(emma.size, custom_coloring.LETTER)
+        self.assertEqual(sum(emma.histogram()[1:255]), 0)  # pure black and white, prints crisp
         top = (0, 0, emma.width, emma.height // 4)  # even pages carry the name on top
         self.assertIsNotNone(ImageChops.difference(emma.crop(top), noah.crop(top)).getbbox())
-        letters = custom_coloring._hollow("Emma", 2000, 700, 660)
+        letters, mask = custom_coloring.bubble("Emma", 2000, 700, 660, bend=1.0)
         black = letters.histogram()[0] / (letters.width * letters.height)
         self.assertTrue(0.05 < black < 0.5, black)  # outlines only, most of the word stays white to colour in
-        long = custom_coloring.page(art, "Alexander-Christopher Montgomery", "Go", 1, custom_coloring.A4)
+        # a birthday page carries the line above the name; an old product (no page_style) keeps the framed layout
+        bday = next(v for v in presets.variants(preset) if v["theme"] == "birthday")
+        self.assertEqual(bday["above"], "Happy Birthday")
+        self.assertEqual(custom_coloring.page(art, "Emma", bday, 0).size, custom_coloring.LETTER)
+        old_spec = {k: v for k, v in spec.items() if k != "page_style"}
+        self.assertEqual(custom_coloring.page(art, "Emma", old_spec, 0).tobytes(),
+                         custom_coloring.page_framed(art, "Emma", custom_coloring._caption(spec, 0), 0).tobytes())
+        long = custom_coloring.page(art, "Alexander-Christopher Montgomery", spec, 1, custom_coloring.A4)
         self.assertEqual(long.size, custom_coloring.A4)
 
     def test_product_without_look_keeps_plain_design(self):

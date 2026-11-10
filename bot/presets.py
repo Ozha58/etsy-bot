@@ -13,12 +13,12 @@ DIR = config.ROOT / "presets"
 NAME_OK = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 # taken from the file as they are; everything else is filled in by spec()
 FIXED = ("title", "tags", "palette", "set_name", "kind", "sample_name", "sample_names", "look",
-         "personalization_instructions")
+         "personalization_instructions", "page_style", "doodles", "above")
 
 
 # a theme may replace these fields of the preset (same look and delivery, other characters, title and tags)
 THEME_FIELDS = ("label_tr", "niche", "search_query", "why", "set_name", "sample_name", "sample_names", "style",
-                "palette", "title", "tags", "designs", "pages", "audience")
+                "palette", "title", "tags", "designs", "pages", "audience", "doodles", "above")
 
 
 def load(ptype, name):

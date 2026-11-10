@@ -1,6 +1,6 @@
 {
   "name": "boyama",
-  "label_tr": "kişiye özel isimli boyama sayfaları (6 tema: hayvanlar, dinozor, unicorn, kamyon, deniz, uzay)",
+  "label_tr": "kişiye özel isimli boyama sayfaları (8 tema: hayvanlar, dinozor, unicorn, kamyon, deniz, uzay, doğum günü, bebek partisi)",
   "why": "Hazır ayar: 10 Kasım 2026 Etsy araştırması, 'custom name coloring page' ilk sayfasında 8 Bestseller.",
   "set_name": "Name Coloring Pages",
   "kind": "kids",
@@ -126,6 +126,11 @@
           "tagline": "Just Hatched",
           "prompt": "a cute baby dinosaur hatching from a cracked spotted egg in a nest, big leaves around it"
         }
+      ],
+      "doodles": [
+        "star",
+        "cloud",
+        "dot"
       ]
     },
     {
@@ -180,6 +185,11 @@
           "tagline": "Bloom and Grow",
           "prompt": "big butterflies flying over a garden of large flowers, a ladybug and a smiling sun"
         }
+      ],
+      "doodles": [
+        "star",
+        "heart",
+        "cloud"
       ]
     },
     {
@@ -234,6 +244,11 @@
           "tagline": "Monster Fun",
           "prompt": "a cute cartoon monster truck with huge wheels jumping over a dirt hill, no people"
         }
+      ],
+      "doodles": [
+        "star",
+        "cloud",
+        "dot"
       ]
     },
     {
@@ -288,6 +303,11 @@
           "tagline": "Feeling Crabulous",
           "prompt": "a cute crab on a sandy beach next to a sandcastle, a bucket and a spade"
         }
+      ],
+      "doodles": [
+        "star",
+        "dot",
+        "heart"
       ]
     },
     {
@@ -342,7 +362,140 @@
           "tagline": "Space Pup",
           "prompt": "a cute puppy in an astronaut helmet sitting on the moon, stars and a rocket behind it"
         }
+      ],
+      "doodles": [
+        "star",
+        "dot"
+      ]
+    },
+    {
+      "theme": "birthday",
+      "label_tr": "doğum günü (pasta, balon, hediye)",
+      "niche": "custom birthday name coloring pages",
+      "search_query": "birthday name coloring",
+      "title": "Custom Birthday Name Coloring Pages, Personalized Printable PDF Kids Party Activity, Favor Table Game",
+      "tags": [
+        "birthday coloring",
+        "custom coloring page",
+        "name coloring page",
+        "party favor kids",
+        "birthday table game",
+        "happy birthday pdf",
+        "personalized kids",
+        "kids activity sheet",
+        "classroom activity",
+        "party printable",
+        "preschool printable",
+        "gift for kids",
+        "birthday boy girl"
+      ],
+      "doodles": [
+        "star",
+        "balloon",
+        "dot",
+        "heart"
+      ],
+      "above": "Happy Birthday",
+      "designs": [
+        {
+          "name": "Birthday Cake",
+          "tagline": "Make a Wish",
+          "prompt": "a big three tier birthday cake with candles, frosting swirls and sprinkles on a cake stand"
+        },
+        {
+          "name": "Balloon Bear",
+          "tagline": "Party Time",
+          "prompt": "a cute teddy bear wearing a party hat holding a big bunch of balloons"
+        },
+        {
+          "name": "Gift Pile",
+          "tagline": "So Many Presents",
+          "prompt": "a pile of wrapped gift boxes with big bows and ribbons, a party hat on top"
+        },
+        {
+          "name": "Party Puppy",
+          "tagline": "Let's Celebrate",
+          "prompt": "a cute puppy wearing a party hat sitting next to a cupcake with one candle, confetti around it"
+        },
+        {
+          "name": "Cupcakes",
+          "tagline": "Sweet Celebration",
+          "prompt": "three big cupcakes with swirled frosting, cherries and sprinkles in a row"
+        },
+        {
+          "name": "Party Animals",
+          "tagline": "Best Day Ever",
+          "prompt": "a cute bunny and a cute kitten wearing party hats blowing party horns, streamers above them"
+        }
+      ]
+    },
+    {
+      "theme": "babyshower",
+      "label_tr": "bebek partisi (ayıcık, bulut, yıldız)",
+      "niche": "custom baby shower name coloring pages",
+      "search_query": "baby shower coloring",
+      "title": "Custom Baby Shower Coloring Pages, Personalized Name Printable PDF Activity, Teddy Bear Kids Table",
+      "tags": [
+        "baby shower coloring",
+        "custom coloring page",
+        "name coloring page",
+        "baby shower game",
+        "welcome baby party",
+        "gender reveal kids",
+        "personalized baby",
+        "kids activity sheet",
+        "sibling activity",
+        "party printable",
+        "new baby gift",
+        "baby sprinkle party",
+        "nursery coloring"
+      ],
+      "doodles": [
+        "star",
+        "cloud",
+        "heart",
+        "dot"
+      ],
+      "above": "Welcome Baby",
+      "designs": [
+        {
+          "name": "Balloon Teddy",
+          "tagline": "Bundle of Joy",
+          "prompt": "a cute teddy bear sitting and holding three balloons, a bow around its neck"
+        },
+        {
+          "name": "Sleepy Bear",
+          "tagline": "Sweet Dreams",
+          "prompt": "a cute teddy bear sleeping on a crescent moon with a small blanket"
+        },
+        {
+          "name": "Baby Elephant",
+          "tagline": "Little Peanut",
+          "prompt": "a cute baby elephant sitting and holding a heart shaped balloon with its trunk"
+        },
+        {
+          "name": "Rocking Horse",
+          "tagline": "Ready to Play",
+          "prompt": "a cute toy rocking horse next to stacked alphabet blocks without letters and a rattle"
+        },
+        {
+          "name": "Stork",
+          "tagline": "Special Delivery",
+          "prompt": "a friendly stork flying and carrying a bundle wrapped in a blanket in its beak"
+        },
+        {
+          "name": "Baby Bunny",
+          "tagline": "Oh So Loved",
+          "prompt": "a cute baby bunny hugging a big heart, a pacifier and a baby bottle beside it"
+        }
       ]
     }
+  ],
+  "page_style": "bubble",
+  "doodles": [
+    "star",
+    "heart",
+    "cloud",
+    "dot"
   ]
 }

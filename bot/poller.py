@@ -23,7 +23,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /uret_custom_xmaskids – kişiye özel çocuk ismi Noel PNG; her seferinde yapılmamış bir tema seçer (~6 görsel hakkı)
 /uret_custom_xmaskids_dino – temayı sen seç: woodland, trucks, ballerina, dino, pets, classic
 /uret_custom_boyama – kişiye özel isimli boyama sayfaları, PDF (alıcı ismi yazar; her seferinde yapılmamış tema; ~6 görsel hakkı)
-/uret_custom_boyama_dino – temayı sen seç: animals, dino, unicorn, trucks, ocean, space
+/uret_custom_boyama_birthday – temayı sen seç: animals, dino, unicorn, trucks, ocean, space, birthday, babyshower
 /uret_tattoo – kişiye özel doğum çiçeği + isim dövme tasarımı (alıcı "İsim - Ay" yazar; ~12 görsel hakkı)
 /ozel – kişiye özel siparişi elle hazırla: /ozel &lt;sipariş no&gt; İsim
 /uret_sublimation – tişört/kupa PNG tasarımı (8 tasarım + kupa şablonu, ~8 görsel hakkı)
