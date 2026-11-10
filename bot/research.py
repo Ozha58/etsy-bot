@@ -341,6 +341,9 @@ def market_price(idea, lo, hi, ai_price):
 
 
 def product_spec(idea: dict) -> dict:
+    if idea.get("preset"):  # designs, title and tags come from presets/<type>/<name>.json, the AI writes the rest
+        from . import presets
+        return presets.spec(idea)
     ptype = idea["type"]
     mod = TYPES[ptype]
     lo, hi = config.settings()["price_ranges_usd"].get(ptype, [3, 8])

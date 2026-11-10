@@ -163,8 +163,8 @@ def build(spec, slug):
         "product_extra": {"custom_count": n},
         "listing": {"is_personalizable": True, "personalization_is_required": True,
                     "personalization_char_count_max": 40,
-                    "personalization_instructions": f"Name exactly as it should appear (e.g. {sample}). "
-                                                    "Your designs are sent within 24 hours."},
+                    "personalization_instructions": spec.get("personalization_instructions")
+                    or f"Name exactly as it should appear (e.g. {sample}). Your designs are sent within 24 hours."},
         "included": [f"{n} PNG designs personalized with your name (3600 x 3600 px, transparent, 300 DPI)",
                      f"{n} ready 11 oz mug wraps with your name", "Sent to you on Etsy within 24 hours"],
         "details": ["Made to order: enter the name in the personalization box at checkout",

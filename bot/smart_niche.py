@@ -164,6 +164,12 @@ Return ONLY a JSON array with exactly {len(slots)} objects in slot order:
 
 
 def find_trending_niches(count=1):
+    from . import presets
+    preset = presets.for_request()  # /uret custom xmaskids: a researched niche stored in presets/, no AI idea needed
+    if preset:
+        idea = presets.idea(preset, config.env("ONLY_TYPE"))
+        research._score(idea)  # Etsy numbers for the approval message and the price (best effort)
+        return [idea]
     today = dt.date.today()
     s = config.settings()
     used = _used(today)
