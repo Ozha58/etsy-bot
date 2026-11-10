@@ -9,7 +9,7 @@ from unittest import mock
 
 from PIL import Image, ImageDraw
 
-from bot import assets, images, llm, presets, research, smart_niche
+from bot import assets, images, llm, presets, research, smart_niche, storage
 from bot.products import custom
 
 PRESET = "xmaskids"
@@ -35,7 +35,9 @@ class PresetTest(unittest.TestCase):
         patches = [mock.patch.object(images, "try_generate", fake_image),
                    mock.patch.object(images, "generate", side_effect=AssertionError("real image call")),
                    mock.patch.object(llm, "ask_json", fake_llm),
-                   mock.patch.object(research, "_score", lambda idea: None)]
+                   mock.patch.object(research, "_score", lambda idea: None),
+                   mock.patch.object(storage, "all_products", lambda: self.products)]
+        self.products = []  # what the shop already made (decides the next theme)
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
@@ -103,6 +105,44 @@ class PresetTest(unittest.TestCase):
             bare = custom.compose(art, ".", "", ink, layout)
             painted = lambda x: sum(x.getchannel("A").resize((90, 90)).histogram()[41:])
             self.assertGreater(painted(im), painted(bare) * 1.1, name)
+
+    def test_every_theme_is_valid_and_different(self):
+        vs = presets.variants(presets.load("custom", PRESET))
+        self.assertGreaterEqual(len(vs), 6)
+        for v in vs:
+            self.assertEqual(presets.problems(v, "custom"), [], v["theme"])
+            self.assertLessEqual(len(v["title"]), 140)
+        for field in ("title", "search_query"):
+            self.assertEqual(len({v[field] for v in vs}), len(vs), field)
+        prompts = [d["prompt"] for v in vs for d in v["designs"]]
+        self.assertEqual(len(set(prompts)), len(prompts))
+
+    def test_each_run_takes_a_theme_not_made_yet(self):
+        order = [v["theme"] for v in presets.variants(presets.load("custom", PRESET))]
+        made = []
+        for i in range(len(order) + 1):
+            with self._env(PRESET):
+                idea = smart_niche.find_trending_niches(1)[0]
+            made.append(idea["theme"])
+            spec = research.product_spec(idea)
+            self.assertEqual((spec["preset"], spec["theme"]), (PRESET, idea["theme"]))
+            self.products.append({"spec": spec, "status": "pending", "created_at": i})
+        self.assertEqual(made[:len(order)], order)  # all themes once, in file order
+        self.assertEqual(made[-1], order[0])        # then the one made longest ago
+        self.products[0]["status"] = "rejected"     # a rejected product does not use up its theme
+        self.products = self.products[:3]
+        with self._env(PRESET):
+            self.assertEqual(smart_niche.find_trending_niches(1)[0]["theme"], order[0])
+
+    def test_theme_can_be_asked_for_by_name(self):
+        with self._env(PRESET + " dino"):
+            idea = smart_niche.find_trending_niches(1)[0]
+        spec = research.product_spec(idea)
+        self.assertEqual(spec["theme"], "dino")
+        self.assertIn("Dinosaur", spec["title"])
+        self.assertIn("dinosaur", spec["designs"][0]["prompt"])
+        with self._env(PRESET + " nosuchtheme"), self.assertRaises(RuntimeError):
+            smart_niche.find_trending_niches(1)
 
     def test_product_without_look_keeps_plain_design(self):
         art = Image.new("RGBA", (900, 900), (180, 40, 50, 255))
