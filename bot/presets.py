@@ -20,7 +20,7 @@ FLEX_COUNT = {"sublimation": (4, 16)}
 
 # a theme may replace these fields of the preset (same look and delivery, other characters, title and tags)
 THEME_FIELDS = ("label_tr", "niche", "search_query", "why", "set_name", "sample_name", "sample_names", "style",
-                "palette", "title", "tags", "designs", "pages", "audience", "doodles", "above")
+                "palette", "title", "tags", "designs", "pages", "audience", "doodles", "above", "skin")
 
 
 def load(ptype, name):
@@ -196,6 +196,8 @@ def spec(idea):
     out["theme"] = preset["theme"]
     if ptype in FLEX_COUNT:
         out["count"] = n
+    if preset.get("look") == "festive":  # every theme gets its own colours and decorations (custom_festive.SKINS)
+        out["skin"] = str(preset.get("skin") or preset["theme"])
     part1 = preset["title"].split(",")[0].strip()
     intro = str(extra.get("intro") or "").strip()
     if (not intro or research.is_banned(intro)) and ptype != "custom":

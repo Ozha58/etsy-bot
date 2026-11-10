@@ -6,7 +6,12 @@ overlaps it, the tagline sits on a ribbon, and Christmas lights, stars and snowf
 (so they are always sharp and never contain AI text). The listing photos are square, in deep red and green.
 
 Products without the "look" field keep the old design and photos, so listings that are already published
-still deliver exactly what their photos show."""
+still deliver exactly what their photos show.
+
+Every theme of a preset has its own SKIN (name colours and fonts, code-drawn decorations, photo backdrops), so the
+trucks set does not look like the classic set with other characters. spec["skin"] picks it (presets.spec sets it to
+the theme). Products made before skins have no "skin" in their spec and get "classic": exactly the look they were
+listed with."""
 import math
 import random
 
@@ -167,13 +172,123 @@ def _snowflake(d, cx, cy, r, fill):
         d.ellipse((cx - width * 0.7, cy - width * 0.7, cx + width * 0.7, cy + width * 0.7), fill=col + (255,))
 
 
-def _lights(c, x0, x1, y, sag, rnd):
+def _heart(d, cx, cy, r, fill):
+    for rad, col in ((r + max(8, r * 0.13), WHITE), (r, fill)):
+        k = rad / 100
+        d.ellipse((cx - 98 * k, cy - 70 * k, cx + 4 * k, cy + 26 * k), fill=col + (255,))
+        d.ellipse((cx - 4 * k, cy - 70 * k, cx + 98 * k, cy + 26 * k), fill=col + (255,))
+        d.polygon([(cx - 92 * k, cy - 4 * k), (cx + 92 * k, cy - 4 * k), (cx, cy + 96 * k)], fill=col + (255,))
+    d.ellipse((cx - r * 0.62, cy - r * 0.52, cx - r * 0.34, cy - r * 0.24), fill=_shade(fill, 1.6) + (255,))
+
+
+def _paw(d, cx, cy, r, fill):
+    toes = [(-0.62, -0.42, 0.24), (-0.22, -0.78, 0.26), (0.22, -0.78, 0.26), (0.62, -0.42, 0.24)]
+    for grow, col in ((max(8, r * 0.13), WHITE), (0, fill)):
+        d.ellipse((cx - r * 0.58 - grow, cy - r * 0.18 - grow, cx + r * 0.58 + grow, cy + r * 0.72 + grow), fill=col + (255,))
+        for tx, ty, tr in toes:
+            d.ellipse((cx + (tx - tr) * r - grow, cy + (ty - tr) * r - grow, cx + (tx + tr) * r + grow,
+                       cy + (ty + tr) * r + grow), fill=col + (255,))
+
+
+def _dot(d, cx, cy, r, fill):
+    r *= 0.55
+    d.ellipse((cx - r - 10, cy - r - 10, cx + r + 10, cy + r + 10), fill=WHITE + (255,))
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill + (255,))
+    d.ellipse((cx - r * 0.55, cy - r * 0.6, cx - r * 0.1, cy - r * 0.15), fill=_shade(fill, 1.6) + (255,))
+
+
+def _leaf(d, cx, cy, r, fill):
+    """A holly sprig: two pointed leaves and three berries."""
+    berry = RED if fill != RED else GOLD
+    for grow, col in ((max(8, r * 0.13), WHITE), (0, None)):
+        for side in (-1, 1):
+            pts = [(cx, cy), (cx + side * r * 0.35, cy - r * 0.55), (cx + side * r * 0.95, cy - r * 0.62),
+                   (cx + side * r * 0.75, cy - r * 0.15), (cx + side * r * 0.98, cy + r * 0.2), (cx + side * r * 0.4, cy + r * 0.12)]
+            if grow:
+                mx = sum(x for x, _ in pts) / len(pts)
+                my = sum(y for _, y in pts) / len(pts)
+                pts = [(mx + (x - mx) * (1 + grow / r), my + (y - my) * (1 + grow / r)) for x, y in pts]
+            d.polygon(pts, fill=(col or fill) + (255,))
+        for bx, by in ((-0.16, 0.18), (0.16, 0.18), (0, -0.06)):
+            br = r * 0.2 + grow
+            d.ellipse((cx + bx * r - br, cy + by * r - br, cx + bx * r + br, cy + by * r + br), fill=(col or berry) + (255,))
+
+
+SHAPES = {"stars": _star, "hearts": _heart, "paws": _paw, "dots": _dot, "holly": _leaf}
+
+
+def _skin(schemes, accent, bulbs, backdrops, sub, deco_cols):
+    return {"schemes": schemes, "accent": accent, "bulbs": bulbs, "backdrops": backdrops, "sub": sub,
+            "deco_cols": deco_cols, "sub_col": _shade(accent, 1.45), "tee": _shade(schemes[0][0], 0.88)}
+
+
+PINK, LILAC, MINT, PLUM = (232, 84, 142), (150, 110, 205), (70, 190, 160), (120, 40, 110)
+YELLOW, NAVY, ORANGE, LIME = (250, 196, 30), (30, 52, 120), (240, 120, 30), (120, 186, 40)
+TEAL, CORAL, BROWN, CREAM = (20, 140, 150), (240, 98, 84), (140, 84, 44), (246, 232, 204)
+FOREST, MUSTARD = (36, 96, 60), (214, 160, 40)
+# per theme: SCHEMES-style rows (name colour, ribbon colour, name font, decoration, layout), the accent (badges,
+# numbers), the light bulb colours, the photo backdrops (inner, outer) used in turn, the cover's second line and
+# the colours of each decoration. "classic" is the original look and must never change: published listings use it.
+SKINS = {
+    "classic": _skin(SCHEMES, GOLD, [RED, GOLD, GREEN, BLUE],
+                     [((190, 30, 46), (88, 8, 22)), ((30, 124, 78), (6, 52, 34)), ((40, 118, 176), (12, 44, 84))],
+                     "Christmas designs with YOUR name",
+                     {"stars": [GOLD, GOLD, RED], "snow": [BLUE, _shade(BLUE, 1.35), GOLD], "lights": [GOLD, GOLD, GREEN]}),
+    "woodland": _skin([(FOREST, BROWN, "retro", "holly", "under"), (BROWN, FOREST, "serif", "snow", "above"),
+                       (FOREST, MUSTARD, "retro", "stars", "under"), (BROWN, RED, "serif", "holly", "above"),
+                       (FOREST, BROWN, "retro", "snow", "under"), (RED, FOREST, "serif", "stars", "above")],
+                      MUSTARD, [MUSTARD, RED, CREAM, FOREST],
+                      [((92, 70, 46), (38, 26, 16)), ((44, 104, 70), (10, 40, 24)), ((86, 108, 110), (28, 40, 44))],
+                      "Woodland Christmas with YOUR name",
+                      {"stars": [MUSTARD, CREAM, MUSTARD], "snow": [(150, 180, 190), CREAM, MUSTARD],
+                       "holly": [FOREST, (60, 130, 70), FOREST]}),
+    "trucks": _skin([(RED, NAVY, "bold", "stars", "under"), (NAVY, YELLOW, "bold", "dots", "above"),
+                     (YELLOW, RED, "bold", "snow", "under"), (RED, NAVY, "bold", "dots", "above"),
+                     (NAVY, RED, "bold", "stars", "under"), (YELLOW, NAVY, "bold", "snow", "above")],
+                    YELLOW, [RED, YELLOW, BLUE, GREEN],
+                    [((44, 70, 150), (12, 20, 60)), ((70, 74, 84), (22, 24, 30)), ((196, 42, 40), (90, 12, 14))],
+                    "Christmas trucks with YOUR name",
+                    {"stars": [YELLOW, YELLOW, RED], "snow": [(120, 170, 225), WHITE, YELLOW], "dots": [RED, YELLOW, BLUE]}),
+    "ballerina": _skin([(PINK, LILAC, "script", "hearts", "under"), (LILAC, PINK, "retro", "stars", "above"),
+                        (PINK, MINT, "script", "snow", "under"), (PLUM, PINK, "retro", "hearts", "above"),
+                        (PINK, LILAC, "script", "stars", "under"), (LILAC, PINK, "retro", "snow", "above")],
+                       GOLD, [PINK, GOLD, LILAC, MINT],
+                       [((214, 110, 160), (110, 34, 80)), ((132, 96, 186), (52, 30, 92)), ((228, 150, 170), (140, 60, 92))],
+                       "Sweet Christmas with YOUR name",
+                       {"stars": [GOLD, (255, 220, 236), GOLD], "snow": [LILAC, (230, 210, 250), GOLD],
+                        "hearts": [PINK, (255, 160, 196), GOLD]}),
+    "dino": _skin([(LIME, ORANGE, "rounded", "dots", "under"), (ORANGE, TEAL, "retro", "stars", "above"),
+                   (TEAL, ORANGE, "rounded", "snow", "under"), (LIME, PLUM, "retro", "dots", "above"),
+                   (ORANGE, LIME, "rounded", "stars", "under"), (TEAL, LIME, "retro", "snow", "above")],
+                  ORANGE, [LIME, ORANGE, TEAL, YELLOW],
+                  [((92, 140, 40), (28, 56, 12)), ((30, 128, 120), (6, 48, 46)), ((200, 96, 30), (90, 36, 8))],
+                  "Dino Christmas with YOUR name",
+                  {"stars": [YELLOW, ORANGE, YELLOW], "snow": [TEAL, (160, 220, 210), YELLOW], "dots": [LIME, ORANGE, TEAL]}),
+    "pets": _skin([(TEAL, CORAL, "rounded", "paws", "under"), (CORAL, NAVY, "script", "hearts", "above"),
+                   (NAVY, MUSTARD, "rounded", "snow", "under"), (CORAL, TEAL, "script", "paws", "above"),
+                   (TEAL, NAVY, "rounded", "hearts", "under"), (NAVY, CORAL, "script", "snow", "above")],
+                  MUSTARD, [CORAL, MUSTARD, TEAL, WHITE],
+                  [((26, 130, 140), (6, 50, 56)), ((226, 100, 86), (110, 32, 28)), ((44, 64, 130), (14, 22, 58))],
+                  "Furry Christmas with YOUR name",
+                  {"paws": [BROWN, CORAL, NAVY], "hearts": [CORAL, (255, 170, 160), MUSTARD],
+                   "snow": [(120, 180, 200), WHITE, MUSTARD]}),
+}
+
+
+SKINS["classic"].update(sub_col=(255, 226, 150), tee=(176, 30, 44))  # the original listing photos, unchanged
+
+
+def skin(name):
+    return SKINS.get(str(name or "classic").lower(), SKINS["classic"])
+
+
+def _lights(c, x0, x1, y, sag, rnd, cols=None):
     """A string of Christmas lights hanging between two points."""
     d = ImageDraw.Draw(c)
     curve = [(x0 + (x1 - x0) * t / 60, y + sag * 4 * (t / 60) * (1 - t / 60)) for t in range(61)]
     d.line(curve, fill=WHITE + (255,), width=46, joint="curve")
     d.line(curve, fill=(24, 70, 46, 255), width=22, joint="curve")
-    cols = [RED, GOLD, GREEN, BLUE]
+    cols = list(cols or [RED, GOLD, GREEN, BLUE])
     n = max(5, int((x1 - x0) / 400))
     for i in range(n):
         t = (i + 0.5) / n
@@ -192,10 +307,12 @@ def _lights(c, x0, x1, y, sag, rnd):
         c.alpha_composite(bulb, (int(bx - bulb.width / 2), int(by - bh * 0.62)))
 
 
-def _sprinkle(c, kind, zones, rnd):
-    """Stars or snowflakes in the free space left and right of the character."""
+def _sprinkle(c, kind, zones, rnd, sk=None):
+    """Stars, snowflakes, hearts, paws, dots or holly in the free space left and right of the character."""
     d = ImageDraw.Draw(c)
-    cols = {"stars": [GOLD, GOLD, RED], "snow": [BLUE, _shade(BLUE, 1.35), GOLD], "lights": [GOLD, GOLD, GREEN]}[kind]
+    sk = sk or SKINS["classic"]
+    cols = sk["deco_cols"].get(kind) or SKINS["classic"]["deco_cols"].get(kind) or [GOLD, GOLD, RED]
+    shape = SHAPES.get(kind, _star)
     for x0, y0, x1, y1 in zones:
         if x1 - x0 < 170:
             continue
@@ -209,15 +326,18 @@ def _sprinkle(c, kind, zones, rnd):
             col = rnd.choice(cols)
             if kind == "snow" and rnd.random() < 0.7:
                 _snowflake(d, cx, cy, r, col)
-            else:
+            elif kind in ("snow", "lights"):
                 _star(d, cx, cy, r, col)
+            else:
+                shape(d, cx, cy, r, col)
             if len(placed) >= 5:
                 break
 
 
-def compose(art, name, tagline, k):
-    """One finished 3600 px transparent design in the festive look."""
-    fill, band, kind, deco, layout = SCHEMES[k % len(SCHEMES)]
+def compose(art, name, tagline, k, skin_name=None):
+    """One finished 3600 px transparent design in the festive look, in the theme's skin."""
+    sk = skin(skin_name)
+    fill, band, kind, deco, layout = sk["schemes"][k % len(sk["schemes"])]
     rnd = random.Random(7000 + k)
     c = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     nm = sticker_text(name, kind, fill, SIZE * 0.94, 860)
@@ -235,9 +355,9 @@ def compose(art, name, tagline, k):
         y += rb.height + gap
     ax = (SIZE - a.width) // 2
     if deco == "lights":
-        _lights(c, SIZE * 0.04, SIZE * 0.96, max(40, y - 370), 110, rnd)
+        _lights(c, SIZE * 0.04, SIZE * 0.96, max(40, y - 370), 110, rnd, sk["bulbs"])
     _sprinkle(c, deco, [(60, y, ax - 40, y + int(a.height * 0.8)),
-                        (ax + a.width + 40, y, SIZE - 60, y + int(a.height * 0.8))], rnd)
+                        (ax + a.width + 40, y, SIZE - 60, y + int(a.height * 0.8))], rnd, sk)
     c.alpha_composite(a, (ax, y))
     c.alpha_composite(nm, ((SIZE - nm.width) // 2, y + a.height - lap))
     if rb and layout == "under":
@@ -247,9 +367,9 @@ def compose(art, name, tagline, k):
 
 # ---------------------------------------------------------------- listing photos (2000 x 2000)
 def backdrop(colour, seed=1):
-    """Deep red / green with a soft glow in the middle, out-of-focus lights and a little snow."""
-    inner, outer = {"red": ((190, 30, 46), (88, 8, 22)), "green": ((30, 124, 78), (6, 52, 34)),
-                    "blue": ((40, 118, 176), (12, 44, 84))}[colour]
+    """Deep red / green (or a skin's own (inner, outer) pair) with a soft glow, out-of-focus lights and a little snow."""
+    named = dict(zip(("red", "green", "blue"), SKINS["classic"]["backdrops"]))
+    inner, outer = named[colour] if isinstance(colour, str) else colour
     yy, xx = np.mgrid[0:PHOTO, 0:PHOTO].astype(np.float32)
     t = np.clip(np.hypot(xx - PHOTO / 2, yy - PHOTO * 0.46) / (PHOTO * 0.78), 0, 1)[..., None] ** 1.4
     img = Image.fromarray((np.array(inner) * (1 - t) + np.array(outer) * t).astype(np.uint8)).convert("RGBA")
@@ -373,14 +493,20 @@ def _disc(d_size, ring=GOLD):
     return disc
 
 
-def cover(dsgs, arts, n, kind):
+def _bg(sk, which, seed):
+    """which: 0 = the skin's first backdrop (classic: red), 1 = second (green), 2 = third (blue)."""
+    return backdrop(sk["backdrops"][which % len(sk["backdrops"])], seed)
+
+
+def cover(dsgs, arts, n, kind, sk=None):
     """First photo: one design very large (readable as a thumbnail), the others around it, on a shirt and a mug."""
-    c = backdrop("red", 11)
+    sk = sk or SKINS["classic"]
+    c = _bg(sk, 0, 11)
     _heading(c, f"CUSTOM {kind.upper()} NAME", 150, size=250)
     d = ImageDraw.Draw(c)
-    f = DF.fit(d, "Christmas designs with YOUR name", "script", PHOTO - 420, 104, 50)
-    d.text((PHOTO / 2, 322), "Christmas designs with YOUR name", font=f, fill=(255, 226, 150, 255), anchor="mm")
-    disc = _disc(1180)
+    f = DF.fit(d, sk["sub"], "script", PHOTO - 420, 104, 50)
+    d.text((PHOTO / 2, 322), sk["sub"], font=f, fill=sk["sub_col"] + (255,), anchor="mm")
+    disc = _disc(1180, sk["accent"])
     hero = _fit(dsgs[0], 900)
     disc.alpha_composite(hero, ((disc.width - hero.width) // 2, (disc.height - hero.height) // 2 + 10))
     paste_with_shadow(c, disc, (60, 440), radius=34, offset=(0, 28), opacity=120)
@@ -390,18 +516,18 @@ def cover(dsgs, arts, n, kind):
     paste_with_shadow(c, mug, (1270, 1160), radius=28, offset=(0, 22), opacity=120)
     rest = [k for k in range(n) if k != 0][-3:]
     for i, k in enumerate(rest):  # the other characters as small round chips
-        chip = _disc(300)
+        chip = _disc(300, sk["accent"])
         a = _fit(arts[k], 236)
         chip.alpha_composite(a, ((300 - a.width) // 2, (300 - a.height) // 2))
         paste_with_shadow(c, chip, (90 + i * 330, 1540), radius=18, offset=(0, 14), opacity=110)
-    b = _burst((f"{n}", "DESIGNS"), 210)
+    b = _burst((f"{n}", "DESIGNS"), 210, sk["accent"])
     c.alpha_composite(b, (930, 400))
     _pill(c, "TYPE ANY NAME  ·  WE MAKE IT FOR YOU", 1900, size=64)
     return c.convert("RGB")
 
 
-def all_designs(dsgs, n):
-    c = backdrop("green", 21)
+def all_designs(dsgs, n, sk=None):
+    c = _bg(sk or SKINS["classic"], 1, 21)
     _heading(c, f"{n} DESIGNS  ·  ALL WITH YOUR NAME", 150, size=170)
     cols = 3
     rows = math.ceil(n / cols)
@@ -414,9 +540,10 @@ def all_designs(dsgs, n):
     return c.convert("RGB")
 
 
-def any_name(make, names):
+def any_name(make, names, sk=None):
     """The same design with three different names + how to order."""
-    c = backdrop("red", 31)
+    sk = sk or SKINS["classic"]
+    c = _bg(sk, 0, 31)
     _heading(c, "ANY NAME YOU LIKE", 150, size=210)
     size = 590
     gx = (PHOTO - 3 * size) // 4
@@ -431,23 +558,24 @@ def any_name(make, names):
     f, fn = font("sans_bold", size), DF.get("bold", 130)
     for i, t in enumerate(steps):
         y = 1190 + i * 270
-        d.ellipse((150, y - 95, 340, y + 95), fill=GOLD + (255,), outline=WHITE + (255,), width=10)
+        d.ellipse((150, y - 95, 340, y + 95), fill=sk["accent"] + (255,), outline=WHITE + (255,), width=10)
         d.text((245, y + 6), str(i + 1), font=fn, fill=INK + (255,), anchor="mm")
         d.text((410, y), t, font=f, fill=WHITE + (255,), anchor="lm")
     return c.convert("RGB")
 
 
-def shirts(dsgs, n):
-    c = backdrop("green", 41)
+def shirts(dsgs, n, sk=None):
+    sk = sk or SKINS["classic"]
+    c = _bg(sk, 1, 41)
     _heading(c, "SHIRTS  ·  PAJAMAS  ·  SWEATSHIRTS", 150, size=160)
     paste_with_shadow(c, _on_tee(dsgs[2 % n], (250, 248, 244), 1000), (30, 400), radius=32, offset=(0, 26), opacity=120, angle=5)
-    paste_with_shadow(c, _on_tee(dsgs[1 % n], (176, 30, 44), 1000), (800, 560), radius=32, offset=(0, 26), opacity=120, angle=-6)
+    paste_with_shadow(c, _on_tee(dsgs[1 % n], sk["tee"], 1000), (800, 560), radius=32, offset=(0, 26), opacity=120, angle=-6)
     _pill(c, "WHITE EDGE: PRINTS ON LIGHT & DARK FABRIC", 1890, size=60)
     return c.convert("RGB")
 
 
-def mugs(dsgs, n):
-    c = backdrop("red", 51)
+def mugs(dsgs, n, sk=None):
+    c = _bg(sk or SKINS["classic"], 0, 51)
     _heading(c, "11 OZ MUG WRAPS INCLUDED", 150, size=180)
     paste_with_shadow(c, _mug(dsgs[3 % n], 840), (120, 520), radius=32, offset=(0, 26), opacity=130)
     paste_with_shadow(c, _mug(dsgs[4 % n], 620), (1120, 980), radius=30, offset=(0, 24), opacity=130)
@@ -455,8 +583,8 @@ def mugs(dsgs, n):
     return c.convert("RGB")
 
 
-def transparent(dsgs, n):
-    c = backdrop("blue", 61)
+def transparent(dsgs, n, sk=None):
+    c = _bg(sk or SKINS["classic"], 2, 61)
     _heading(c, "TRANSPARENT BACKGROUND PNG", 150, size=170)
     size = 760
     gx = (PHOTO - 2 * size) // 3
@@ -466,8 +594,9 @@ def transparent(dsgs, n):
     return c.convert("RGB")
 
 
-def what_you_get(dsgs, n):
-    c = backdrop("green", 71)
+def what_you_get(dsgs, n, sk=None):
+    sk = sk or SKINS["classic"]
+    c = _bg(sk, 1, 71)
     _heading(c, "WHAT YOU GET", 150, size=210)
     paste_with_shadow(c, _card(dsgs[5 % n], 860), (1060, 560), radius=24, offset=(0, 20), opacity=120, angle=-4)
     d = ImageDraw.Draw(c)
@@ -476,17 +605,18 @@ def what_you_get(dsgs, n):
     f = font("sans_bold", 80)
     for i, t in enumerate(lines):
         y = 480 + i * 290
-        _star(d, 190, y, 70, GOLD)
+        _star(d, 190, y, 70, sk["accent"])
         d.multiline_text((310, y), t, font=f, fill=WHITE + (255,), anchor="lm", spacing=14)
     return c.convert("RGB")
 
 
-def photos(dsgs, arts, n, kind, make, names):
-    """Listing photos, all square: [(file name, image)]."""
-    return [("00-cover.jpg", cover(dsgs, arts, n, kind)),
-            ("01-all.jpg", all_designs(dsgs, n)),
-            ("02-order.jpg", any_name(make, names)),
-            ("03-shirts.jpg", shirts(dsgs, n)),
-            ("04-mug.jpg", mugs(dsgs, n)),
-            ("05-transparent.jpg", transparent(dsgs, n)),
-            ("06-what.jpg", what_you_get(dsgs, n))]
+def photos(dsgs, arts, n, kind, make, names, skin_name=None):
+    """Listing photos, all square, in the theme's skin: [(file name, image)]."""
+    sk = skin(skin_name)
+    return [("00-cover.jpg", cover(dsgs, arts, n, kind, sk)),
+            ("01-all.jpg", all_designs(dsgs, n, sk)),
+            ("02-order.jpg", any_name(make, names, sk)),
+            ("03-shirts.jpg", shirts(dsgs, n, sk)),
+            ("04-mug.jpg", mugs(dsgs, n, sk)),
+            ("05-transparent.jpg", transparent(dsgs, n, sk)),
+            ("06-what.jpg", what_you_get(dsgs, n, sk))]

@@ -63,7 +63,7 @@ def _design(p_or_spec, art, name, k):
     tag, ink, layout = _style(spec, k)
     if spec.get("look") == "festive":
         from . import custom_festive
-        return custom_festive.compose(art, name, tag, k)
+        return custom_festive.compose(art, name, tag, k, spec.get("skin"))
     return compose(art, name, tag, ink, layout)
 
 
@@ -169,7 +169,8 @@ def build(spec, slug):
     if not mock:  # festive look: square photos in deep red and green, the same design shown with several names
         from . import custom_festive
         names = [clean_name(x) for x in spec.get("sample_names") or []] or [sample, "Noah", "Emma"]
-        mock = custom_festive.photos(dsgs, arts, n, kind, lambda i, nm: _design(spec, arts[i % n], nm, i % n), names)
+        mock = custom_festive.photos(dsgs, arts, n, kind, lambda i, nm: _design(spec, arts[i % n], nm, i % n), names,
+                                     spec.get("skin"))
     return {
         "delivery": delivery,
         "mockups": [(nm, jpeg_bytes(im, 88, dpi=72)) for nm, im in mock],
