@@ -147,41 +147,46 @@ class PresetTest(unittest.TestCase):
     def test_name_coloring_pages(self):
         from bot.products import custom_coloring
         preset = presets.load("custom", "boyama")
+        themes = [v["theme"] for v in presets.variants(preset)]
+        self.assertEqual(themes, ["name", "birthday", "babyshower", "christmas"])
         for v in presets.variants(preset):
             self.assertEqual(presets.problems(v, "custom"), [], v["theme"])
-        with self._env("boyama ocean"):
+        with self._env("boyama birthday"):
             idea = smart_niche.find_trending_niches(1)[0]
         spec = research.product_spec(idea)
-        self.assertEqual((spec["look"], spec["theme"]), ("coloring", "ocean"))
+        self.assertEqual((spec["look"], spec["theme"], spec["art"], spec["above"]), ("coloring", "birthday", False, "Happy Birthday"))
         self.assertLessEqual(len(spec["title"]), 140)
         built = custom.build(spec, research.slugify(spec["title"]))
-        self.assertEqual(len(fake_image.prompts), custom.COUNT)
-        self.assertIn("coloring book page", fake_image.prompts[0])
-        self.assertEqual(len(built["extra_assets"]), custom.COUNT)
+        self.assertEqual(fake_image.prompts, [])  # lettering only: no drawing is generated, no image quota is used
+        self.assertEqual(built["extra_assets"], {})
+        self.assertEqual(built["product_extra"], {"custom_count": custom.COUNT})
         self.assertTrue(built["listing"]["personalization_is_required"])
         self.assertEqual(len(built["mockups"]), 6)
         for name, data in built["mockups"]:
             self.assertEqual(Image.open(io.BytesIO(data)).size, (2000, 2000), name)
         self.assertNotIn("mug", " ".join(built["included"]).lower())
 
+        # an order: two PDFs with 6 pages each, nothing has to be downloaded
         product = {"id": "test-02", "spec": spec, "custom_count": custom.COUNT}
-        with mock.patch.object(assets, "download", lambda pid, name: built["extra_assets"][name]):
+        with mock.patch.object(assets, "download", side_effect=AssertionError("no drawing to download")):
             files = custom.render(product, "Emma Rose")
         self.assertEqual([n for n, _ in files], ["emma-rose-coloring-pages-US-Letter.pdf", "emma-rose-coloring-pages-A4.pdf"])
         for name, data in files:
             self.assertTrue(data.startswith(b"%PDF"), name)
             self.assertEqual(data.count(b"/Type /Page\n") + data.count(b"/Type /Page "), custom.COUNT, name)
-        # the name really is on the page: hollow letters (black outline, white inside), different per name
-        art = Image.open(io.BytesIO(built["extra_assets"]["custom__art-1.png"]))
-        emma, noah = custom_coloring.page(art, "Emma", "Go", 0), custom_coloring.page(art, "Noah", "Go", 0)
-        self.assertEqual(emma.size, custom_coloring.LETTER)
-        top = (0, 0, emma.width, emma.height // 4)  # even pages carry the name on top
-        self.assertIsNotNone(ImageChops.difference(emma.crop(top), noah.crop(top)).getbbox())
-        letters = custom_coloring._hollow("Emma", 2000, 700, 660)
-        black = letters.histogram()[0] / (letters.width * letters.height)
-        self.assertTrue(0.05 < black < 0.5, black)  # outlines only, most of the word stays white to colour in
-        long = custom_coloring.page(art, "Alexander-Christopher Montgomery", "Go", 1, custom_coloring.A4)
-        self.assertEqual(long.size, custom_coloring.A4)
+
+        pages = [custom_coloring.page(None, "Emma", spec, k) for k in range(custom.COUNT)]
+        for k, pg in enumerate(pages):
+            self.assertEqual(pg.size, custom_coloring.LETTER)
+            self.assertEqual(sum(pg.histogram()[1:255]), 0, k)  # pure black and white, prints crisp
+            black = pg.histogram()[0] / (pg.width * pg.height)
+            self.assertTrue(0.02 < black < 0.30, (k, black))    # outlines only: nearly everything is left to colour
+            other = custom_coloring.page(None, "Noah", spec, k)
+            self.assertIsNotNone(ImageChops.difference(pg, other).getbbox(), k)  # the name really is on the page
+        self.assertEqual(len({pg.tobytes() for pg in pages}), custom.COUNT)      # six different layouts
+        for long in ("Alexander-Christopher Montgomery", "Al", "The Johnson-Williams Family"):
+            for k in range(custom.COUNT):
+                self.assertEqual(custom_coloring.page(None, long, spec, k, custom_coloring.A4).size, custom_coloring.A4)
 
     def test_product_without_look_keeps_plain_design(self):
         art = Image.new("RGBA", (900, 900), (180, 40, 50, 255))

@@ -13,12 +13,12 @@ DIR = config.ROOT / "presets"
 NAME_OK = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 # taken from the file as they are; everything else is filled in by spec()
 FIXED = ("title", "tags", "palette", "set_name", "kind", "sample_name", "sample_names", "look",
-         "personalization_instructions")
+         "personalization_instructions", "page_style", "doodles", "above", "art")
 
 
 # a theme may replace these fields of the preset (same look and delivery, other characters, title and tags)
 THEME_FIELDS = ("label_tr", "niche", "search_query", "why", "set_name", "sample_name", "sample_names", "style",
-                "palette", "title", "tags", "designs", "pages", "audience")
+                "palette", "title", "tags", "designs", "pages", "audience", "doodles", "above")
 
 
 def load(ptype, name):
@@ -103,7 +103,8 @@ def problems(preset, ptype):
         return probs
     probs += research.title_problems(preset["title"]) + research.tag_problems(preset["tags"], preset["title"])
     field, n = _list_field(ptype)
-    items = [d for d in preset.get(field) or [] if isinstance(d, dict) and d.get("prompt") and d.get("name")]
+    no_art = preset.get("art") is False  # lettering only (name coloring pages): designs carry a caption, no drawing
+    items = [d for d in preset.get(field) or [] if isinstance(d, dict) and (no_art or d.get("prompt")) and d.get("name")]
     if len(items) != n:
         probs.append(f"'{field}' must have exactly {n} items with 'name' and 'prompt'")
     words = [preset["title"], preset["niche"], *preset["tags"]]
@@ -111,7 +112,7 @@ def problems(preset, ptype):
         tag = str(d.get("tagline", ""))
         if ptype == "custom" and not 0 < len(tag) <= 30:
             probs.append(f"tagline of '{d['name']}' must be 1-30 characters")
-        words += [tag, d["prompt"]]
+        words += [tag, str(d.get("prompt", ""))]
     bad = sorted({w for w in words if research.is_banned(w)})
     if bad:
         probs.append(f"banned/trademark word in: {bad}")
@@ -169,7 +170,7 @@ def spec(idea):
     lo, hi = config.settings()["price_ranges_usd"].get(ptype, [3, 8])
     extra = _ask_missing(preset, ptype, lo, hi)
     field, n = _list_field(ptype)
-    out = {k: preset[k] for k in FIXED if preset.get(k)}
+    out = {k: preset[k] for k in FIXED if preset.get(k) not in (None, "", [])}  # keeps false, e.g. "art": false
     out[field] = [dict(d) for d in preset[field][:n]]
     out["preset"] = preset["name"]
     out["theme"] = preset["theme"]

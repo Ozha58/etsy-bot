@@ -1,7 +1,7 @@
 """Personalized name coloring pages (a preset asks for it with "look": "coloring").
 
-The buyer types a child's name; every page shows that name in big hollow letters to colour in, a line-art drawing,
-a short caption and a few stars to colour. Delivered per order as two print-ready PDFs (US Letter and A4).
+The buyer types a child's name; every page shows that name in big hollow letters to colour in, a short caption and
+shapes to colour. A preset with "art": false has no AI drawing at all (lettering and code-drawn shapes only). Delivered per order as two print-ready PDFs (US Letter and A4).
 
 Same order flow as the other custom products: the line drawings are kept in the product's assets
 (custom__art-N.png) and the name is written by code, so the letters are always correct and sharp.
@@ -80,8 +80,8 @@ def _star_outline(d, cx, cy, r, width):
     d.line(pts + pts[:2], fill=0, width=width, joint="curve")
 
 
-def page(art, name, caption, k, size=LETTER):
-    """One finished page (mode L, black on white). Even pages have the name on top, odd pages at the bottom."""
+def page_framed(art, name, caption, k, size=LETTER):
+    """First layout (products made before "page_style": "bubble"): a framed page, straight name, small caption."""
     pw, ph = size
     pg = Image.new("L", size, 255)
     d = ImageDraw.Draw(pg)
@@ -130,6 +130,296 @@ def page(art, name, caption, k, size=LETTER):
     return pg
 
 
+# ---------------------------------------------------------------- bubble layout ("page_style": "bubble")
+# Hand-lettered feel: fat bubble letters that touch and merge, the name on an arch or tilted, an optional line
+# above it ("HAPPY BIRTHDAY"), no frame, and the free space filled with little stars, hearts, clouds and balloons.
+def _bubble_line(text, size, bend=0.0):
+    """One line of bubble letters -> (picture L, mask L). bend = total arch angle in radians (0 = straight)."""
+    probe = ImageDraw.Draw(Image.new("L", (1, 1)))
+    f = F._font("rounded", size)
+    line = max(7, size // 15)
+    track = -int(size * 0.035) if size > 260 else int(size * 0.02)  # big letters overlap a little and merge, small ones stay apart
+    adv = [probe.textlength(ch, font=f) + track for ch in text]
+    total = max(1, sum(adv))
+    radius = total / bend if bend else 0
+    rise = int(radius * (1 - math.cos(bend / 2))) if bend else 0
+    pad = int(size * 1.3)
+    w, h = int(total + 2 * pad), int(size * 1.9 + rise + 2 * line)
+    stroke, fill = Image.new("L", (w, h), 0), Image.new("L", (w, h), 0)
+    tile = int(size * 2.4)
+    x = 0.0
+    for ch, a in zip(text, adv):
+        xc = x + (a - track) / 2
+        x += a
+        if not ch.strip():
+            continue
+        ts, tf = Image.new("L", (tile, tile), 0), Image.new("L", (tile, tile), 0)
+        for t, sw in ((ts, line), (tf, 0)):
+            ImageDraw.Draw(t).text((tile / 2, tile * 0.62), ch, font=f, fill=255, anchor="ms", stroke_width=sw, stroke_fill=255)
+        px, py = pad + xc, line + size * 1.25
+        if bend:
+            ang = (xc / total - 0.5) * bend
+            px = pad + total / 2 + radius * math.sin(ang)
+            py += radius * (1 - math.cos(ang))
+            ts, tf = (t.rotate(-math.degrees(ang), resample=Image.BICUBIC) for t in (ts, tf))
+        at = (int(px - tile / 2), int(py - tile * 0.62))
+        for layer, t in ((stroke, ts), (fill, tf)):
+            layer.paste(255, at, t)
+    box = stroke.getbbox() or (0, 0, 1, 1)
+    stroke, fill = stroke.crop(box), fill.crop(box)
+    pic = Image.new("L", stroke.size, 255)
+    pic.paste(0, (0, 0), stroke)
+    pic.paste(255, (0, 0), fill)
+    return pic, stroke
+
+
+def bubble(text, max_w, max_h, start, bend=0.0, tilt=0):
+    """Bubble lettering as large as fits (1 or 2 lines) -> (picture, mask)."""
+    best = None
+    probe = ImageDraw.Draw(Image.new("L", (1, 1)))
+    start = int(min(start, 1300))
+    for lines in ([text], SB._lines(text, 2)):
+        size = start
+        while size > 80:  # cheap estimate first (drawing every size would take minutes for a long name)
+            f = F._font("rounded", size)
+            w = max(probe.textlength(ln, font=f) for ln in lines) + size * 0.2
+            if w <= max_w and size * 1.15 * len(lines) <= max_h:
+                break
+            size -= max(8, size // 14)
+        while True:
+            parts = [_bubble_line(ln, size, bend if len(lines) == 1 else bend * 0.6) for ln in lines]
+            w = max(p[0].width for p in parts)
+            h = sum(p[0].height for p in parts) - int(size * 0.12) * (len(parts) - 1)
+            if (w <= max_w and h <= max_h) or size <= 80:
+                break
+            size -= max(8, size // 14)
+        if best is None or size > best[0]:
+            best = (size, parts, w, h)
+        if len(lines) == 1 and size >= start * 0.5:
+            break
+    size, parts, w, h = best
+    pic, mask = Image.new("L", (w, h), 255), Image.new("L", (w, h), 0)
+    y = 0
+    for p, m in parts:
+        pic.paste(p, ((w - p.width) // 2, y), m)
+        mask.paste(255, ((w - p.width) // 2, y), m)
+        y += p.height - int(size * 0.12)
+    if tilt:
+        pic = pic.rotate(tilt, resample=Image.BICUBIC, expand=True, fillcolor=255)
+        mask = mask.rotate(tilt, resample=Image.BICUBIC, expand=True, fillcolor=0)
+    return pic, mask
+
+
+def _heart(d, cx, cy, r, w):
+    pts = []
+    for i in range(40):
+        t = math.pi * 2 * i / 40
+        pts.append((cx + r * 0.062 * 16 * math.sin(t) ** 3,
+                    cy - r * 0.062 * (13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t))))
+    d.polygon(pts, fill=255)
+    d.line(pts + pts[:2], fill=0, width=w, joint="curve")
+
+
+def _cloud(d, cx, cy, r, w):
+    blobs = [(-0.65, 0.15, 0.48), (-0.15, -0.22, 0.62), (0.48, 0.0, 0.52), (0.0, 0.28, 0.5), (-0.4, 0.32, 0.4), (0.45, 0.3, 0.4)]
+    for grow, col in ((w, 0), (0, 255)):
+        for bx, by, br in blobs:
+            d.ellipse((cx + bx * r - br * r - grow, cy + by * r - br * r - grow, cx + bx * r + br * r + grow, cy + by * r + br * r + grow), fill=col)
+
+
+def _balloon(d, cx, cy, r, w):
+    d.ellipse((cx - r * 0.62, cy - r, cx + r * 0.62, cy + r * 0.5), fill=255, outline=0, width=w)
+    d.polygon([(cx - r * 0.12, cy + r * 0.5), (cx + r * 0.12, cy + r * 0.5), (cx, cy + r * 0.66)], fill=0)
+    d.line([(cx + math.sin(i / 3) * r * 0.08, cy + r * 0.66 + i * r * 0.07) for i in range(6)], fill=0, width=max(3, w // 2))
+
+
+def _ring(d, cx, cy, r, w):
+    d.ellipse((cx - r * 0.4, cy - r * 0.4, cx + r * 0.4, cy + r * 0.4), fill=255, outline=0, width=w)
+
+
+def _flower(d, cx, cy, r, w):
+    for grow, col in ((w, 0), (0, 255)):
+        for i in range(5):
+            a = math.pi * 2 * i / 5 - math.pi / 2
+            px, py, pr = cx + math.cos(a) * r * 0.55, cy + math.sin(a) * r * 0.55, r * 0.42
+            d.ellipse((px - pr - grow, py - pr - grow, px + pr + grow, py + pr + grow), fill=col)
+    d.ellipse((cx - r * 0.3, cy - r * 0.3, cx + r * 0.3, cy + r * 0.3), fill=255, outline=0, width=w)
+
+
+def _gift(d, cx, cy, r, w):
+    d.rectangle((cx - r * 0.8, cy - r * 0.35, cx + r * 0.8, cy + r), fill=255, outline=0, width=w)
+    d.rectangle((cx - r * 0.95, cy - r * 0.7, cx + r * 0.95, cy - r * 0.3), fill=255, outline=0, width=w)
+    d.rectangle((cx - r * 0.16, cy - r * 0.7, cx + r * 0.16, cy + r), fill=255, outline=0, width=w)
+    for s in (-1, 1):
+        d.ellipse((cx + s * r * 0.05 - (r * 0.5 if s < 0 else 0), cy - r * 1.12, cx + s * r * 0.05 + (r * 0.5 if s > 0 else 0), cy - r * 0.68),
+                  fill=255, outline=0, width=w)
+
+
+def _tree(d, cx, cy, r, w):
+    d.rectangle((cx - r * 0.16, cy + r * 0.7, cx + r * 0.16, cy + r * 1.05), fill=255, outline=0, width=w)
+    for top, bottom, half in ((0.25, 0.8, 0.85), (-0.3, 0.3, 0.68), (-0.95, -0.2, 0.5)):
+        pts = [(cx, cy + r * top), (cx + r * half, cy + r * bottom), (cx - r * half, cy + r * bottom)]
+        d.polygon(pts, fill=255)
+        d.line(pts + pts[:2], fill=0, width=w, joint="curve")
+
+
+def _moon(d, cx, cy, r, w):
+    outer = [(cx + math.cos(a) * r * 0.8, cy + math.sin(a) * r * 0.8) for a in (math.radians(t) for t in range(50, 311, 10))]
+    inner = [(cx + r * 0.38 + math.cos(a) * r * 0.62, cy + math.sin(a) * r * 0.62) for a in (math.radians(t) for t in range(290, 69, -10))]
+    pts = outer + inner
+    d.polygon(pts, fill=255)
+    d.line(pts + pts[:2], fill=0, width=w, joint="curve")
+
+
+DOODLES = {"star": _star_outline, "heart": _heart, "cloud": _cloud, "balloon": _balloon, "dot": _ring,
+           "flower": _flower, "gift": _gift, "tree": _tree, "moon": _moon}
+BIG = ("cloud", "balloon", "flower", "gift", "tree", "moon")
+
+
+def _doodles(pg, kinds, seed, lw, count=26, scale=1.0):
+    """Little shapes to colour in the free space of the page (never on top of the drawing or the letters)."""
+    pw, ph = pg.size
+    q = 24
+    gw, gh = pw // q, ph // q
+    busy = pg.resize((gw, gh), Image.BOX).point(lambda v: 255 if v < 252 else 0).filter(ImageFilter.MaxFilter(5))
+    bd = ImageDraw.Draw(busy)
+    d = ImageDraw.Draw(pg)
+    rnd = random.Random(seed)
+    kinds = [k for k in kinds or [] if k in DOODLES] or ["star", "heart", "cloud", "dot"]
+    m, placed = int(pw * 0.05), 0
+    for _ in range(900):
+        if placed >= count:
+            break
+        kind = rnd.choice(kinds)
+        r = int(pw * rnd.uniform(0.022, 0.04) * (1.5 if kind in BIG else 1) * scale)
+        cx, cy = rnd.randint(m + r, pw - m - r), rnd.randint(m + r, ph - m - r)
+        reach = r * (1.9 if kind == "balloon" else 1.35)
+        cell = (int((cx - reach) / q), int((cy - reach) / q), int((cx + reach) / q) + 1, int((cy + reach) / q) + 1)
+        if busy.crop(cell).getbbox():
+            continue
+        DOODLES[kind](d, cx, cy, r, max(6, lw - 2))
+        bd.rectangle((cell[0] - 1, cell[1] - 1, cell[2] + 1, cell[3] + 1), fill=255)
+        placed += 1
+
+
+def page_bubble(art, name, caption, k, size=LETTER, above="", doodles=None):
+    """One finished page in the bubble layout (mode L, black on white)."""
+    pw, ph = size
+    pg = Image.new("L", size, 255)
+    lw = max(8, pw // 260)
+    m = int(pw * 0.06)
+    box_w, box_h = pw - 2 * m, ph - 2 * m
+    top = k % 2 == 0                       # even pages: name over the drawing, odd pages: under it
+    bend = (1.15, 0.0, 0.85, 0.0)[k % 4]   # arch on the pages with the name on top
+    tilt = (0, -5, 0, 4)[k % 4]
+    nm = bubble(name, box_w * (0.96 if bend else 0.90), ph * 0.25, int(ph * 0.19), bend, tilt)
+    ab = bubble(above.upper(), box_w * 0.82, ph * 0.09, int(ph * 0.075)) if above else None
+    cp = bubble(caption.upper(), box_w * 0.88, ph * 0.085, int(ph * 0.062)) if caption else None
+    gap = int(ph * 0.012)
+    fixed = nm[0].height + sum(x[0].height + gap for x in (ab, cp) if x)
+    a = art.convert("L")
+    room = box_h - fixed - 2 * gap
+    sc = min(box_w * 0.92 / a.width, room / a.height)
+    a = a.resize((max(1, int(a.width * sc)), max(1, int(a.height * sc))), Image.LANCZOS).point(lambda v: 255 if v > 150 else 0)
+    order = [ab, nm, "art", cp] if top else [ab, "art", nm, cp]
+    y = m + (box_h - fixed - a.height - 2 * gap) // 2
+    for part in order:
+        if part is None:
+            continue
+        if part == "art":
+            pg.paste(a, ((pw - a.width) // 2, y), a.point(lambda v: 255 if v < 128 else 0).filter(ImageFilter.MaxFilter(3)))
+            y += a.height + gap
+        else:
+            pic, mask = part
+            pg.paste(pic, ((pw - pic.width) // 2, y), mask)
+            y += pic.height + gap
+    _doodles(pg, doodles, 500 + k, lw)
+    return pg.point(lambda v: 255 if v > 140 else 0)
+
+
+def _put(pg, part, y, x=None):
+    pic, mask = part
+    pg.paste(pic, ((pg.width - pic.width) // 2 if x is None else int(x), int(y)), mask)
+
+
+def page_text(name, caption, k, size=LETTER, above="", doodles=None):
+    """A page WITHOUT any drawing ("art": false): only lettering and shapes drawn by code. Six layouts, so the six
+    pages of a set differ: arch, tilt, three times, in a heart, letter by letter, under balloons."""
+    pw, ph = size
+    pg = Image.new("L", size, 255)
+    d = ImageDraw.Draw(pg)
+    lw = max(9, pw // 230)
+    m = int(pw * 0.06)
+    box_w = pw - 2 * m
+    gap = int(ph * 0.02)
+    top, bottom = m, ph - m
+    if above:
+        ab = bubble(above.upper(), box_w * 0.9, ph * 0.10, int(ph * 0.085))
+        _put(pg, ab, top)
+        top += ab[0].height + gap
+    if caption:
+        cp = bubble(caption.upper(), box_w * 0.92, ph * 0.09, int(ph * 0.07))
+        bottom -= cp[0].height
+        _put(pg, cp, bottom)
+        bottom -= gap
+    zone = bottom - top
+    mid = top + zone / 2
+    kind = k % 6
+    letters = [c for c in name if c.strip()]
+    if kind == 4 and not 2 <= len(letters) <= 7:
+        kind = 1
+    if kind == 2 and len(name) > 14:  # a long name three times would be tiny
+        kind = 0
+    if kind == 0:    # a big arch
+        nm = bubble(name, box_w, zone * 0.62, int(ph * 0.30), bend=1.25)
+        _put(pg, nm, mid - nm[0].height / 2)
+    elif kind == 1:  # tilted
+        nm = bubble(name, box_w * 0.94, zone * 0.6, int(ph * 0.30), tilt=-9 if k % 2 else 8)
+        _put(pg, nm, mid - nm[0].height / 2)
+    elif kind == 2:  # three times, swinging left and right
+        parts = [bubble(name, box_w * w, zone * 0.29, int(ph * 0.2), tilt=t) for w, t in ((0.95, 5), (0.8, -5), (0.95, 5))]
+        y = mid - (sum(p[0].height for p in parts) + 2 * gap) / 2
+        for part in parts:
+            _put(pg, part, y)
+            y += part[0].height + gap
+    elif kind == 3:  # inside a big heart
+        r = min(box_w * 0.5, zone * 0.47)
+        _heart(d, pw / 2, mid - r * 0.08, r, lw * 2)
+        nm = bubble(name, r * 1.5, r * 0.75, int(r * 0.8))
+        _put(pg, nm, mid - r * 0.22 - nm[0].height / 2)
+    elif kind == 4:  # letter by letter, down the page
+        h = zone / len(letters)
+        parts = [bubble(c, box_w * 0.6, h * 1.3, int(h * 1.25), tilt=(7, -7)[i % 2]) for i, c in enumerate(letters)]
+        step = min(0.92, zone / max(1, sum(p[0].height for p in parts)))
+        y = mid - sum(p[0].height for p in parts) * step / 2
+        for i, part in enumerate(parts):
+            _put(pg, part, y, pw / 2 - part[0].width / 2 + (pw * 0.07 if i % 2 else -pw * 0.07))
+            y += part[0].height * step
+    else:            # under a bunch of balloons
+        r = zone * 0.15
+        knot = (pw / 2, top + r * 3.7)
+        for bx, by in ((-1.25, 0.25), (1.25, 0.25), (0, 0)):
+            cx, cy = pw / 2 + bx * r, top + r * (1.05 + by)
+            d.line([(cx, cy + r * 0.6), knot], fill=0, width=max(5, lw // 2))
+            _balloon(d, cx, cy, r, lw)
+        nm = bubble(name, box_w * 0.96, bottom - knot[1] - gap, int(ph * 0.26), bend=0.7)
+        _put(pg, nm, knot[1] + (bottom - knot[1] - nm[0].height) / 2)
+    _doodles(pg, doodles, 900 + k, lw, count=46, scale=1.6)
+    return pg.point(lambda v: 255 if v > 140 else 0)
+
+
+def page(art, name, spec, k, size=LETTER):
+    """One finished page in the product's own layout."""
+    d = (spec.get("designs") or [{}] * (k + 1))
+    ds = d[k] if k < len(d) else {}
+    if spec.get("art") is False:
+        return page_text(name, _caption(spec, k), k, size, str(ds.get("above") or spec.get("above") or "")[:24], spec.get("doodles"))
+    if spec.get("page_style") == "bubble":
+        return page_bubble(art, name, _caption(spec, k), k, size, str(ds.get("above") or spec.get("above") or "")[:24],
+                           spec.get("doodles"))
+    return page_framed(art, name, _caption(spec, k), k, size)
+
+
 def _caption(spec, k):
     d = spec.get("designs") or []
     return re.sub(r"\s+", " ", str((d[k] if k < len(d) else {}).get("tagline", "")).strip())[:30]
@@ -147,6 +437,10 @@ def render(p, name, clean, download):
     name = clean(name)
     safe = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "name"
     spec = p.get("spec", p)
+    if spec.get("art") is False:  # lettering only: nothing to download
+        ks = range(p.get("custom_count", 6))
+        return [(f"{safe}-coloring-pages-US-Letter.pdf", _pdf([page(None, name, spec, k, LETTER) for k in ks])),
+                (f"{safe}-coloring-pages-A4.pdf", _pdf([page(None, name, spec, k, A4) for k in ks]))]
     arts = []
     for k in range(p.get("custom_count", 6)):
         try:
@@ -155,8 +449,8 @@ def render(p, name, clean, download):
             print(f"[custom] çizim {k + 1} indirilemedi: {e}")
     if not arts:
         return []
-    return [(f"{safe}-coloring-pages-US-Letter.pdf", _pdf([page(a, name, _caption(spec, k), k, LETTER) for k, a in arts])),
-            (f"{safe}-coloring-pages-A4.pdf", _pdf([page(a, name, _caption(spec, k), k, A4) for k, a in arts]))]
+    return [(f"{safe}-coloring-pages-US-Letter.pdf", _pdf([page(a, name, spec, k, LETTER) for k, a in arts])),
+            (f"{safe}-coloring-pages-A4.pdf", _pdf([page(a, name, spec, k, A4) for k, a in arts]))]
 
 
 # ---------------------------------------------------------------- listing photos (2000 x 2000)
@@ -231,10 +525,12 @@ def cover(pages, colored, n):
     c = backdrop("yellow", 5)
     _heading(c, "CUSTOM NAME", 170, size=250, fill=INK)
     _heading(c, "COLORING PAGES", 400, size=250, fill=WHITE)
-    paste_with_shadow(c, _sheet(pages[1 % n], 1150), (120, 640), radius=30, offset=(0, 24), opacity=110, angle=7)
-    paste_with_shadow(c, _sheet(pages[0], 1260, colored), (760, 560), radius=32, offset=(0, 26), opacity=120, angle=-5)
-    c.alpha_composite(F._burst((f"{n}", "PAGES"), 220, fill=(232, 62, 72)), (60, 560))
-    _crayons(c, 40, 1470, 3)
+    for i, x, y, ang in ((4, 20, 800, 13), (2, 1250, 800, -13), (3, 280, 700, 6), (1, 1010, 700, -6)):
+        paste_with_shadow(c, _sheet(pages[i % n], 980), (x, y), radius=26, offset=(0, 20), opacity=110, angle=ang)
+    front = _sheet(pages[0], 1200, colored)
+    paste_with_shadow(c, front, ((PHOTO - front.width) // 2, 590), radius=32, offset=(0, 26), opacity=130)
+    c.alpha_composite(F._burst((f"{n}", "PAGES"), 210, fill=(232, 62, 72)), (70, 540))
+    _crayons(c, 1440, 1500, 3)
     F._pill(c, "TYPE ANY NAME  ·  PRINT AT HOME", 1900, ink=INK, size=66)
     return c.convert("RGB")
 
@@ -301,7 +597,7 @@ def photos(pages, colored, n, make, names):
             ("03-color.jpg", color_it(pages, colored, n)),
             ("04-what.jpg", _list_photo("purple", 41, "WHAT YOU GET",
                                         [f"{n} coloring pages\nwith your name", "US Letter + A4\nPDF files",
-                                         "Bold lines, easy\nfor little hands", "Print as often\nas you like", "Sent within\n24 hours"],
+                                         "Big bubble letters,\neasy for little hands", "Print as often\nas you like", "Sent within\n24 hours"],
                                         _sheet(pages[2 % n], 1120), n)),
             ("05-ideas.jpg", _list_photo("blue", 51, "KIDS LOVE IT FOR",
                                          ["Birthday parties\nand party favors", "Rainy days and\nquiet time", "Classroom and\npreschool fun",
@@ -332,16 +628,20 @@ def build(spec, slug, clean, count):
     palette = spec.get("palette", [])
     sample = clean(spec.get("sample_name") or "Olivia")
     arts = []
-    for ds in spec.get("designs", [])[:count]:
+    text_only = spec.get("art") is False  # no AI drawing at all: uses no image quota
+    for ds in [] if text_only else spec.get("designs", [])[:count]:
         im = images.try_generate(f"{ds['prompt']}. One clear subject that fills the picture. {coloring._suffix('kids')}", 1024, 1024)
         if im is None and images.quota_exhausted():
             break
         if im is None:
             continue
         arts.append(lineart(im.resize((2048, 2048), Image.LANCZOS).filter(ImageFilter.GaussianBlur(1.2))))
-    images.need(len(arts), count, ratio=0.8)
+    if text_only:
+        arts = [None] * count
+    else:
+        images.need(len(arts), count, ratio=0.8)
     n = len(arts)
-    make = lambda i, nm: page(arts[i % n], nm, _caption(spec, i % n), i % n)
+    make = lambda i, nm: page(arts[i % n], nm, spec, i % n)
     pages = [make(k, sample) for k in range(n)]
     colored = _colored(pages[0], palette, seed=len(slug))
 
@@ -361,7 +661,7 @@ def build(spec, slug, clean, count):
         "thumb": thumb_b64(mock[0][1]),
         "preview": mock[0][1],
         "own_cover": True,
-        "extra_assets": {f"custom__art-{k + 1}.png": png_bytes(a) for k, a in enumerate(arts)},
+        "extra_assets": {} if text_only else {f"custom__art-{k + 1}.png": png_bytes(a) for k, a in enumerate(arts)},
         "product_extra": {"custom_count": n},
         "listing": {"is_personalizable": True, "personalization_is_required": True,
                     "personalization_char_count_max": 40,
@@ -370,7 +670,8 @@ def build(spec, slug, clean, count):
         "included": [f"{n} coloring pages personalized with your name", "2 PDF files: US Letter (8.5 x 11 in) and A4, 300 DPI",
                      "Sent to you on Etsy within 24 hours"],
         "details": ["Made to order: enter the name in the personalization box at checkout",
-                    "Bold black line art on a white page, easy for little hands",
+                    "Big bubble letters and shapes to colour, easy for little hands" if text_only
+                    else "Bold black line art on a white page, easy for little hands",
                     "This is a digital file, nothing is shipped"],
         "usage": ["Print at home or at a print shop, as often as you like",
                   "Birthday parties, party favors, classrooms, rainy days and gifts"],

@@ -1,6 +1,6 @@
 {
   "name": "boyama",
-  "label_tr": "kişiye özel isimli boyama sayfaları (6 tema: hayvanlar, dinozor, unicorn, kamyon, deniz, uzay)",
+  "label_tr": "kişiye özel isimli boyama sayfaları, sadece yazı (4 tema: isim, doğum günü, bebek partisi, Noel)",
   "why": "Hazır ayar: 10 Kasım 2026 Etsy araştırması, 'custom name coloring page' ilk sayfasında 8 Bestseller.",
   "set_name": "Name Coloring Pages",
   "kind": "kids",
@@ -12,8 +12,10 @@
     "Emma"
   ],
   "look": "coloring",
+  "page_style": "bubble",
+  "art": false,
   "own_style": true,
-  "style": "simple bold line art for children",
+  "style": "bubble lettering",
   "palette": [
     "#E83E48",
     "#FF9628",
@@ -22,325 +24,221 @@
     "#3C8CDC"
   ],
   "personalization_instructions": "Type the child's name exactly as it should appear on the pages (e.g. Olivia), max 40 characters. Your 6 coloring pages are sent within 24 hours.",
-  "theme": "animals",
-  "niche": "custom name coloring pages with cute animals",
+  "theme": "name",
+  "niche": "custom name coloring pages in bubble letters",
   "search_query": "custom name coloring page",
-  "title": "Custom Name Coloring Pages, Personalized Animal Printable PDF, Kids Birthday Party Activity",
+  "title": "Custom Name Coloring Pages, Personalized Bubble Letter Printable PDF, Kids Birthday Party Activity",
   "tags": [
     "name coloring page",
     "custom coloring page",
+    "bubble letter name",
     "printable coloring",
-    "animal coloring pdf",
-    "zoo animals kids",
     "toddler coloring",
+    "name activity sheet",
+    "rainy day activity",
     "personalized kids",
     "kids activity sheet",
-    "birthday party favor",
     "classroom activity",
-    "rainy day activity",
+    "party printable",
     "preschool printable",
     "gift for kids"
   ],
+  "doodles": [
+    "star",
+    "heart",
+    "cloud",
+    "flower",
+    "dot"
+  ],
   "designs": [
     {
-      "name": "Lion Cub",
-      "tagline": "Brave Like a Lion",
-      "prompt": "a cute baby lion cub with a fluffy mane sitting in tall grass, big jungle leaves and two butterflies around it"
+      "name": "Is One of a Kind",
+      "tagline": "Is One of a Kind"
     },
     {
-      "name": "Baby Elephant",
-      "tagline": "Big Dreams Ahead",
-      "prompt": "a cute baby elephant spraying water from its trunk, standing next to flowers and a small bird"
+      "name": "Shines Bright",
+      "tagline": "Shines Bright"
     },
     {
-      "name": "Giraffe",
-      "tagline": "Stand Tall",
-      "prompt": "a cute baby giraffe with big spots eating leaves from a small tree, a sun and clouds above"
+      "name": "Is a Superstar",
+      "tagline": "Is a Superstar"
     },
     {
-      "name": "Monkey",
-      "tagline": "Cheeky Monkey",
-      "prompt": "a cute baby monkey hanging from a jungle vine holding a banana, palm leaves around it"
+      "name": "Is So Loved",
+      "tagline": "Is So Loved"
     },
     {
-      "name": "Panda",
-      "tagline": "Panda Hugs",
-      "prompt": "a cute baby panda sitting and hugging a bamboo stalk, bamboo leaves and little hearts around it"
+      "name": "Dream Big",
+      "tagline": "Dream Big"
     },
     {
-      "name": "Sloth",
-      "tagline": "Hang In There",
-      "prompt": "a cute smiling baby sloth hanging from a tree branch with leaves and flowers"
+      "name": "Color Your World",
+      "tagline": "Color Your World"
     }
   ],
   "themes": [
     {
-      "theme": "dino",
-      "label_tr": "dinozorlar",
-      "niche": "custom name coloring pages with dinosaurs",
-      "search_query": "dinosaur name coloring",
-      "title": "Custom Dinosaur Name Coloring Pages, Personalized Printable PDF Kids Activity, Dino Birthday Party Favor",
+      "theme": "birthday",
+      "label_tr": "doğum günü",
+      "niche": "custom birthday name coloring pages in bubble letters",
+      "search_query": "birthday name coloring",
+      "title": "Custom Birthday Name Coloring Pages, Personalized Printable PDF Kids Party Activity, Favor Table Game",
       "tags": [
-        "dinosaur coloring",
+        "birthday coloring",
         "custom coloring page",
         "name coloring page",
-        "dino birthday party",
-        "t rex coloring page",
-        "boys coloring pdf",
+        "party favor kids",
+        "birthday table game",
+        "happy birthday pdf",
+        "birthday boy girl",
         "personalized kids",
         "kids activity sheet",
         "classroom activity",
-        "rainy day activity",
+        "party printable",
         "preschool printable",
-        "gift for kids",
-        "dino lover gift"
+        "gift for kids"
       ],
+      "doodles": [
+        "balloon",
+        "gift",
+        "star",
+        "dot"
+      ],
+      "above": "Happy Birthday",
       "designs": [
         {
-          "name": "T-Rex",
-          "tagline": "Roar Means I Love You",
-          "prompt": "a cute friendly baby t-rex dinosaur roaring happily, a volcano and palm trees in the background"
+          "name": "Make a Wish",
+          "tagline": "Make a Wish"
         },
         {
-          "name": "Triceratops",
-          "tagline": "Little Dino Explorer",
-          "prompt": "a cute baby triceratops dinosaur walking among big ferns and flowers"
+          "name": "Party Time",
+          "tagline": "Party Time"
         },
         {
-          "name": "Long Neck",
-          "tagline": "Reach for the Sky",
-          "prompt": "a cute baby brontosaurus dinosaur with a long neck eating leaves from a tall tree, clouds above"
+          "name": "Let's Celebrate",
+          "tagline": "Let's Celebrate"
         },
         {
-          "name": "Stegosaurus",
-          "tagline": "Dino-mite Kid",
-          "prompt": "a cute baby stegosaurus dinosaur with big back plates standing on a hill with rocks and plants"
+          "name": "Best Day Ever",
+          "tagline": "Best Day Ever"
         },
         {
-          "name": "Flying Dino",
-          "tagline": "Born to Fly",
-          "prompt": "a cute baby pterodactyl dinosaur flying over mountains and clouds, a sun in the sky"
+          "name": "Hip Hip Hooray",
+          "tagline": "Hip Hip Hooray"
         },
         {
-          "name": "Dino Egg",
-          "tagline": "Just Hatched",
-          "prompt": "a cute baby dinosaur hatching from a cracked spotted egg in a nest, big leaves around it"
+          "name": "Time for Cake",
+          "tagline": "Time for Cake"
         }
       ]
     },
     {
-      "theme": "unicorn",
-      "label_tr": "tek boynuzlu at, deniz kızı, peri (kız çocuk)",
-      "niche": "custom name coloring pages with unicorns, mermaids and fairies",
-      "search_query": "unicorn name coloring",
-      "title": "Custom Unicorn Name Coloring Pages, Personalized Printable PDF Girls Activity, Mermaid Fairy Birthday Favor",
+      "theme": "babyshower",
+      "label_tr": "bebek partisi",
+      "niche": "custom baby shower name coloring pages in bubble letters",
+      "search_query": "baby shower coloring",
+      "title": "Custom Baby Shower Coloring Pages, Personalized Name Printable PDF Activity, Kids Table Game",
       "tags": [
-        "unicorn coloring",
+        "baby shower coloring",
         "custom coloring page",
         "name coloring page",
-        "mermaid coloring pdf",
-        "princess party favor",
-        "girls coloring pdf",
-        "personalized girl",
+        "baby shower game",
+        "welcome baby party",
+        "gender reveal kids",
+        "personalized baby",
         "kids activity sheet",
-        "classroom activity",
-        "rainy day activity",
-        "preschool printable",
-        "gift for kids",
-        "rainbow coloring"
+        "sibling activity",
+        "party printable",
+        "new baby gift",
+        "baby sprinkle party",
+        "nursery coloring"
       ],
+      "doodles": [
+        "cloud",
+        "moon",
+        "star",
+        "heart"
+      ],
+      "above": "Welcome Baby",
       "designs": [
         {
-          "name": "Unicorn",
-          "tagline": "Believe in Magic",
-          "prompt": "a cute baby unicorn with a long flowing mane standing under a rainbow, stars and clouds around it"
+          "name": "Bundle of Joy",
+          "tagline": "Bundle of Joy"
         },
         {
-          "name": "Mermaid",
-          "tagline": "Make a Splash",
-          "prompt": "a cute little mermaid sitting on a rock under the sea, fish, shells and bubbles around her"
+          "name": "Sweet Dreams",
+          "tagline": "Sweet Dreams"
         },
         {
-          "name": "Fairy",
-          "tagline": "Sprinkle Kindness",
-          "prompt": "a cute little fairy with big wings sitting on a mushroom holding a star wand, flowers around her"
+          "name": "Oh So Loved",
+          "tagline": "Oh So Loved"
         },
         {
-          "name": "Castle",
-          "tagline": "Queen of the Castle",
-          "prompt": "a fairy tale castle with towers and flags on a hill, a rainbow, clouds and flowers"
+          "name": "Hello Little One",
+          "tagline": "Hello Little One"
         },
         {
-          "name": "Kitten Princess",
-          "tagline": "Purrfect Princess",
-          "prompt": "a cute kitten wearing a small crown and a bow, sitting on a fluffy pillow with hearts around it"
+          "name": "Welcome to the World",
+          "tagline": "Welcome to the World"
         },
         {
-          "name": "Butterfly Garden",
-          "tagline": "Bloom and Grow",
-          "prompt": "big butterflies flying over a garden of large flowers, a ladybug and a smiling sun"
+          "name": "Tiny and Mighty",
+          "tagline": "Tiny and Mighty"
         }
       ]
     },
     {
-      "theme": "trucks",
-      "label_tr": "kamyon, araba, tren (erkek çocuk)",
-      "niche": "custom name coloring pages with trucks, cars and trains",
-      "search_query": "truck name coloring",
-      "title": "Custom Truck Name Coloring Pages, Personalized Printable PDF Boys Activity, Car Train Birthday Favor",
+      "theme": "christmas",
+      "label_tr": "Noel",
+      "niche": "custom Christmas name coloring pages in bubble letters",
+      "search_query": "christmas name coloring",
+      "title": "Custom Christmas Name Coloring Pages, Personalized Printable PDF Kids Activity, Stocking Stuffer Party Favor",
       "tags": [
-        "truck coloring page",
+        "christmas coloring",
         "custom coloring page",
         "name coloring page",
-        "vehicle coloring pdf",
-        "construction party",
-        "boys coloring pdf",
-        "personalized boy",
-        "kids activity sheet",
-        "classroom activity",
-        "rainy day activity",
-        "preschool printable",
-        "gift for kids",
-        "fire truck coloring"
-      ],
-      "designs": [
-        {
-          "name": "Dump Truck",
-          "tagline": "Big Loads Big Dreams",
-          "prompt": "a cute cartoon dump truck with a smiling face carrying a load of rocks on a construction site, no people"
-        },
-        {
-          "name": "Fire Truck",
-          "tagline": "Brave Little Hero",
-          "prompt": "a cute cartoon fire truck with a ladder and a hose in front of a fire station, no people"
-        },
-        {
-          "name": "Steam Train",
-          "tagline": "Full Steam Ahead",
-          "prompt": "a cute cartoon steam train engine with a smiling face on railway tracks, hills and clouds behind, no people"
-        },
-        {
-          "name": "Race Car",
-          "tagline": "Ready Set Go",
-          "prompt": "a cute cartoon race car speeding on a track with checkered flags, no people"
-        },
-        {
-          "name": "Digger",
-          "tagline": "Dig It",
-          "prompt": "a cute cartoon excavator digger scooping dirt next to traffic cones, no people"
-        },
-        {
-          "name": "Monster Truck",
-          "tagline": "Monster Fun",
-          "prompt": "a cute cartoon monster truck with huge wheels jumping over a dirt hill, no people"
-        }
-      ]
-    },
-    {
-      "theme": "ocean",
-      "label_tr": "deniz canlıları",
-      "niche": "custom name coloring pages with sea animals",
-      "search_query": "ocean name coloring",
-      "title": "Custom Ocean Name Coloring Pages, Personalized Printable PDF Kids Activity, Sea Animal Birthday Favor",
-      "tags": [
-        "ocean coloring page",
-        "custom coloring page",
-        "name coloring page",
-        "under the sea party",
-        "shark coloring pdf",
-        "whale dolphin kids",
+        "stocking stuffer kid",
+        "xmas kids table",
+        "holiday activity pdf",
+        "christmas eve box",
         "personalized kids",
         "kids activity sheet",
         "classroom activity",
-        "rainy day activity",
+        "party printable",
         "preschool printable",
-        "gift for kids",
-        "beach kids coloring"
+        "gift for kids"
       ],
+      "doodles": [
+        "tree",
+        "gift",
+        "star",
+        "dot"
+      ],
+      "above": "Merry Christmas",
       "designs": [
         {
-          "name": "Little Shark",
-          "tagline": "Fin-tastic Kid",
-          "prompt": "a cute friendly little shark smiling under the sea, small fish, seaweed and bubbles around it"
+          "name": "Santa's Favorite",
+          "tagline": "Santa's Favorite"
         },
         {
-          "name": "Sea Turtle",
-          "tagline": "Go With the Flow",
-          "prompt": "a cute baby sea turtle swimming over coral, starfish and bubbles"
+          "name": "On the Nice List",
+          "tagline": "On the Nice List"
         },
         {
-          "name": "Octopus",
-          "tagline": "Eight Arms to Hug",
-          "prompt": "a cute smiling octopus holding shells and a starfish in its arms, bubbles around it"
+          "name": "Merry and Bright",
+          "tagline": "Merry and Bright"
         },
         {
-          "name": "Whale",
-          "tagline": "Whale Done",
-          "prompt": "a cute baby whale spouting water above the waves, a small sailboat and clouds"
+          "name": "Ho Ho Ho",
+          "tagline": "Ho Ho Ho"
         },
         {
-          "name": "Dolphin",
-          "tagline": "Jump for Joy",
-          "prompt": "a cute dolphin jumping out of the waves in front of a sun, seagulls in the sky"
+          "name": "Snow Much Fun",
+          "tagline": "Snow Much Fun"
         },
         {
-          "name": "Crab",
-          "tagline": "Feeling Crabulous",
-          "prompt": "a cute crab on a sandy beach next to a sandcastle, a bucket and a spade"
-        }
-      ]
-    },
-    {
-      "theme": "space",
-      "label_tr": "uzay, roket, astronot",
-      "niche": "custom name coloring pages with rockets and space",
-      "search_query": "space name coloring",
-      "title": "Custom Space Name Coloring Pages, Personalized Printable PDF Kids Activity, Rocket Astronaut Birthday Favor",
-      "tags": [
-        "space coloring page",
-        "custom coloring page",
-        "name coloring page",
-        "rocket coloring pdf",
-        "outer space party",
-        "planet coloring kids",
-        "personalized kids",
-        "kids activity sheet",
-        "classroom activity",
-        "rainy day activity",
-        "preschool printable",
-        "gift for kids",
-        "astronaut coloring"
-      ],
-      "designs": [
-        {
-          "name": "Rocket",
-          "tagline": "Blast Off",
-          "prompt": "a cute cartoon rocket ship flying through space with flames, stars and a ringed planet"
-        },
-        {
-          "name": "Astronaut",
-          "tagline": "Reach for the Stars",
-          "prompt": "a cute little astronaut floating in space waving, the earth and stars behind"
-        },
-        {
-          "name": "Alien",
-          "tagline": "Out of This World",
-          "prompt": "a cute friendly little alien waving from a flying saucer, stars and a moon around it"
-        },
-        {
-          "name": "Planets",
-          "tagline": "Future Astronaut",
-          "prompt": "a row of cartoon planets with rings and craters, a comet and many stars"
-        },
-        {
-          "name": "Moon Rover",
-          "tagline": "Moon Explorer",
-          "prompt": "a cute cartoon moon rover driving on the moon with craters, a flag and the earth in the sky"
-        },
-        {
-          "name": "Space Dog",
-          "tagline": "Space Pup",
-          "prompt": "a cute puppy in an astronaut helmet sitting on the moon, stars and a rocket behind it"
+          "name": "Believe in Magic",
+          "tagline": "Believe in Magic"
         }
       ]
     }
