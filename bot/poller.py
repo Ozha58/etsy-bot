@@ -20,6 +20,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /uret_scenes – illüstrasyon paketi
 /uret_clipart – clipart (30 şeffaf PNG + sticker sayfaları, ~30 görsel hakkı)
 /uret_custom_teacher – kişiye özel öğretmen adı PNG (alıcı adı yazar, sipariş gelince bot dosyayı hazırlar)
+/uret_custom_xmaskids – kişiye özel çocuk ismi Noel PNG (hazır ayar: 6 Noel karakteri + isim; ~6 görsel hakkı)
 /uret_tattoo – kişiye özel doğum çiçeği + isim dövme tasarımı (alıcı "İsim - Ay" yazar; ~12 görsel hakkı)
 /ozel – kişiye özel siparişi elle hazırla: /ozel &lt;sipariş no&gt; İsim
 /uret_sublimation – tişört/kupa PNG tasarımı (8 tasarım + kupa şablonu, ~8 görsel hakkı)

@@ -1,0 +1,62 @@
+{
+  "name": "xmaskids",
+  "label_tr": "kişiye özel çocuk ismi Noel PNG (ren geyiği, Noel Baba, kurabiye adam)",
+  "niche": "custom kids name Christmas PNG with cute Christmas characters",
+  "search_query": "kids christmas name png",
+  "why": "Hazır ayar: 10 Kasım 2026 Etsy araştırması, ilk sayfada 1 Bestseller + 5 Popular now.",
+  "set_name": "Kids Christmas Name",
+  "kind": "kids",
+  "audience": "parents and grandparents making Christmas shirts, pajamas, stockings and mugs for children",
+  "sample_name": "Olivia",
+  "style": "cute storybook Christmas character, soft watercolor shading",
+  "palette": ["#B3262E", "#1F6B45", "#C98A2B", "#7A4A2A"],
+  "title": "Custom Kids Name Christmas PNG, Personalized Sublimation Design, Reindeer Santa Gingerbread Shirt",
+  "tags": [
+    "custom name png",
+    "kids christmas png",
+    "christmas name png",
+    "personalized kids",
+    "reindeer name png",
+    "gingerbread boy png",
+    "santa claus png",
+    "xmas shirt design",
+    "toddler sublimation",
+    "boy girl christmas",
+    "custom xmas shirt",
+    "family pajama png",
+    "holiday name png"
+  ],
+  "personalization_instructions": "Type the child's name exactly as it should appear (e.g. Olivia), max 40 characters. Your 6 designs are sent within 24 hours.",
+  "designs": [
+    {
+      "name": "Baby Reindeer",
+      "tagline": "Santa's Favorite",
+      "prompt": "a cute baby reindeer with small antlers wearing a red knitted scarf, sitting and smiling"
+    },
+    {
+      "name": "Gingerbread Kid",
+      "tagline": "Baked With Love",
+      "prompt": "a cute smiling gingerbread cookie kid with white icing details and red candy buttons"
+    },
+    {
+      "name": "Santa With Gifts",
+      "tagline": "On the Nice List",
+      "prompt": "a jolly friendly Santa Claus carrying a big red sack full of wrapped gifts"
+    },
+    {
+      "name": "Cozy Snowman",
+      "tagline": "Snow Much Fun",
+      "prompt": "a cute happy snowman wearing a green striped scarf and a red winter hat, twig arms"
+    },
+    {
+      "name": "Christmas Elf",
+      "tagline": "Santa's Little Helper",
+      "prompt": "a cute little Christmas elf child in a green outfit and pointed hat carrying a wrapped present"
+    },
+    {
+      "name": "Santa Hat Penguin",
+      "tagline": "Merry and Bright",
+      "prompt": "a cute baby penguin wearing a red Santa hat and holding a small candy cane"
+    }
+  ]
+}
