@@ -118,6 +118,117 @@ def design(art, phrase, layout, ink):
     return c
 
 
+# ---------------------------------------------------------------- retro screen-print look ("look": "retro")
+RETRO_INK, RETRO_PAPER = (38, 26, 24), (250, 240, 220)
+RETRO_FONTS = ("bold", "retro", "serif")
+
+
+def _retro_text(text, kind, max_w, max_h, fill, block):
+    """Words like an old screen print: flat fill, thick dark outline, a solid offset block in a second colour and a
+    cream edge around everything (so it also reads on dark fabric). No blur, no gradient."""
+    probe = ImageDraw.Draw(Image.new("L", (1, 1)))
+    best = None
+    for n in (1, 2):
+        lines = _lines(text, n)
+        if len(lines) < n:
+            continue
+        size = 1000
+        while size > 110:
+            f = DF.get(kind, size)
+            line, off = max(8, int(size * 0.035)), int(size * 0.07)
+            edge = line + max(10, int(size * 0.045))
+            boxes = [probe.textbbox((0, 0), ln, font=f) for ln in lines]
+            gap = int(size * 0.10)
+            w = max(b[2] - b[0] for b in boxes) + 2 * edge + off
+            h = sum(b[3] - b[1] for b in boxes) + gap * (len(lines) - 1) + 2 * edge + off
+            if w <= max_w and h <= max_h:
+                break
+            size -= max(10, size // 18)
+        if best is None or size > best[0]:
+            best = (size, lines, f, line, off, edge, boxes, gap, int(w), int(h))
+    size, lines, f, line, off, edge, boxes, gap, w, h = best
+    spots, y = [], edge
+    for ln, b in zip(lines, boxes):
+        spots.append(((w - off - (b[2] - b[0])) / 2 - b[0], y - b[1], ln))
+        y += b[3] - b[1] + gap
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    for x, yy, ln in spots:  # cream edge under everything
+        for dx, dy in ((0, 0), (off, off)):
+            d.text((x + dx, yy + dy), ln, font=f, fill=RETRO_PAPER + (255,), stroke_width=edge, stroke_fill=RETRO_PAPER + (255,))
+    steps = range(off, 0, -2)  # solid block, bottom right: dark silhouette first, colour inside it
+    for step in steps:
+        for x, yy, ln in spots:
+            d.text((x + step, yy + step), ln, font=f, fill=RETRO_INK + (255,), stroke_width=line, stroke_fill=RETRO_INK + (255,))
+    for step in steps:
+        for x, yy, ln in spots:
+            d.text((x + step, yy + step), ln, font=f, fill=block + (255,))
+    for x, yy, ln in spots:
+        d.text((x, yy), ln, font=f, fill=fill + (255,), stroke_width=line, stroke_fill=RETRO_INK + (255,))
+    return im
+
+
+def distress(im, seed=0, amount=1.0):
+    """Worn screen-print texture: small flecks, a few bigger worn patches and fine scratches are knocked out of the
+    design (alpha only, so it stays a clean transparent PNG). Deterministic per seed."""
+    rng = np.random.default_rng(seed)
+    w, h = im.size
+    q = 4  # texture is made at 1/4 size: a fleck is a few print pixels wide
+    sw, sh = w // q, h // q
+    fleck = rng.random((sh, sw)) < 0.010 * amount
+    soft = np.asarray(Image.fromarray((rng.random((sh // 6, sw // 6)) * 255).astype(np.uint8))
+                      .resize((sw, sh), Image.BICUBIC).filter(ImageFilter.GaussianBlur(3))).astype(np.float32) / 255
+    worn = (soft > 0.58) & (rng.random((sh, sw)) < 0.07 * amount)  # patches where more ink is gone
+    hole = Image.fromarray(((fleck | worn) * 255).astype(np.uint8))
+    hd = ImageDraw.Draw(hole)
+    for _ in range(int(14 * amount)):  # scratches
+        x, y = int(rng.integers(0, sw)), int(rng.integers(0, sh))
+        ln, ang = int(rng.integers(20, 110)), float(rng.uniform(-0.5, 0.5)) + (np.pi / 2 if rng.random() < 0.5 else 0)
+        hd.line((x, y, x + ln * np.cos(ang), y + ln * np.sin(ang)), fill=255, width=1)
+    hole = hole.resize((w, h), Image.BICUBIC).point(lambda v: 255 if v > 120 else 0)
+    a = np.asarray(im.getchannel("A")).copy()
+    a[np.asarray(hole) > 0] = 0
+    out = im.copy()
+    out.putalpha(Image.fromarray(a))
+    return out
+
+
+def retro_design(art, phrase, k, palette, seed=0):
+    """One finished design in the retro look: the drawing with the phrase above or below it (or split around it),
+    then the worn print texture over the whole design."""
+    cols = [hex2rgb(c) for c in palette] or [(196, 40, 44), (28, 110, 86), (30, 126, 140), (226, 164, 44)]
+    lum = lambda c: 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+    strong = [c for c in cols if 40 < lum(c) < 185] or [(196, 40, 44), (28, 110, 86)]
+    fill, block = strong[k % len(strong)], strong[(k + 1) % len(strong)]
+    kind = RETRO_FONTS[k % len(RETRO_FONTS)]
+    text = phrase.upper() if kind == "bold" else phrase
+    layout = ("top", "bottom", "split")[k % 3]
+    words = text.split()
+    c = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    a = art.copy()
+    if layout == "split" and len(words) >= 3:
+        half = max(1, len(words) // 2)
+        t1 = _retro_text(" ".join(words[:half]), kind, SIZE * 0.94, 760, fill, block)
+        t2 = _retro_text(" ".join(words[half:]), kind, SIZE * 0.94, 760, block, fill)
+        a.thumbnail((int(SIZE * 0.80), SIZE - t1.height - t2.height - 160), Image.LANCZOS)
+        y = (SIZE - (t1.height + a.height + t2.height - 80)) // 2
+        c.alpha_composite(a, ((SIZE - a.width) // 2, y + t1.height - 40))
+        c.alpha_composite(t1, ((SIZE - t1.width) // 2, y))
+        c.alpha_composite(t2, ((SIZE - t2.width) // 2, y + t1.height + a.height - 80))
+    else:
+        t = _retro_text(text, kind, SIZE * 0.94, 1250, fill, block)
+        a.thumbnail((int(SIZE * 0.84), SIZE - t.height - 100), Image.LANCZOS)
+        lap = 50  # the words sit a little over the drawing, like a badge
+        y = (SIZE - (t.height + a.height - lap)) // 2
+        if layout == "bottom" or layout == "split":
+            c.alpha_composite(a, ((SIZE - a.width) // 2, y))
+            c.alpha_composite(t, ((SIZE - t.width) // 2, y + a.height - lap))
+        else:
+            c.alpha_composite(a, ((SIZE - a.width) // 2, y + t.height - lap))
+            c.alpha_composite(t, ((SIZE - t.width) // 2, y))
+    return distress(c, seed=seed * 100 + k)
+
+
 def mug_wrap(d):
     """11 oz mug template, 2700 x 1100 px (9 x 3.7 in at 300 DPI): the design on both sides of the handle."""
     w, h = 2700, 1100
@@ -252,8 +363,11 @@ def build(spec, slug):
     style = spec.get("style", "cute illustration")
     palette = spec.get("palette", [])
     rnd = random.Random(slug)
+    want = spec.get("count") if isinstance(spec.get("count"), int) else COUNT  # a preset may ask for a bigger bundle
+    retro = spec.get("look") == "retro"
+    seed = sum(ord(ch) for ch in slug)
     out = []
-    for k, ds in enumerate(spec["designs"][:COUNT]):
+    for k, ds in enumerate(spec["designs"][:want]):
         phrase = re.sub(r"\s+", " ", str(ds.get("phrase", "")).strip())[:28]
         if not TEXT_OK.match(phrase or ""):
             phrase = spec.get("set_name", "Happy Days")[:28]
@@ -265,8 +379,9 @@ def build(spec, slug):
         art = trim_alpha(color_to_alpha_background(im))
         art = art.resize((art.width * 3, art.height * 3), Image.LANCZOS)
         layout = LAYOUTS[(k + rnd.randrange(4)) % len(LAYOUTS)]
-        out.append((ds.get("name", phrase), phrase, design(art, phrase, layout, _ink(palette, k))))
-    images.need(len(out), COUNT, ratio=0.75)
+        dsg = retro_design(art, phrase, k, palette, seed) if retro else design(art, phrase, layout, _ink(palette, k))
+        out.append((ds.get("name", phrase), phrase, dsg))
+    images.need(len(out), want, ratio=0.75)
 
     n = len(out)
     safe = lambda s: re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40] or "design"
@@ -312,6 +427,7 @@ def build(spec, slug):
         "included": [f"{n} PNG designs with transparent background (3600 x 3600 px, 300 DPI)",
                      f"{n} ready-to-print 11 oz mug wraps (2700 x 1100 px)", "Delivered as ZIP"],
         "details": ["Best for mugs, tumblers, tote bags and light shirts up to about 10 inches wide",
+                    "Worn vintage print texture is part of every design" if retro else
                     "Words set in clean fonts, no spelling mistakes"],
         "usage": ["Sublimation (print mirrored), DTF transfers and print on demand",
                   "Unzip the file on a computer before use"],

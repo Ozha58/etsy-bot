@@ -13,7 +13,9 @@ DIR = config.ROOT / "presets"
 NAME_OK = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 # taken from the file as they are; everything else is filled in by spec()
 FIXED = ("title", "tags", "palette", "set_name", "kind", "sample_name", "sample_names", "look",
-         "personalization_instructions", "page_style", "doodles", "above", "art")
+         "personalization_instructions", "page_style", "doodles", "above", "art", "subject")
+# product types whose preset may ask for more (or fewer) designs than the type's usual number: "count": 12
+FLEX_COUNT = {"sublimation": (4, 16)}
 
 
 # a theme may replace these fields of the preset (same look and delivery, other characters, title and tags)
@@ -95,6 +97,16 @@ def _list_field(ptype):
     return lf
 
 
+def _count(preset, ptype):
+    """(field name, item count) for this preset: the type's own number, or the preset's "count" where allowed."""
+    field, n = _list_field(ptype)
+    lo, hi = FLEX_COUNT.get(ptype, (n, n))
+    want = preset.get("count")
+    if isinstance(want, int) and not isinstance(want, bool) and lo <= want <= hi:
+        n = want
+    return field, n
+
+
 def problems(preset, ptype):
     """Same checks as an AI written plan (title and tag rules, banned words, number of designs)."""
     from . import research
@@ -102,7 +114,10 @@ def problems(preset, ptype):
     if probs:
         return probs
     probs += research.title_problems(preset["title"]) + research.tag_problems(preset["tags"], preset["title"])
-    field, n = _list_field(ptype)
+    field, n = _count(preset, ptype)
+    if preset.get("count") not in (None, n):
+        lo, hi = FLEX_COUNT.get(ptype, (n, n))
+        probs.append(f"'count' must be a whole number from {lo} to {hi} for {ptype}")
     no_art = preset.get("art") is False  # lettering only (name coloring pages): designs carry a caption, no drawing
     items = [d for d in preset.get(field) or [] if isinstance(d, dict) and (no_art or d.get("prompt")) and d.get("name")]
     if len(items) != n:
@@ -132,11 +147,16 @@ def idea(preset, ptype):
             "theme": preset.get("theme") or "classic"}
 
 
+KIND_NOTE = {"custom": "personalized made-to-order PNG: the buyer types a name, we write it into every design",
+             "sublimation": "instant download bundle of finished PNG shirt designs with short funny phrases, "
+                            "transparent background, for sublimation, DTF and print on demand"}
+
+
 def _ask_missing(preset, ptype, lo, hi):
     """The AI writes only what the preset does not fix: the description text and a few listing details."""
     from . import llm
     prompt = f"""Write the description for an Etsy digital product listing. Everything else is already decided.
-Product type: {ptype} (personalized made-to-order PNG: the buyer types a name, we write it into every design)
+Product type: {ptype} ({KIND_NOTE.get(ptype, KIND_NOTE["custom"])})
 Title (fixed, do not change): {preset['title']}
 Made for: {preset.get('audience') or preset['niche']}
 Designs: {', '.join(d['name'] for d in preset['designs'])}
@@ -144,7 +164,7 @@ Never use trademarks, brand names, characters, celebrities or copyrighted styles
 
 Return JSON with these fields:
 {{
-  "intro": "2 short persuasive paragraphs. The FIRST sentence must contain the exact first part of the title. Describe the feeling, who it is for and how they will use it (gift, shirts, mugs); no file details, no emojis, no trademarks",
+  "intro": "2 short persuasive paragraphs. The FIRST sentence must contain the exact first part of the title. Describe the feeling, who it is for and how they will use it (gift, shirts, mugs); no file details, no emojis, no trademarks, no movie, song or character names",
   "styles": [2 short Etsy style words for this artwork],
   "price_usd": number between {lo} and {hi},
   "cover_scene": "English prompt for ONE cozy lifestyle scene about this product's subject, no text, no faces in close-up"
@@ -169,13 +189,19 @@ def spec(idea):
     preset = choose(preset, idea.get("theme") or "classic")
     lo, hi = config.settings()["price_ranges_usd"].get(ptype, [3, 8])
     extra = _ask_missing(preset, ptype, lo, hi)
-    field, n = _list_field(ptype)
+    field, n = _count(preset, ptype)
     out = {k: preset[k] for k in FIXED if preset.get(k) not in (None, "", [])}  # keeps false, e.g. "art": false
     out[field] = [dict(d) for d in preset[field][:n]]
     out["preset"] = preset["name"]
     out["theme"] = preset["theme"]
+    if ptype in FLEX_COUNT:
+        out["count"] = n
     part1 = preset["title"].split(",")[0].strip()
     intro = str(extra.get("intro") or "").strip()
+    if (not intro or research.is_banned(intro)) and ptype != "custom":
+        intro = (f"{part1} for {preset.get('audience') or 'crafters and small shops'}: {n} finished designs, "
+                 "each with its own short phrase.\n\nReady to press on shirts, sweatshirts, mugs and totes, "
+                 "with a transparent background.")
     if not intro or research.is_banned(intro):
         intro = (f"{part1} made to order for {preset.get('audience') or 'your family'}. "
                  f"Type the name at checkout and we write it into all {n} designs.\n\n"
