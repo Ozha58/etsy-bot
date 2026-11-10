@@ -16,6 +16,11 @@ FIXED = ("title", "tags", "palette", "set_name", "kind", "sample_name", "sample_
          "personalization_instructions")
 
 
+# a theme may replace these fields of the preset (same look and delivery, other characters, title and tags)
+THEME_FIELDS = ("label_tr", "niche", "search_query", "why", "set_name", "sample_name", "sample_names", "style",
+                "palette", "title", "tags", "designs", "pages", "audience")
+
+
 def load(ptype, name):
     """The preset dict, or None when there is no such file (then the caller keeps the old behaviour)."""
     name = (name or "").strip().lower().replace(" ", "_")
@@ -29,10 +34,51 @@ def load(ptype, name):
     except Exception as e:
         raise RuntimeError(f"Hazır ayar okunamadı ({path.name}): {e}")
     preset["name"] = name
-    probs = problems(preset, ptype)
-    if probs:
-        raise RuntimeError(f"Hazır ayar hatalı ({path.name}): {'; '.join(probs)}")
+    for v in variants(preset):
+        probs = problems(v, ptype)
+        if probs:
+            raise RuntimeError(f"Hazır ayar hatalı ({path.name}, tema {v['theme']}): {'; '.join(probs)}")
     return preset
+
+
+def variants(preset):
+    """The preset once per theme: the file's own fields are the first theme, "themes" adds more."""
+    base = {k: v for k, v in preset.items() if k != "themes"}
+    out = [dict(base, theme=str(preset.get("theme") or "classic"))]
+    for t in preset.get("themes") or []:
+        if isinstance(t, dict) and t.get("theme"):
+            out.append(dict(base, **{k: t[k] for k in THEME_FIELDS if k in t}, theme=str(t["theme"]).lower()))
+    return out
+
+
+def _used_themes(name):
+    """Themes of this preset that already became a product (oldest first; rejected products do not count)."""
+    try:
+        from . import storage
+        ps = [p for p in storage.all_products()
+              if (p.get("spec") or {}).get("preset") == name and p.get("status") != "rejected"]
+    except Exception as e:
+        print(f"[presets] kullanılan temalar okunamadı: {e}")
+        return []
+    return [str((p.get("spec") or {}).get("theme") or "classic") for p in sorted(ps, key=lambda p: p.get("created_at", 0))]
+
+
+def choose(preset, want=""):
+    """One theme of the preset: the one asked for (/uret custom xmaskids dino), otherwise a theme that has not
+    been made yet, otherwise the one made longest ago. So two runs never give the same listing twice in a row."""
+    vs = variants(preset)
+    want = (want or "").strip().lower().replace(" ", "_")
+    if want:
+        hit = [v for v in vs if v["theme"] == want]
+        if not hit:
+            raise RuntimeError(f"'{preset['name']}' ayarında '{want}' teması yok. Temalar: {', '.join(v['theme'] for v in vs)}")
+        return hit[0]
+    used = _used_themes(preset["name"])
+    fresh = [v for v in vs if v["theme"] not in used]
+    if fresh:
+        return fresh[0]
+    last = {t: i for i, t in enumerate(used)}  # position of each theme's latest product
+    return min(vs, key=lambda v: last.get(v["theme"], -1))
 
 
 def names(ptype):
@@ -73,13 +119,16 @@ def problems(preset, ptype):
 
 
 def for_request():
-    """The preset asked for with /uret <type> <name> (ONLY_TYPE + ONLY_SUBJECT), or None."""
-    return load(config.env("ONLY_TYPE"), config.env("ONLY_SUBJECT"))
+    """The preset theme asked for with /uret <type> <name> [theme] (ONLY_TYPE + ONLY_SUBJECT), or None."""
+    name, _, want = config.env("ONLY_SUBJECT").strip().lower().partition(" ")
+    preset = load(config.env("ONLY_TYPE"), name)
+    return choose(preset, want) if preset else None
 
 
 def idea(preset, ptype):
     return {"type": ptype, "niche": preset["niche"], "search_query": preset["search_query"],
-            "why": preset.get("why") or f"Hazır ayar: {preset['name']}", "source": "preset", "preset": preset["name"]}
+            "why": preset.get("why") or f"Hazır ayar: {preset['name']}", "source": "preset", "preset": preset["name"],
+            "theme": preset.get("theme") or "classic"}
 
 
 def _ask_missing(preset, ptype, lo, hi):
@@ -116,12 +165,14 @@ def spec(idea):
     preset = load(ptype, idea["preset"])
     if preset is None:
         raise RuntimeError(f"Hazır ayar bulunamadı: {ptype}/{idea['preset']}")
+    preset = choose(preset, idea.get("theme") or "classic")
     lo, hi = config.settings()["price_ranges_usd"].get(ptype, [3, 8])
     extra = _ask_missing(preset, ptype, lo, hi)
     field, n = _list_field(ptype)
     out = {k: preset[k] for k in FIXED if preset.get(k)}
     out[field] = [dict(d) for d in preset[field][:n]]
     out["preset"] = preset["name"]
+    out["theme"] = preset["theme"]
     part1 = preset["title"].split(",")[0].strip()
     intro = str(extra.get("intro") or "").strip()
     if not intro or research.is_banned(intro):

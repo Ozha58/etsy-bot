@@ -1,6 +1,6 @@
 {
   "name": "xmaskids",
-  "label_tr": "kişiye özel çocuk ismi Noel PNG (ren geyiği, Noel Baba, kurabiye adam)",
+  "label_tr": "kişiye özel çocuk ismi Noel PNG (6 tema: klasik, orman, kamyon, balerin, dinozor, yavru hayvan)",
   "niche": "custom kids name Christmas PNG with cute Christmas characters",
   "search_query": "kids christmas name png",
   "why": "Hazır ayar: 10 Kasım 2026 Etsy araştırması, ilk sayfada 1 Bestseller + 5 Popular now.",
@@ -43,7 +43,7 @@
     {
       "name": "Baby Reindeer",
       "tagline": "Santa's Favorite",
-      "prompt": "an adorable chubby baby reindeer sitting and smiling, wearing a red santa hat and a knitted scarf, colorful glowing christmas lights tangled in its antlers, a golden jingle bell collar"
+      "prompt": "an adorable chubby baby reindeer with warm chestnut brown fur and a cream belly, sitting and smiling, wearing a red santa hat and a knitted scarf, colorful glowing christmas lights tangled in its antlers, a golden jingle bell collar"
     },
     {
       "name": "Gingerbread Kid",
@@ -69,6 +69,278 @@
       "name": "Santa Hat Penguin",
       "tagline": "Merry and Bright",
       "prompt": "an adorable fluffy baby penguin wearing a red santa hat and a striped scarf, hugging a big wrapped gift box with a golden bow"
+    }
+  ],
+  "themes": [
+    {
+      "theme": "woodland",
+      "label_tr": "orman hayvanları (tilki, ayı, tavşan, baykuş)",
+      "niche": "custom kids name Christmas PNG with woodland animals",
+      "search_query": "woodland christmas png",
+      "title": "Custom Woodland Christmas Name PNG, Personalized Kids Sublimation Design, Fox Bear Bunny Shirt",
+      "tags": [
+        "woodland name png",
+        "custom name png",
+        "kids christmas png",
+        "forest animal png",
+        "fox santa hat",
+        "owl christmas png",
+        "personalized kids",
+        "nursery animal gift",
+        "toddler sublimation",
+        "xmas shirt design",
+        "boy girl christmas",
+        "holiday name png",
+        "family pajama png"
+      ],
+      "designs": [
+        {
+          "name": "Little Fox",
+          "tagline": "Foxy and Merry",
+          "prompt": "an adorable baby fox with a big fluffy tail wearing a red santa hat and a green knitted scarf, holding a small wrapped gift"
+        },
+        {
+          "name": "Bear Cub",
+          "tagline": "Beary Christmas",
+          "prompt": "an adorable chubby brown bear cub in a red christmas sweater hugging a jar of honey tied with a red bow, a santa hat on its head"
+        },
+        {
+          "name": "Snow Bunny",
+          "tagline": "Snow Bunny",
+          "prompt": "an adorable fluffy white bunny wearing red earmuffs and a striped scarf, sitting in a pile of snow holding a candy cane"
+        },
+        {
+          "name": "Wise Owl",
+          "tagline": "Whoo's on the Nice List",
+          "prompt": "an adorable round baby owl wearing a tiny santa hat, perched on a pine branch with red berries and a hanging golden ornament"
+        },
+        {
+          "name": "Hedgehog",
+          "tagline": "Cozy Little Christmas",
+          "prompt": "an adorable baby hedgehog wearing a knitted red beanie, carrying a small decorated christmas tree, tiny colorful lights on its spikes"
+        },
+        {
+          "name": "Baby Deer",
+          "tagline": "Oh Deer It's Christmas",
+          "prompt": "an adorable spotted baby deer fawn with a holly wreath around its neck and a red bow, standing next to wrapped presents"
+        }
+      ]
+    },
+    {
+      "theme": "trucks",
+      "label_tr": "Noel kamyonu, tren, traktör (erkek çocuk)",
+      "niche": "custom boys name Christmas PNG with trucks and trains",
+      "search_query": "boys christmas name png",
+      "title": "Custom Boys Christmas Name PNG, Personalized Truck Train Design, Toddler Sublimation Shirt Pajamas",
+      "tags": [
+        "boys christmas png",
+        "custom name png",
+        "truck name png",
+        "christmas train png",
+        "red truck tree",
+        "tractor christmas",
+        "fire truck xmas",
+        "digger name shirt",
+        "personalized boy",
+        "kids sublimation",
+        "xmas shirt design",
+        "holiday name png",
+        "son nephew gift"
+      ],
+      "designs": [
+        {
+          "name": "Red Truck",
+          "tagline": "Loads of Christmas Cheer",
+          "prompt": "a cute vintage red pickup truck carrying a big decorated christmas tree in the back, a wreath on the grille, snow on the roof, no people"
+        },
+        {
+          "name": "Christmas Train",
+          "tagline": "Next Stop North Pole",
+          "prompt": "a cute cartoon steam train engine in red and green pulling a wagon full of wrapped presents, puffs of smoke, garlands, no people"
+        },
+        {
+          "name": "Digger",
+          "tagline": "Digging Christmas",
+          "prompt": "a cute yellow excavator digger wearing a santa hat on its cabin, scooping up wrapped presents, colorful christmas lights along its arm, no people"
+        },
+        {
+          "name": "Fire Truck",
+          "tagline": "Santa's Rescue Crew",
+          "prompt": "a cute red fire truck decorated with a big wreath and colorful christmas lights, a small christmas tree on its ladder, no people"
+        },
+        {
+          "name": "Tractor",
+          "tagline": "Farm Fresh Christmas",
+          "prompt": "a cute green farm tractor pulling a small trailer with a christmas tree and gifts, a red bow on the front, snow on the wheels, no people"
+        },
+        {
+          "name": "Snow Plow",
+          "tagline": "Snow Plow Crew",
+          "prompt": "a cute blue snow plow truck pushing a pile of snow, a santa hat on its roof and a string of colorful lights, no people"
+        }
+      ]
+    },
+    {
+      "theme": "ballerina",
+      "label_tr": "balerin, melek, kar perisi (kız çocuk)",
+      "niche": "custom girls name Christmas PNG with ballerina, angel and fairy",
+      "search_query": "girls christmas name png",
+      "title": "Custom Girls Christmas Name PNG, Personalized Ballerina Angel Fairy Design, Toddler Sublimation Shirt",
+      "tags": [
+        "girls christmas png",
+        "custom name png",
+        "ballerina name png",
+        "angel name design",
+        "snow fairy png",
+        "nutcracker png",
+        "unicorn christmas",
+        "personalized girl",
+        "kids sublimation",
+        "xmas shirt design",
+        "holiday name png",
+        "daughter niece gift",
+        "pink christmas png"
+      ],
+      "designs": [
+        {
+          "name": "Ballerina Bunny",
+          "tagline": "Twirling Into Christmas",
+          "prompt": "an adorable white bunny ballerina in a red and pink tutu with a holly crown, dancing on tiptoe, ribbons on her ballet shoes"
+        },
+        {
+          "name": "Little Angel",
+          "tagline": "Santa's Little Angel",
+          "prompt": "an adorable little angel child with fluffy white wings and a golden halo in a white dress, holding a glowing golden star"
+        },
+        {
+          "name": "Snow Fairy",
+          "tagline": "Sparkle Like Snow",
+          "prompt": "an adorable tiny snow fairy with shimmering icy blue wings and a silver dress, holding a snowflake wand, snowflakes around her"
+        },
+        {
+          "name": "Nutcracker",
+          "tagline": "Nutcracker Sweet",
+          "prompt": "an adorable toy nutcracker soldier in a pink and red uniform with a tall hat and golden buttons, holding a candy cane staff"
+        },
+        {
+          "name": "Christmas Unicorn",
+          "tagline": "Merry and Bright",
+          "prompt": "an adorable baby unicorn with a pastel rainbow mane wearing a holly wreath around its neck, a golden ornament hanging from its horn"
+        },
+        {
+          "name": "Sugar Plum Mouse",
+          "tagline": "Sugar Plum Sweet",
+          "prompt": "an adorable little mouse in a purple sugar plum fairy tutu with tiny wings, holding a pink frosted cupcake"
+        }
+      ]
+    },
+    {
+      "theme": "dino",
+      "label_tr": "dinozorlar Noel şapkasıyla",
+      "niche": "custom kids name Christmas PNG with dinosaurs",
+      "search_query": "dinosaur christmas png",
+      "title": "Custom Dinosaur Christmas Name PNG, Personalized Kids Sublimation Design, Dino Santa Hat Shirt",
+      "tags": [
+        "dinosaur name png",
+        "custom name png",
+        "dino christmas png",
+        "kids christmas png",
+        "t rex christmas",
+        "tree rex png",
+        "personalized boy",
+        "dino lover gift",
+        "toddler sublimation",
+        "xmas shirt design",
+        "boy girl christmas",
+        "holiday name png",
+        "family pajama png"
+      ],
+      "designs": [
+        {
+          "name": "Tree Rex",
+          "tagline": "Tree Rex",
+          "prompt": "an adorable chubby green baby t-rex dinosaur wrapped in colorful christmas lights and ornaments like a christmas tree, a golden star on its head"
+        },
+        {
+          "name": "Gift Triceratops",
+          "tagline": "Santa's Dino Helper",
+          "prompt": "an adorable baby triceratops dinosaur wearing a santa hat, carrying a stack of wrapped presents on its back, ornaments hanging from its horns"
+        },
+        {
+          "name": "Long Neck",
+          "tagline": "Merry Dino Christmas",
+          "prompt": "an adorable baby brontosaurus dinosaur with a very long striped scarf around its long neck and a santa hat, a robin sitting on its head"
+        },
+        {
+          "name": "Stegosaurus",
+          "tagline": "Dino-mite Christmas",
+          "prompt": "an adorable baby stegosaurus dinosaur with colorful christmas baubles hanging from its back plates, holding a candy cane in its mouth"
+        },
+        {
+          "name": "Flying Dino",
+          "tagline": "Special Delivery",
+          "prompt": "an adorable baby pterodactyl dinosaur flying with a santa hat, carrying a wrapped gift box tied with a red ribbon in its claws"
+        },
+        {
+          "name": "Santasaurus",
+          "tagline": "Santasaurus",
+          "prompt": "an adorable baby dinosaur dressed in a red santa suit with a white beard, carrying a red sack of toys over its shoulder"
+        }
+      ]
+    },
+    {
+      "theme": "pets",
+      "label_tr": "köpek ve kedi yavruları",
+      "niche": "custom kids name Christmas PNG with puppies and kittens",
+      "search_query": "puppy christmas png",
+      "title": "Custom Puppy Kitten Christmas Name PNG, Personalized Kids Sublimation Design, Dog Cat Shirt",
+      "tags": [
+        "puppy christmas png",
+        "custom name png",
+        "kitten name png",
+        "dog name design",
+        "merry woofmas png",
+        "meowy christmas",
+        "pet lover kids",
+        "personalized kids",
+        "toddler sublimation",
+        "xmas shirt design",
+        "boy girl christmas",
+        "holiday name png",
+        "family pajama png"
+      ],
+      "designs": [
+        {
+          "name": "Gift Box Puppy",
+          "tagline": "Merry Woofmas",
+          "prompt": "an adorable golden retriever puppy popping out of an open red gift box, wearing a santa hat, a green bow on the box"
+        },
+        {
+          "name": "Stocking Kitten",
+          "tagline": "Meowy Christmas",
+          "prompt": "an adorable fluffy orange tabby kitten peeking out of a big red christmas stocking with white fur trim, candy canes beside it"
+        },
+        {
+          "name": "Reindeer Corgi",
+          "tagline": "Reindeer in Training",
+          "prompt": "an adorable corgi puppy wearing a reindeer antlers headband with tiny bells and a red nose, sitting and smiling"
+        },
+        {
+          "name": "Tangled Kitten",
+          "tagline": "Purrfectly Merry",
+          "prompt": "an adorable grey kitten playfully tangled in a string of colorful glowing christmas lights, a red bow on its neck"
+        },
+        {
+          "name": "Sweater Dachshund",
+          "tagline": "Cozy Paws Club",
+          "prompt": "an adorable dachshund puppy wearing a red and green knitted christmas sweater and a beanie with a pompom"
+        },
+        {
+          "name": "Candy Cane Pup",
+          "tagline": "Sweet as Candy",
+          "prompt": "an adorable white fluffy puppy holding a big candy cane in its mouth, wearing a green scarf, sitting in snow"
+        }
+      ]
     }
   ]
 }
