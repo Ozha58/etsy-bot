@@ -116,6 +116,18 @@ class PresetTest(unittest.TestCase):
             self.assertEqual(len({v[field] for v in vs}), len(vs), field)
         prompts = [d["prompt"] for v in vs for d in v["designs"]]
         self.assertEqual(len(set(prompts)), len(prompts))
+        # every theme has its own look: colours of the names, cover backdrop and cover line all differ
+        from bot.products import custom_festive as F
+        skins = [F.skin(v["theme"]) for v in vs]
+        for v in vs:
+            self.assertIn(v["theme"], F.SKINS, v["theme"])
+        for key in ("sub",):
+            self.assertEqual(len({s[key] for s in skins}), len(vs), key)
+        self.assertEqual(len({s["backdrops"][0] for s in skins}), len(vs), "cover backdrop")
+        self.assertEqual(len({tuple(r[0] for r in s["schemes"]) for s in skins}), len(vs), "name colours")
+        # products made before skins (no "skin" in their spec) keep the classic look they were listed with
+        self.assertIs(F.skin(None), F.SKINS["classic"])
+        self.assertEqual(F.SKINS["classic"]["schemes"], F.SCHEMES)
 
     def test_each_run_takes_a_theme_not_made_yet(self):
         order = [v["theme"] for v in presets.variants(presets.load("custom", PRESET))]
