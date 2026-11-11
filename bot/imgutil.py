@@ -59,8 +59,11 @@ def jpeg_bytes(img: Image.Image, quality=90, dpi=300) -> bytes:
     return b.getvalue()
 
 
-def png_bytes(img: Image.Image, dpi=300) -> bytes:
+def png_bytes(img: Image.Image, dpi=300, colors=None) -> bytes:
+    """colors: save as a palette PNG (keeps transparency) - about 5x smaller on busy art, looks the same in print."""
     b = io.BytesIO()
+    if colors:
+        img = img.convert("RGBA").quantize(colors, method=Image.Quantize.FASTOCTREE)
     img.save(b, "PNG", dpi=(dpi, dpi), optimize=True)
     return b.getvalue()
 

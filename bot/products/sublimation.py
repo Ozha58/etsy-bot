@@ -573,10 +573,14 @@ def build(spec, slug):
 
     n = len(out)
     safe = lambda s: re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40] or "design"
-    files = []
-    for i, (nm, ph, dsg) in enumerate(out, 1):
-        files.append((f"Designs-3600px/{i:02d}-{safe(ph)}.png", png_bytes(dsg)))
-        files.append((f"Mug-Wrap-11oz/{i:02d}-{safe(ph)}-mug.png", png_bytes(mug_wrap(dsg))))
+    mugs = [mug_wrap(dsg) for _, _, dsg in out]
+
+    def pack(colors=None):
+        files = []
+        for i, ((nm, ph, dsg), mug) in enumerate(zip(out, mugs), 1):
+            files.append((f"Designs-3600px/{i:02d}-{safe(ph)}.png", png_bytes(dsg, colors=colors)))
+            files.append((f"Mug-Wrap-11oz/{i:02d}-{safe(ph)}-mug.png", png_bytes(mug, colors=colors)))
+        return files
     name = spec.get("set_name", "Sublimation Designs")
     readme = (f"{spec['title']}\n\nThank you for your purchase!\n\n"
               f"- {n} PNG designs, transparent background, 3600 x 3600 px (12 x 12 in at 300 DPI)\n"
@@ -585,7 +589,12 @@ def build(spec, slug):
               "Sublimation: print mirrored on sublimation paper. DTF / print on demand: upload the PNG as it is.\n\n"
               "LICENSE: personal use and small business commercial use on up to 500 physical products. "
               "You may not resell, share or redistribute the digital files.\n")
-    delivery = make_zips(slug, files, readme)
+    # Etsy takes at most 5 files of 20 MB: busy, distressed art at 3600 px can need more, then the PNGs are saved
+    # with a 256 colour palette (transparent, about 5x smaller, no visible change in print)
+    try:
+        delivery = make_zips(slug, pack(), readme)
+    except ValueError:
+        delivery = make_zips(slug, pack(256), readme)
     dsgs = [d for _, _, d in out]
     tumbler_wrap = Image.new("RGB", (2790, 2460), (255, 255, 255))
     t = dsgs[0].copy()
