@@ -115,6 +115,26 @@ class QualityTest(unittest.TestCase):
         v2 = [im(1, "cover preview"), im(2, "close-up detail"), im(3, "what is included"), im(4, "how to download")]
         self.assertEqual(shopfix.old_extras(v2), [])  # the new order is never touched again
 
+    def test_second_run_does_not_add_the_extra_photos_again(self):
+        from unittest import mock
+        from bot import etsy
+        imgs = [{"listing_image_id": k, "rank": k, "alt_text": f"Bee Pages, B, C - {lab}"} for k, lab in
+                enumerate(["cover preview", "page preview", "close-up detail", "what is included", "how to download"], 1)]
+        li = {"listing_id": 7, "title": "Bee Coloring Pages, Printable PDF Book, Kids Spring Activity",
+              "tags": [], "description": ""}
+        added = []
+        with mock.patch.object(etsy, "listing_images", lambda lid: imgs), \
+                mock.patch.object(etsy, "listing_files", lambda lid: [{"filename": "bee.zip", "size_bytes": 1 << 20}]), \
+                mock.patch.object(etsy, "listing_video_count", lambda lid: 1), \
+                mock.patch.object(etsy, "update_listing", lambda *a, **k: None, create=True), \
+                mock.patch.object(etsy, "download_image", lambda im: photo((245, 240, 232), im["rank"])), \
+                mock.patch.object(etsy, "add_image", lambda *a, **k: added.append(a)), \
+                mock.patch.object(etsy, "delete_image", lambda *a, **k: self.fail("nothing to delete")), \
+                mock.patch.object(shopfix, "new_seo", lambda *a, **k: {"title": li["title"], "tags": [], "styles": []}):
+            notes = shopfix.treat_listing(li, None, dry_run=True)
+        self.assertEqual(added, [])
+        self.assertFalse(any("foto" in n and "+" in n for n in notes), notes)
+
     def test_first_sentence_gets_the_title_lead(self):
         out = quality.lead_intro("A calm set of garden scenes for spring.", TITLE)
         self.assertTrue(out.startswith("Honey Bee Coloring Pages"))

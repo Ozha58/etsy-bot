@@ -630,6 +630,8 @@ def treat_listing(li, product, dry_run=False) -> list:
     # extra photos up to 10, and a video when there is none
     pics = []
     need = 10 - len(images)
+    if any(_alt(im) in ("how to download", "good to know before you buy") for im in images):
+        need = 0  # our extra set is already there (an earlier run): a second set would only repeat it
     if (need > 0 or not has_video) and images:
         for im in images[:8 if need > 0 else 5]:  # more photos = more chances for a whole-design close-up
             try:
