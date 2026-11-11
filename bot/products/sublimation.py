@@ -437,14 +437,15 @@ def mug_mock(dsg, palette):
 
 
 # ---------------------------------------------------------------- the print on a photographed shirt
-PHOTO_SHIRTS = {
-    "flatlay": "flat lay product photo taken from directly above of one plain blank forest green cotton t-shirt, neatly "
-               "laid flat and centered on a light oak wooden table, the whole shirt visible, completely blank front, "
-               "soft natural daylight, realistic photography, no print, no logo, no text, no letters",
+PHOTO_SHIRTS = {  # both are worn, light garments: that is where the print looks real (a flat lay did not)
     "worn": "realistic photo of a woman wearing a plain blank cream crewneck sweatshirt, cropped from the chin to the "
             "waist, face not visible, straight front view, centered, hands in jeans pockets, softly blurred cozy "
             "living room with a Christmas tree and warm lights behind her, completely blank sweatshirt front, "
             "no print, no logo, no text, no letters",
+    "worn2": "realistic photo of a woman wearing a plain blank white crewneck sweatshirt, cropped from the chin to the "
+             "waist, face not visible, straight front view, centered, arms relaxed at her sides, softly blurred cozy "
+             "room with a fireplace, a green garland and warm string lights behind her, completely blank sweatshirt "
+             "front, no print, no logo, no text, no letters",
 }
 
 
@@ -483,7 +484,7 @@ def photo_mock(dsg, kind):
     x0, y0, x1, y1 = _shirt_box(a)
     s = dsg.copy()
     s.thumbnail((int((x1 - x0) * .80), int((y1 - y0) * .66)), Image.LANCZOS)
-    px, py = (x0 + x1) // 2 - s.width // 2, y0 + int((y1 - y0) * (.20 if kind == "flatlay" else .14))
+    px, py = (x0 + x1) // 2 - s.width // 2, y0 + int((y1 - y0) * .14)
     py = min(py, S - s.height - 10)
     # fabric light: the print gets darker in the folds and lighter on the highlights of the shirt under it
     lum = a[py:py + s.height, px:px + s.width].mean(axis=2)
@@ -602,8 +603,8 @@ def build(spec, slug):
     tumbler_wrap.paste(t, (1395 - t.width // 2, (2460 - t.height) // 2), t)
     # retro look: the first photos show the print on real-looking shirts (2 extra images); without them (quota) the
     # code-drawn shirts are used
-    flat = photo_mock(dsgs[0], "flatlay") if retro else None
-    worn = photo_mock(dsgs[1 % n], "worn") if retro else None
+    flat = photo_mock(dsgs[0], "worn") if retro else None  # the cover: the first design on the cream sweatshirt
+    worn = photo_mock(dsgs[1 % n], "worn2") if retro else None
     drawn_cover = product_cover(dsgs, n, name, palette, **({"scale": .62, "second": DARK_TEE} if retro else {}))
     mock = [
         ("00-cover.jpg", flat or drawn_cover),

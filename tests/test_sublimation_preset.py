@@ -67,7 +67,8 @@ class VintageBundleTest(unittest.TestCase):
         built = sublimation.build(spec, "test-vintage")
         self.assertEqual(built["count"], 12)
         self.assertEqual(len(fake_image.prompts), 12 + 2)  # 12 drawings + 2 shirt photos
-        self.assertIn("blank forest green cotton t-shirt", fake_image.prompts[12])
+        self.assertIn("blank cream crewneck sweatshirt", fake_image.prompts[12])  # cover: worn photo
+        self.assertIn("blank white crewneck sweatshirt", fake_image.prompts[13])
         self.assertEqual(len(built["mockups"]), 10)
         self.assertEqual(Image.open(io.BytesIO(built["mockups"][0][1])).size, (2000, 2000))
         self.assertIn("flat 2D vector", fake_image.prompts[0])
@@ -122,7 +123,7 @@ class VintageBundleTest(unittest.TestCase):
         ImageDraw.Draw(photo).rectangle((330, 250, 800, 960), fill=(24, 62, 50))
         dsg = Image.new("RGBA", (sublimation.SIZE, sublimation.SIZE), (230, 30, 30, 255))
         with mock.patch.object(images, "try_generate", lambda p, w, h: photo):
-            out = sublimation.photo_mock(dsg, "flatlay")
+            out = sublimation.photo_mock(dsg, "worn")
         red = [(x, y) for x in range(0, 2000, 20) for y in range(0, 2000, 20)
                if out.getpixel((x, y))[0] > 150 and out.getpixel((x, y))[1] < 80]
         self.assertTrue(red)
