@@ -40,6 +40,18 @@ class QualityTest(unittest.TestCase):
             self.assertNotIn("Sebasteia", text)
         self.assertEqual(social.HANDLE, "")  # no account name in post texts
 
+    def test_shop_texts_with_the_old_name_are_rewritten(self):
+        from unittest import mock
+        from bot import etsy
+        det = {"title": "Realistic Printables", "announcement": "Welcome to Sebasteia - printables",
+               "sale_message": "Thanks from Sebasteia!", "digital_sale_message": "Thank you!", "policy_additional": "x"}
+        sent = {}
+        with mock.patch.object(etsy, "shop_details", lambda: det), \
+                mock.patch.object(etsy, "update_shop", lambda **kw: sent.update(kw)):
+            shopfix.treat_shop()
+        self.assertEqual(set(sent), {"announcement", "sale_message"})
+        self.assertIn("Foxlantern Studio", sent["announcement"])
+
     def test_first_sentence_gets_the_title_lead(self):
         out = quality.lead_intro("A calm set of garden scenes for spring.", TITLE)
         self.assertTrue(out.startswith("Honey Bee Coloring Pages"))

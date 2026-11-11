@@ -32,6 +32,7 @@ from .telegram import esc
 
 VERSION = "shopfix-1"  # bump to treat every listing again
 SHOP_NAME = config.SHOP_NAME
+OLD_NAMES = ("Sebasteia",)  # earlier shop name: shop texts that still say it are rewritten
 
 # ------------------------------------------------------------------ shop level texts (English: buyers read them)
 SHOP_TITLE = "Realistic Printables, Coloring Pages, Junk Journal Kits"  # max 55
@@ -423,7 +424,9 @@ def treat_shop(dry_run=False) -> list:
         return [f"⚠️ mağaza bilgisi alınamadı: {e}"]
     want = {"title": SHOP_TITLE, "announcement": ANNOUNCEMENT, "sale_message": SALE_MESSAGE,
             "digital_sale_message": SALE_MESSAGE, "policy_additional": POLICY_ADDITIONAL}
-    change = {k: v for k, v in want.items() if not (det.get(k) or "").strip()}
+    # empty fields are filled; a text that still carries the shop's old name is replaced too
+    change = {k: v for k, v in want.items()
+              if not (det.get(k) or "").strip() or any(o.lower() in (det.get(k) or "").lower() for o in OLD_NAMES)}
     if not change:
         return ["mağaza başlığı, duyuru ve teşekkür mesajları zaten dolu"]
     if dry_run:
