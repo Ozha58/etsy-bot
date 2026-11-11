@@ -73,6 +73,13 @@ class VintageBundleTest(unittest.TestCase):
             self.assertIn("woman wearing a plain blank", pr)
             self.assertIn("face not visible", pr)
         self.assertIn("03b-colors.jpg", [nm for nm, _ in built["mockups"]])
+        from bot import photo_ratio  # the 4:5 bundle cover is cut to a full square, not shown small between blurred bands
+        sq = dict(photo_ratio.same_ratio(built["mockups"]))
+        bundle = Image.open(io.BytesIO(sq["01-bundle.jpg"])).convert("RGB")
+        self.assertEqual(bundle.size, (2000, 2000))
+        raw = Image.open(io.BytesIO(dict(built["mockups"])["01-bundle.jpg"])).convert("RGB")
+        self.assertEqual(raw.size, (2000, 2500))
+        self.assertLess(sum(abs(a - b) for a, b in zip(bundle.getpixel((20, 1000)), raw.getpixel((20, 1250)))), 40)
         self.assertNotEqual([sublimation.shirt_looks(i)[0][1] for i in range(12)].count("cream"), 12)  # cover colour changes
         self.assertEqual(len({c for _, c, _ in sublimation.shirt_looks(3)}), 4)
         self.assertEqual(len(built["mockups"]), 10)
