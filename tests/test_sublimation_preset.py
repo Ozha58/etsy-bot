@@ -66,8 +66,15 @@ class VintageBundleTest(unittest.TestCase):
         self.assertEqual(research.title_problems(spec["title"]), [])
         built = sublimation.build(spec, "test-vintage")
         self.assertEqual(built["count"], 12)
-        self.assertEqual(len(fake_image.prompts), 12 + 2)  # 12 drawings + 2 shirt photos
-        self.assertIn("blank forest green cotton t-shirt", fake_image.prompts[12])
+        self.assertEqual(len(fake_image.prompts), 12 + 4)  # 12 drawings + 4 worn sweatshirt photos
+        shirts = fake_image.prompts[12:]
+        self.assertEqual(len(set(shirts)), 4)  # four different colours and rooms
+        for pr in shirts:
+            self.assertIn("woman wearing a plain blank", pr)
+            self.assertIn("face not visible", pr)
+        self.assertIn("03b-colors.jpg", [nm for nm, _ in built["mockups"]])
+        self.assertNotEqual([sublimation.shirt_looks(i)[0][1] for i in range(12)].count("cream"), 12)  # cover colour changes
+        self.assertEqual(len({c for _, c, _ in sublimation.shirt_looks(3)}), 4)
         self.assertEqual(len(built["mockups"]), 10)
         self.assertEqual(Image.open(io.BytesIO(built["mockups"][0][1])).size, (2000, 2000))
         self.assertIn("flat 2D vector", fake_image.prompts[0])
@@ -122,7 +129,7 @@ class VintageBundleTest(unittest.TestCase):
         ImageDraw.Draw(photo).rectangle((330, 250, 800, 960), fill=(24, 62, 50))
         dsg = Image.new("RGBA", (sublimation.SIZE, sublimation.SIZE), (230, 30, 30, 255))
         with mock.patch.object(images, "try_generate", lambda p, w, h: photo):
-            out = sublimation.photo_mock(dsg, "flatlay")
+            out = sublimation.photo_mock(dsg)
         red = [(x, y) for x in range(0, 2000, 20) for y in range(0, 2000, 20)
                if out.getpixel((x, y))[0] > 150 and out.getpixel((x, y))[1] < 80]
         self.assertTrue(red)
@@ -130,7 +137,7 @@ class VintageBundleTest(unittest.TestCase):
         self.assertLessEqual(max(x for x, _ in red), 800 * 2000 // 1024)
         self.assertGreaterEqual(min(y for _, y in red), 250 * 2000 // 1024)
         with mock.patch.object(images, "try_generate", lambda p, w, h: None):
-            self.assertIsNone(sublimation.photo_mock(dsg, "worn"))  # no quota: the caller draws the shirt itself
+            self.assertIsNone(sublimation.photo_mock(dsg))  # no quota: the caller draws the shirt itself
 
 
 if __name__ == "__main__":

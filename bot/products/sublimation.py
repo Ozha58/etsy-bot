@@ -437,15 +437,30 @@ def mug_mock(dsg, palette):
 
 
 # ---------------------------------------------------------------- the print on a photographed shirt
-PHOTO_SHIRTS = {
-    "flatlay": "flat lay product photo taken from directly above of one plain blank forest green cotton t-shirt, neatly "
-               "laid flat and centered on a light oak wooden table, the whole shirt visible, completely blank front, "
-               "soft natural daylight, realistic photography, no print, no logo, no text, no letters",
-    "worn": "realistic photo of a woman wearing a plain blank cream crewneck sweatshirt, cropped from the chin to the "
-            "waist, face not visible, straight front view, centered, hands in jeans pockets, softly blurred cozy "
-            "living room with a Christmas tree and warm lights behind her, completely blank sweatshirt front, "
-            "no print, no logo, no text, no letters",
-}
+# every product gets its own sweatshirt colours and rooms (picked from the slug), always worn: that is where the print
+# looks real (a flat lay did not)
+SHIRT_COLORS = [("CREAM", "cream"), ("WHITE", "white"), ("SAGE", "sage green"), ("DUSTY PINK", "dusty pink"),
+                ("SAND", "sand beige"), ("LIGHT BLUE", "light blue"), ("HEATHER GREY", "light heather grey"),
+                ("FOREST GREEN", "forest green"), ("CRANBERRY", "cranberry red"), ("OATMEAL", "oatmeal")]
+SHIRT_SCENES = ["softly blurred cozy living room with a Christmas tree and warm lights behind her",
+                "softly blurred cozy room with a fireplace, a green garland and warm string lights behind her",
+                "softly blurred window with falling snow outside and warm fairy lights behind her",
+                "softly blurred cozy kitchen with a pine garland, cookies and warm lights behind her"]
+
+
+def shirt_prompt(color, scene):
+    return (f"realistic photo of a woman wearing a plain blank {color} crewneck sweatshirt, cropped from the chin to "
+            f"the waist, face not visible, straight front view, centered, hands in jeans pockets, {scene}, "
+            "completely blank sweatshirt front, no print, no logo, no text, no letters")
+
+
+def shirt_looks(seed=None, n=4):
+    """n different (label, colour, scene) for one run. No seed = a new pick every run (the slug comes from the title,
+    so it is the same each time the preset is made again)."""
+    rnd = random.Random(seed)
+    cols = rnd.sample(SHIRT_COLORS, n)
+    first = rnd.randrange(len(SHIRT_SCENES))
+    return [(lab, col, SHIRT_SCENES[(first + i) % len(SHIRT_SCENES)]) for i, (lab, col) in enumerate(cols)]
 
 
 def _shirt_box(a):
@@ -471,10 +486,10 @@ def _shirt_box(a):
     return x0, y0, x1, y1
 
 
-def photo_mock(dsg, kind):
-    """The design printed on an AI photographed blank shirt (1 image): it follows the light and folds of the fabric.
-    None when no photo could be made; the caller then uses the code-drawn shirt."""
-    im = images.try_generate(PHOTO_SHIRTS[kind], 1024, 1024)
+def photo_mock(dsg, color="cream", scene=SHIRT_SCENES[0]):
+    """The design printed on an AI photographed blank sweatshirt (1 image): it follows the light and folds of the
+    fabric. None when no photo could be made; the caller then uses the code-drawn shirt."""
+    im = images.try_generate(shirt_prompt(color, scene), 1024, 1024)
     if im is None:
         return None
     S = 2000
@@ -483,7 +498,7 @@ def photo_mock(dsg, kind):
     x0, y0, x1, y1 = _shirt_box(a)
     s = dsg.copy()
     s.thumbnail((int((x1 - x0) * .80), int((y1 - y0) * .66)), Image.LANCZOS)
-    px, py = (x0 + x1) // 2 - s.width // 2, y0 + int((y1 - y0) * (.20 if kind == "flatlay" else .14))
+    px, py = (x0 + x1) // 2 - s.width // 2, y0 + int((y1 - y0) * .14)
     py = min(py, S - s.height - 10)
     # fabric light: the print gets darker in the folds and lighter on the highlights of the shirt under it
     lum = a[py:py + s.height, px:px + s.width].mean(axis=2)
@@ -496,6 +511,23 @@ def photo_mock(dsg, kind):
     out = photo.convert("RGBA")
     out.alpha_composite(printed, (px, py))
     return out.convert("RGB")
+
+
+def colors_mock(shots, palette):
+    """2 x 2 real photos, one sweatshirt colour each with its name: how the designs look on different colours."""
+    pal = mockups.palette_colors(palette)
+    S, gap = 2000, 16
+    c = Image.new("RGB", (S, S), (250, 246, 238))
+    t = (S - gap) // 2
+    d = ImageDraw.Draw(c)
+    f = mockups.font("sans_bold", 44)
+    for i, (label, photo) in enumerate(shots[:4]):
+        x, y = (i % 2) * (t + gap), (i // 2) * (t + gap)
+        c.paste(photo.resize((t, t), Image.LANCZOS), (x, y))
+        w = int(d.textlength(label, font=f)) + 56
+        d.rounded_rectangle((x + 30, y + t - 104, x + 30 + w, y + t - 30), radius=37, fill=(255, 255, 255))
+        d.text((x + 58, y + t - 67), label, font=f, fill=pal["text"], anchor="lm")
+    return c
 
 
 def product_cover(dsgs, n, name, palette, title=None, scale=.46, second=(214, 196, 184)):
@@ -600,10 +632,16 @@ def build(spec, slug):
     t = dsgs[0].copy()
     t.thumbnail((1250, 2200), Image.LANCZOS)  # the visible front of the tumbler = the middle of the wrap
     tumbler_wrap.paste(t, (1395 - t.width // 2, (2460 - t.height) // 2), t)
-    # retro look: the first photos show the print on real-looking shirts (2 extra images); without them (quota) the
-    # code-drawn shirts are used
-    flat = photo_mock(dsgs[0], "flatlay") if retro else None
-    worn = photo_mock(dsgs[1 % n], "worn") if retro else None
+    # retro look: the photos show the print on real-looking worn sweatshirts, each in another colour and room
+    # (4 extra images); without them (quota) the code-drawn shirts are used
+    shots = []
+    for i, (label, col, scene) in enumerate(shirt_looks() if retro else []):
+        ph = photo_mock(dsgs[i % n], col, scene)
+        if ph is None:
+            break
+        shots.append((label, ph))
+    flat = shots[0][1] if shots else None  # the cover
+    worn = shots[1][1] if len(shots) > 1 else None
     drawn_cover = product_cover(dsgs, n, name, palette, **({"scale": .62, "second": DARK_TEE} if retro else {}))
     mock = [
         ("00-cover.jpg", flat or drawn_cover),
@@ -621,9 +659,11 @@ def build(spec, slug):
         ("08-license.jpg", mockups.info_card("COMMERCIAL USE", ["Personal and small business use", "Up to 500 physical products",
                                                                 "No reselling of the digital files"], palette, dsgs[4 % n])),
     ]
-    if flat is not None:  # the drawn overview (shirt + mug) stays in the listing, after the photo cover
+    if len(shots) == 4:  # the same bundle on four colours, right after the shirt photo
+        mock.insert(4, ("03b-colors.jpg", colors_mock(shots, palette)))
+    elif flat is not None:  # too few photos for the colour board: the drawn overview (shirt + mug) fills the place
         mock.insert(3, ("02b-products.jpg", drawn_cover))
-        mock = mock[:10]  # Etsy shows at most 10 photos
+    mock = mock[:10]  # Etsy shows at most 10 photos
     return {
         "own_cover": True,
         "delivery": delivery,
