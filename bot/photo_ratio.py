@@ -51,15 +51,16 @@ def to_square(im, crop=False):
 
 
 def same_ratio(mockups):
-    """[(name, jpeg bytes)] -> every photo 2000 x 2000. The first one (the cover) is centre-cropped when it is a
-    4:5 portrait cover, every other photo is kept whole."""
+    """[(name, jpeg bytes)] -> every photo 2000 x 2000. The cover and the bundle cover are centre-cropped when
+    they are 4:5 portrait, every other photo is kept whole."""
     out = []
     for k, (name, data) in enumerate(mockups):
         im = Image.open(io.BytesIO(data))
         if im.size == SQUARE:
             out.append((name, data))
             continue
-        crop = k == 0 and 0.75 <= im.width / im.height <= 0.85
+        # the 4:5 bundle cover is built for a centre crop wherever it stands (a photo cover may come before it)
+        crop = (k == 0 or "bundle" in name) and 0.75 <= im.width / im.height <= 0.85
         out.append((name, jpeg_bytes(to_square(im, crop), 88, dpi=72)))
     return out
 

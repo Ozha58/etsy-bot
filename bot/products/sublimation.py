@@ -497,9 +497,11 @@ def photo_mock(dsg, color="cream", scene=SHIRT_SCENES[0]):
     a = np.asarray(photo).astype(np.float32)
     x0, y0, x1, y1 = _shirt_box(a)
     s = dsg.copy()
-    s.thumbnail((int((x1 - x0) * .80), int((y1 - y0) * .66)), Image.LANCZOS)
-    px, py = (x0 + x1) // 2 - s.width // 2, y0 + int((y1 - y0) * .14)
-    py = min(py, S - s.height - 10)
+    # always the same chest print: a third of the photo wide, centred on the photo (the woman stands in the middle;
+    # the colour box leans to the lit side of the sweatshirt and to the arms, so it only gives collar and hem)
+    s.thumbnail((int(S * .34), int((y1 - y0) * .66)), Image.LANCZOS)
+    px, py = (S - s.width) // 2, y0 + int((y1 - y0) * .17)
+    py = max(10, min(py, S - s.height - 10))
     # fabric light: the print gets darker in the folds and lighter on the highlights of the shirt under it
     lum = a[py:py + s.height, px:px + s.width].mean(axis=2)
     lum = np.asarray(Image.fromarray(np.clip(lum, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(5))).astype(np.float32)
