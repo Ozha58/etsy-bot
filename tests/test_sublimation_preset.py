@@ -79,6 +79,27 @@ class VintageBundleTest(unittest.TestCase):
         self.assertEqual(len([n for n in names if n.startswith("Designs-3600px/")]), 12)
         self.assertEqual(len([n for n in names if n.startswith("Mug-Wrap-11oz/")]), 12)
 
+    def test_busy_art_still_fits_in_five_etsy_files(self):
+        # real AI art is busy: 12 full-colour 3600 px PNGs + mug wraps can be over 5 x 20 MB (Etsy's limit)
+        real = sublimation.make_zips
+        calls = []
+
+        def tight(name, files, readme, **kw):
+            calls.append(sum(len(d) for _, d in files))
+            if len(calls) == 1:
+                raise ValueError("Dosyalar 5 ZIP'e sığmıyor (6)")
+            return real(name, files, readme, **kw)
+        with mock.patch.object(sublimation, "make_zips", tight):
+            spec = research.product_spec({"type": "sublimation", "preset": PRESET})
+            built = sublimation.build(spec, "test-vintage-big")
+        self.assertEqual(len(calls), 2)
+        self.assertLessEqual(len(built["delivery"]), 5)
+        z = zipfile.ZipFile(io.BytesIO(built["delivery"][0][1]))
+        png = Image.open(io.BytesIO(z.read([n for n in z.namelist() if n.endswith(".png")][0])))
+        self.assertEqual(png.mode, "P")  # palette PNG...
+        self.assertEqual(png.convert("RGBA").getpixel((5, 5))[3], 0)  # ...that keeps the transparent background
+        self.assertEqual(png.size, (sublimation.SIZE, sublimation.SIZE))
+
     def test_retro_design_is_transparent_and_worn(self):
         art = Image.new("RGBA", (1800, 1800), (0, 0, 0, 0))
         ImageDraw.Draw(art).ellipse((100, 100, 1700, 1700), fill=(196, 40, 44, 255))
