@@ -222,7 +222,7 @@ Return ONLY JSON: {{"title": "...", "tags": ["..."], "styles": ["...", "..."]}}"
             res = llm.ask_json(prompt, temperature=0.5)
         except Exception as e:
             print(f"[shopfix] LLM hatası: {e}")
-            continue
+            break  # quota / outage: a second try now fails the same way and only costs minutes
         t = (res.get("title") or "").strip().strip('"')
         tg = []
         for x in res.get("tags") or []:
@@ -240,7 +240,7 @@ Return ONLY JSON: {{"title": "...", "tags": ["..."], "styles": ["...", "..."]}}"
             break
         prompt += f"\n\nYour previous answer had problems: {probs}. Fix ALL of them."
     if not best or not best["title"]:
-        best = {"title": title, "tags": tags, "styles": [], "probs": ["LLM yanıt vermedi"]}
+        best = {"title": title, "tags": tags, "styles": [], "probs": ["LLM yanıt vermedi"], "no_llm": True}
     if research.title_problems(best["title"]):
         fixed = research.fix_title(best["title"])
         if len(research.title_problems(fixed)) <= len(research.title_problems(best["title"])):
@@ -440,6 +440,9 @@ def treat_shop(dry_run=False) -> list:
     return notes
 
 
+NO_LLM = "başlık/etiket bekliyor (Gemini yanıt vermedi)"
+
+
 def treat_listing(li, product, dry_run=False) -> list:
     lid = li["listing_id"]
     ptype = (product or {}).get("type") or etsy._type_from_title(li.get("title"))
@@ -453,6 +456,8 @@ def treat_listing(li, product, dry_run=False) -> list:
     title = _plain(li.get("title"))
     if before["title_problems"] or before["tag_problems"] or not before["styles"]:
         seo = new_seo(li, ptype, product)
+        if seo.get("no_llm"):
+            notes.append(NO_LLM)
         if seo["title"] and seo["title"] != title and \
                 len(research.title_problems(seo["title"])) < len(before["title_problems"]):
             change["title"] = etsy.nice_title(seo["title"])[:140]
@@ -589,12 +594,19 @@ def run(audit_only=False, dry_run=False, limit=None, shop_part=True):
         todo = todo[:limit]
     results, errors = [], []
     t0 = time.time()
+    no_llm = 0
     for li in todo:
         lid = str(li["listing_id"])
         try:
             notes = treat_listing(li, by_lid.get(lid), dry_run)
             results.append((_plain(li.get("title"))[:60], notes))
-            if not dry_run:
+            if NO_LLM in notes:  # title / tags could not be rewritten: keep the listing for the next run
+                no_llm += 1
+                if no_llm >= 2:
+                    errors.append("metin yapay zekâsı (Gemini) yanıt vermiyor, büyük ihtimalle günlük kota doldu - "
+                                  "kalan ilanlar bekletildi, kota yenilenince /tedavi yeniden yazın")
+                    break
+            elif not dry_run:
                 done[lid] = VERSION
                 storage.save_meta(meta)
             print(f"[shopfix] {lid}: {notes}", flush=True)
