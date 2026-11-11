@@ -56,10 +56,13 @@ class QualityTest(unittest.TestCase):
         from unittest import mock
         from bot import etsy, llm, storage, telegram
         li = {"listing_id": 1, "title": "Bee Pages - Cute Bee Coloring", "tags": ["bee"], "description": "x"}
+        shopfix._llm_fails[0] = 0
         with mock.patch.object(llm, "ask_json", side_effect=llm.LLMError("429 quota")) as ask:
-            seo = shopfix.new_seo(li, "coloring")
+            for _ in range(4):
+                seo = shopfix.new_seo(li, "coloring")
         self.assertTrue(seo["no_llm"])
-        self.assertEqual(ask.call_count, 1)  # no pointless retries when the quota is gone
+        self.assertEqual(ask.call_count, 2)  # after two failures the run stops asking (no minutes lost per listing)
+        shopfix._llm_fails[0] = 0
 
         meta, treated, sent = {}, [], []
         listings = [dict(li, listing_id=k) for k in range(5)]
@@ -71,9 +74,46 @@ class QualityTest(unittest.TestCase):
                 mock.patch.object(telegram, "send", lambda *a, **k: sent.append(a[0])), \
                 mock.patch.object(shopfix, "treat_listing", lambda l, p, d: treated.append(l) or [shopfix.NO_LLM]):
             shopfix.run(shop_part=False)
-        self.assertEqual(len(treated), 2)  # stops after two listings instead of grinding through all of them
+        self.assertEqual(len(treated), 5)  # photos and descriptions of every listing are still repaired
         self.assertEqual(meta.get("shopfix_done"), {})  # nothing marked done: the next /tedavi retries them
         self.assertTrue(any("kota" in t for t in sent))
+
+    def test_closeups_show_whole_designs_and_never_cut_text_cards(self):
+        grid = Image.new("RGB", (2000, 2000), (244, 240, 234))  # four designs on a calm sheet
+        d = ImageDraw.Draw(grid)
+        for cx, cy in ((520, 520), (1480, 520), (520, 1480), (1480, 1480)):
+            d.ellipse((cx - 300, cy - 300, cx + 300, cy + 300), fill=(190, 60, 50))
+            d.rectangle((cx - 120, cy - 120, cx + 120, cy + 120), fill=(30, 110, 80))
+        card = Image.new("RGB", (2000, 2000), (250, 246, 239))  # a text card: lines of dark text
+        dc = ImageDraw.Draw(card)
+        for y in range(300, 1700, 140):
+            dc.rectangle((150, y, 1750, y + 60), fill=(20, 30, 70))
+        ups = shopfix.closeups([card, grid], 3)
+        self.assertEqual(len(ups), 1)  # nothing from the text card
+        up = ups[0]
+        self.assertEqual(up.size, (2000, 2000))
+        edge = [up.getpixel((x, y)) for x in range(0, 2000, 50) for y in (8, 1991)] + \
+               [up.getpixel((x, y)) for y in range(0, 2000, 50) for x in (8, 1991)]
+        calm = sum(1 for p in edge if max(p) - min(p) < 50 and sum(p) > 600)
+        self.assertGreater(calm / len(edge), 0.9)  # the design is not cut by the frame
+        self.assertGreater(max(up.getpixel((1000, 1000))) - min(up.getpixel((1000, 1000))), 50)  # and fills the middle
+
+        extra = [n for n, _ in shopfix.extra_photos(grid, [card, grid], [{"filename": "a.zip", "size": 5 << 20}], TITLE, 6)]
+        self.assertEqual(extra, ["detail-1.jpg", "info-whats-included.jpg", "file-details.jpg", "good-to-know.jpg",
+                                 "how-to-download.jpg"])  # artwork first, download help last
+        two = [n for n, _ in shopfix.extra_photos(grid, [card, grid], [{"filename": "a.zip", "size": 5 << 20}], TITLE, 2)]
+        self.assertEqual(two, ["detail-1.jpg", "info-whats-included.jpg"])
+
+    def test_first_treatment_photos_are_found_for_replacement(self):
+        def im(rank, label):
+            return {"listing_image_id": rank, "rank": rank, "alt_text": f"Some Title, B, C - {label}"}
+        v1 = [im(1, "cover preview"), im(2, "page preview"), im(3, "what is included"), im(4, "what is included"),
+              im(5, "how to download"), im(6, "file formats and details"), im(7, "close-up detail"), im(8, "close-up detail")]
+        self.assertEqual([i["rank"] for i in shopfix.old_extras(v1)], [4, 5, 6, 7, 8])
+        own = [im(1, "cover preview"), im(2, "close-up detail"), im(3, "what is included")]
+        self.assertEqual(shopfix.old_extras(own), [])  # a product's own detail photo stays
+        v2 = [im(1, "cover preview"), im(2, "close-up detail"), im(3, "what is included"), im(4, "how to download")]
+        self.assertEqual(shopfix.old_extras(v2), [])  # the new order is never touched again
 
     def test_first_sentence_gets_the_title_lead(self):
         out = quality.lead_intro("A calm set of garden scenes for spring.", TITLE)

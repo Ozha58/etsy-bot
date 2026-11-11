@@ -273,7 +273,7 @@ def _clean_styles(styles):
     return out[:2]
 
 
-_ALT = {"filedetails": "file formats and details", "bundle": "bundle cover with all items", "cover": "cover preview", "mosaic": "all designs included", "all": "all designs included",
+_ALT = {"filedetails": "file formats and details", "goodtoknow": "good to know before you buy", "bundle": "bundle cover with all items", "cover": "cover preview", "mosaic": "all designs included", "all": "all designs included",
         "wall": "framed on a wall", "room": "shown in a room", "lifestyle": "printed page on a desk",
         "info": "what is included", "sizes": "included sizes", "example": "colored example", "page": "page preview",
         "detail": "close-up detail", "how": "how to download", "print": "print preview", "flatlay": "all prints together"}
@@ -705,6 +705,11 @@ def set_alt_text(listing_id, listing_image_id, rank, alt_text):
     tok = token()
     return _req("POST", f"/shops/{shop_id_of(tok)}/listings/{listing_id}/images", tok,
                 data={"listing_image_id": listing_image_id, "rank": rank, "alt_text": alt_text[:250]}, timeout=120)
+
+
+def delete_image(listing_id, listing_image_id):
+    tok = token()
+    return _req("DELETE", f"/shops/{shop_id_of(tok)}/listings/{listing_id}/images/{listing_image_id}", tok)
 
 
 def add_image(listing_id, name, data: bytes, rank, alt_text):

@@ -24,13 +24,14 @@ import io
 import re
 import time
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageOps
 
 from . import config, etsy, llm, research, storage, telegram
 from .imgutil import font, jpeg_bytes
 from .telegram import esc
 
-VERSION = "shopfix-1"  # bump to treat every listing again
+VERSION = "shopfix-2"  # bump to treat every listing again
 SHOP_NAME = config.SHOP_NAME
 OLD_NAMES = ("Sebasteia",)  # earlier shop name: shop texts that still say it are rewritten
 
@@ -193,6 +194,9 @@ def shop_audit(listings, details=None) -> dict:
 
 
 # ------------------------------------------------------------------ titles and tags
+_llm_fails = [0]  # text AI failures in a row during this run
+
+
 def new_seo(li, ptype, product=None) -> dict:
     """{"title", "tags", "styles"} that pass the audit rules (LLM, then a safe local repair)."""
     title = _plain(li.get("title"))
@@ -218,10 +222,14 @@ Write:
 Return ONLY JSON: {{"title": "...", "tags": ["..."], "styles": ["...", "..."]}}"""
     best = None
     for attempt in range(3):
+        if _llm_fails[0] >= 2:  # the text AI is down for this run (quota): do not wait for it on every listing
+            break
         try:
             res = llm.ask_json(prompt, temperature=0.5)
+            _llm_fails[0] = 0
         except Exception as e:
             print(f"[shopfix] LLM hatası: {e}")
+            _llm_fails[0] += 1
             break  # quota / outage: a second try now fails the same way and only costs minutes
         t = (res.get("title") or "").strip().strip('"')
         tg = []
@@ -321,14 +329,14 @@ def _card(cover, heading, lines, sub=""):
     d.rounded_rectangle((120, 640, S - 120, 860), 40, fill=PAPER)
     f = font("serif", 112)
     d.text((S // 2, 750), heading, font=f, fill=INK, anchor="mm")
-    y = 960
+    y = 980
     for ln in lines:
-        fl = font("sans_medium", 64)
+        fl = font("sans_medium", 78)
         while d.textlength(ln, font=fl) > S - 360 and fl.size > 36:
             fl = font("sans_medium", fl.size - 4)
-        d.ellipse((200, y + 20, 236, y + 56), fill=ACCENT)
+        d.ellipse((200, y + 26, 236, y + 62), fill=ACCENT)
         d.text((270, y), ln, font=fl, fill=INK)
-        y += 120
+        y += 158
         if y > S - 220:
             break
     if sub:
@@ -336,47 +344,116 @@ def _card(cover, heading, lines, sub=""):
     return im
 
 
+def closeups(photos: list, n: int) -> list:
+    """Up to n square close-ups that show ONE whole design: a window whose edge runs over calm background while
+    its inside is full of colour. A blind crop cut text cards and grids in half (seen in the shop); a photo with
+    no such window (text card, full bleed scene) gives no close-up at all. The same design is not shown twice."""
+    out, seen = [], []
+    for im in photos:
+        if len(out) >= n:
+            break
+        w, h = im.size
+        if min(w, h) < 1000:
+            continue
+        q = max(1, min(w, h) // 250)
+        a = np.asarray(im.convert("RGB").resize((w // q, h // q), Image.BILINEAR)).astype(np.int16)
+        sh, sw = a.shape[:2]
+        lum = a.mean(axis=2)
+        busy = (a.max(axis=2) - a.min(axis=2)) > 50
+
+        def calm_edge(x0, y0, side, limit=0.05):
+            """The frame runs over background: almost no coloured or dark pixels on it."""
+            r, x1, y1 = max(2, side // 22), x0 + side, y0 + side
+            rim = np.concatenate([lum[y0:y0 + r, x0:x1].ravel(), lum[y1 - r:y1, x0:x1].ravel(),
+                                  lum[y0:y1, x0:x0 + r].ravel(), lum[y0:y1, x1 - r:x1].ravel()])
+            rimb = np.concatenate([busy[y0:y0 + r, x0:x1].ravel(), busy[y1 - r:y1, x0:x1].ravel(),
+                                   busy[y0:y1, x0:x0 + r].ravel(), busy[y0:y1, x1 - r:x1].ravel()])
+            return (rimb | (np.abs(rim - np.median(rim)) > 30)).mean() <= limit
+
+        best = None
+        for frac in (0.55, 0.45, 0.36, 0.28):
+            side = int(min(sw, sh) * frac)
+            ring = max(2, side // 22)
+            step = max(2, side // 8)
+            for y0 in range(0, sh - side + 1, step):
+                for x0 in range(0, sw - side + 1, step):
+                    fill = busy[y0 + ring:y0 + side - ring, x0 + ring:x0 + side - ring].mean()
+                    if fill < 0.15 or not calm_edge(x0, y0, side):
+                        continue
+                    score = fill * (1 + frac)
+                    if best is None or score > best[0]:
+                        best = (score, x0, y0, side)
+        if not best:
+            continue
+        _, x0, y0, side = best
+        # frame the design itself: the biggest connected shape in the window, with a little air around it
+        # (a stray word or a neighbour's sparkle near the window edge stays outside)
+        from scipy import ndimage
+        lab, cnt = ndimage.label(ndimage.binary_dilation(busy[y0:y0 + side, x0:x0 + side], iterations=3))
+        if cnt:
+            big = 1 + int(np.argmax(ndimage.sum(np.ones_like(lab), lab, range(1, cnt + 1))))
+            ys, xs = np.nonzero(lab == big)
+            s2 = int(max(ys.max() - ys.min(), xs.max() - xs.min()) * 1.16) + 2
+            if side * 0.6 <= s2 <= side:
+                cx, cy = x0 + (xs.min() + xs.max()) // 2, y0 + (ys.min() + ys.max()) // 2
+                x0 = max(0, min(sw - s2, cx - s2 // 2))
+                y0 = max(0, min(sh - s2, cy - s2 // 2))
+                side = s2
+        win = busy[y0:y0 + side, x0:x0 + side]
+        ys, xs = np.flatnonzero(win.any(axis=1)), np.flatnonzero(win.any(axis=0))
+        win = win[ys.min():ys.max() + 1, xs.min():xs.max() + 1]  # the design itself, wherever it sits in the frame
+        sig = np.asarray(Image.fromarray((win * 255).astype(np.uint8)).resize((24, 24))) > 96
+        if any((sig & o).sum() / max(1, (sig | o).sum()) > 0.6 for o in seen):
+            continue
+        seen.append(sig)
+        out.append(im.crop((x0 * q, y0 * q, (x0 + side) * q, (y0 + side) * q)).resize((S, S), Image.LANCZOS))
+    return out
+
+
+# which extra photo is worth a free slot first (close-ups sell, the cards answer questions) ...
+_PRIORITY = ("info-whats-included", "detail-1", "how-to-download", "file-details", "detail-2", "detail-3",
+             "good-to-know", "detail-4")
+# ... and the order they are shown in: artwork first, download help last
+_ORDER = ("detail-1", "detail-2", "detail-3", "detail-4", "info-whats-included", "file-details", "good-to-know",
+          "how-to-download")
+
+
 def extra_photos(cover, existing: list, files, title, need: int) -> list:
-    """[(name, jpeg)] honest extra photos made from the listing's own images and real file list."""
-    out = []
+    """[(name, jpeg)] honest extra photos made from the listing's own images and real file list, in display order."""
+    made = {}
     names = [f.get("filename") or "" for f in files or []]
     exts = sorted({n.rsplit(".", 1)[-1].upper() for n in names if "." in n})
     total = sum(_fsize(f) for f in files or [])
     if names:
         lines = [f"{len(names)} file{'s' if len(names) > 1 else ''} · {_mb(total)}"] + \
                 [n[:44] for n in names[:4]] + ["Instant digital download"]
-        out.append(("info-whats-included.jpg", _card(cover, "What's Included", lines, title_parts(title)[0][:60] if title else "")))
-    out.append(("how-to-download.jpg", _card(cover, "How to Download", [
+        made["info-whats-included"] = _card(cover, "What's Included", lines, title_parts(title)[0][:60] if title else "")
+    made["how-to-download"] = _card(cover, "How to Download", [
         "1. Complete your purchase",
         "2. Go to You > Purchases and Reviews",
         "3. Click Download Files",
         "4. Unzip and print or use" if "ZIP" in exts else "4. Print at home or use digitally",
         "Questions? Message us any time",
-    ], "No physical item is shipped")))
+    ], "No physical item is shipped")
     if exts:
-        out.append(("file-details.jpg", _card(cover, "File Details", [
+        made["file-details"] = _card(cover, "File Details", [
             "Format: " + ", ".join(exts),
             f"Total size: {_mb(total)}",
             "Print at home or at a print shop",
             "Works on computer, tablet and phone",
             "Instant access after checkout",
-        ])))
-    # close-up details of the real artwork (Etsy buyers zoom in before they buy)
-    spots = ((0.5, 0.5), (0.3, 0.35), (0.7, 0.65), (0.35, 0.7))
-    k = 0
-    for im in existing:
-        if len(out) >= need + 2:
-            break
-        w, h = im.size
-        if min(w, h) < 1000:
-            continue
-        cx, cy = spots[k % len(spots)]
-        side = int(min(w, h) * 0.55)
-        x0 = max(0, min(w - side, int(cx * w - side / 2)))
-        y0 = max(0, min(h - side, int(cy * h - side / 2)))
-        out.append((f"detail-{k + 1}.jpg", im.crop((x0, y0, x0 + side, y0 + side)).resize((S, S), Image.LANCZOS)))
-        k += 1
-    return [(n, jpeg_bytes(im.convert("RGB"), 90, dpi=72)) for n, im in out[:need]]
+        ])
+    made["good-to-know"] = _card(cover, "Good to Know", [
+        "Digital download - nothing is shipped",
+        "Colors vary a little by screen and printer",
+        "Download again any time from your account",
+        "We answer messages within 24 hours",
+    ])
+    if need > 0:
+        for k, im in enumerate(closeups(existing, 4), 1):
+            made[f"detail-{k}"] = im
+    pick = [n for n in _PRIORITY if n in made][:max(0, need)]
+    return [(f"{n}.jpg", jpeg_bytes(made[n].convert("RGB"), 90, dpi=72)) for n in _ORDER if n in pick]
 
 
 # ------------------------------------------------------------------ banner and logo
@@ -441,6 +518,23 @@ def treat_shop(dry_run=False) -> list:
 
 
 NO_LLM = "başlık/etiket bekliyor (Gemini yanıt vermedi)"
+
+
+def _alt(im):
+    return (im.get("alt_text") or "").rsplit(" - ", 1)[-1].strip().lower()
+
+
+def old_extras(images) -> list:
+    """Photos the first treatment (shopfix-1) added, recognised by their order: [what is included,] how to download,
+    [file details,] close-ups. Listings without a close-up AFTER the download card are left alone."""
+    ims = sorted(images, key=lambda i: i.get("rank", 99))
+    how = next((k for k, im in enumerate(ims) if _alt(im) == "how to download"), None)
+    if how is None or not any(_alt(im) == "close-up detail" for im in ims[how + 1:]):
+        return []
+    out = [ims[how]] + [im for im in ims[how + 1:] if _alt(im) in ("file formats and details", "close-up detail")]
+    if how > 0 and _alt(ims[how - 1]) == "what is included":
+        out.insert(0, ims[how - 1])
+    return out
 
 
 def treat_listing(li, product, dry_run=False) -> list:
@@ -514,11 +608,30 @@ def treat_listing(li, product, dry_run=False) -> list:
     elif missing:
         notes.append(f"(önizleme) {len(missing)} foto alt metni")
 
+    # the first treatment added blind crops as "close-ups" (text cards and grids cut in half) and put the download
+    # card before them: take that set away, the new one below replaces it in the right order
+    stale = old_extras(images)
+    if stale:
+        if dry_run:
+            notes.append(f"(önizleme) {len(stale)} eski ek foto silinip yenisi eklenecek")
+            images = [im for im in images if im not in stale]
+        else:
+            gone = 0
+            for im in stale:
+                try:
+                    etsy.delete_image(lid, im["listing_image_id"])
+                    gone += 1
+                except Exception as e:
+                    print(f"[shopfix] {lid} eski ek foto silinemedi: {e}")
+            if gone:
+                notes.append(f"{gone} hatalı ek foto silindi")
+            images = etsy.listing_images(lid)
+
     # extra photos up to 10, and a video when there is none
     pics = []
     need = 10 - len(images)
     if (need > 0 or not has_video) and images:
-        for im in images[:5]:
+        for im in images[:8 if need > 0 else 5]:  # more photos = more chances for a whole-design close-up
             try:
                 pics.append(_img(etsy.download_image(im)))
             except Exception as e:
@@ -546,7 +659,7 @@ def treat_listing(li, product, dry_run=False) -> list:
         else:
             try:
                 from . import etsy_video
-                vb = etsy_video.make(pics)
+                vb = etsy_video.make(pics[:5])
                 if vb:
                     etsy.add_video(lid, bytes(vb))
                     notes.append("video")
@@ -600,12 +713,8 @@ def run(audit_only=False, dry_run=False, limit=None, shop_part=True):
         try:
             notes = treat_listing(li, by_lid.get(lid), dry_run)
             results.append((_plain(li.get("title"))[:60], notes))
-            if NO_LLM in notes:  # title / tags could not be rewritten: keep the listing for the next run
-                no_llm += 1
-                if no_llm >= 2:
-                    errors.append("metin yapay zekâsı (Gemini) yanıt vermiyor, büyük ihtimalle günlük kota doldu - "
-                                  "kalan ilanlar bekletildi, kota yenilenince /tedavi yeniden yazın")
-                    break
+            if NO_LLM in notes:  # title / tags could not be rewritten: photos and description are done, the
+                no_llm += 1      # listing stays on the list so the next run writes its title and tags
             elif not dry_run:
                 done[lid] = VERSION
                 storage.save_meta(meta)
@@ -617,6 +726,10 @@ def run(audit_only=False, dry_run=False, limit=None, shop_part=True):
             errors.append("süre doldu - kalan ilanlar bir sonraki çalıştırmada")
             break
 
+    if no_llm:
+        errors.append(f"{no_llm} ilanın başlık/etiketi yazılamadı: metin yapay zekâsı (Gemini) yanıt vermedi, büyük "
+                      "ihtimalle günlük kota doldu. Fotoğraf ve açıklamaları düzeltildi; kota yenilenince /tedavi "
+                      "yeniden yazın, yalnızca başlık ve etiketleri tamamlar")
     after = None
     if not dry_run:
         fresh = etsy.shop_listings("active")
