@@ -40,6 +40,41 @@ class QualityTest(unittest.TestCase):
             self.assertNotIn("Sebasteia", text)
         self.assertEqual(social.HANDLE, "")  # no account name in post texts
 
+    def test_shop_texts_with_the_old_name_are_rewritten(self):
+        from unittest import mock
+        from bot import etsy
+        det = {"title": "Realistic Printables", "announcement": "Welcome to Sebasteia - printables",
+               "sale_message": "Thanks from Sebasteia!", "digital_sale_message": "Thank you!", "policy_additional": "x"}
+        sent = {}
+        with mock.patch.object(etsy, "shop_details", lambda: det), \
+                mock.patch.object(etsy, "update_shop", lambda **kw: sent.update(kw)):
+            shopfix.treat_shop()
+        self.assertEqual(set(sent), {"announcement", "sale_message"})
+        self.assertIn("Foxlantern Studio", sent["announcement"])
+
+    def test_tedavi_waits_when_gemini_quota_is_full(self):
+        from unittest import mock
+        from bot import etsy, llm, storage, telegram
+        li = {"listing_id": 1, "title": "Bee Pages - Cute Bee Coloring", "tags": ["bee"], "description": "x"}
+        with mock.patch.object(llm, "ask_json", side_effect=llm.LLMError("429 quota")) as ask:
+            seo = shopfix.new_seo(li, "coloring")
+        self.assertTrue(seo["no_llm"])
+        self.assertEqual(ask.call_count, 1)  # no pointless retries when the quota is gone
+
+        meta, treated, sent = {}, [], []
+        listings = [dict(li, listing_id=k) for k in range(5)]
+        with mock.patch.object(etsy, "shop_listings", lambda state: listings), \
+                mock.patch.object(etsy, "shop_details", lambda: {}), \
+                mock.patch.object(storage, "all_products", lambda: []), \
+                mock.patch.object(storage, "load_meta", lambda: meta), \
+                mock.patch.object(storage, "save_meta", lambda m: None), \
+                mock.patch.object(telegram, "send", lambda *a, **k: sent.append(a[0])), \
+                mock.patch.object(shopfix, "treat_listing", lambda l, p, d: treated.append(l) or [shopfix.NO_LLM]):
+            shopfix.run(shop_part=False)
+        self.assertEqual(len(treated), 2)  # stops after two listings instead of grinding through all of them
+        self.assertEqual(meta.get("shopfix_done"), {})  # nothing marked done: the next /tedavi retries them
+        self.assertTrue(any("kota" in t for t in sent))
+
     def test_first_sentence_gets_the_title_lead(self):
         out = quality.lead_intro("A calm set of garden scenes for spring.", TITLE)
         self.assertTrue(out.startswith("Honey Bee Coloring Pages"))
