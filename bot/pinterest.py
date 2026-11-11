@@ -30,7 +30,7 @@ BOARDS = {
     "stickers": "Digital Planners & Stickers",
     "journal": "Digital Planners & Stickers",
 }
-BOARD_DESC = "Instant digital downloads from Sebasteia on Etsy."
+BOARD_DESC = f"Instant digital downloads from {config.SHOP_NAME} on Etsy."
 
 
 class PinterestError(Exception):

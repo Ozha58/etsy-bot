@@ -25,7 +25,8 @@ def compose_description(spec: dict, built: dict) -> str:
     def section(title, lines):
         return title + "\n" + "\n".join(f"• {l}" for l in lines)
 
-    parts = ["✨ " + spec["intro"].strip()]  # a few emojis (3-4) look friendly; never more
+    from . import quality
+    parts = ["✨ " + quality.lead_intro(spec["intro"], spec.get("title", ""))]  # a few emojis (3-4) look friendly; never more
     parts.append(section("🎁 WHAT'S INCLUDED", built["included"]))
     parts.append(section("FILE DETAILS", built["details"]))
     parts.append(section("💡 HOW TO USE", built["usage"]))
@@ -73,6 +74,9 @@ def product_caption(p: dict) -> str:
     if p.get("research", {}).get("variation_of"):
         lines.append(f"🏆 Çok satan ürünün varyasyonu: {esc(p['research']['variation_of'][:80])}")
     lines.append(f"🏷 {esc(', '.join(p['tags']))}")
+    if p.get("quality"):
+        from . import quality
+        lines += [esc(l).replace("&lt;b&gt;", "<b>").replace("&lt;/b&gt;", "</b>") for l in quality.caption_lines(p["quality"])]
     files = "\n".join(f"  • <code>{esc(f['name'])}</code> ({f['size'] / 1048576:.1f} MB)" for f in p["files"])
     lines.append(f"📁 Teslimat dosyaları:\n{files}")
     lines.append(f"\n<code>{p['id']}</code>")
@@ -172,6 +176,13 @@ def build_one(idea: dict, day: dt.date) -> dict:
         built["mockups"] = photo_ratio.same_ratio(built["mockups"])
     except Exception as e:
         print(f"[photo_ratio] yapılamadı: {e}")
+    from . import quality
+    files = [{"name": n, "size": len(b)} for n, b in built["delivery"]]
+    try:  # shop audit: all 13 tags, a bright cover, 10 photos (extra ones are honest info cards and close-ups)
+        spec["tags"] = quality.fill_tags(spec.get("tags"), spec["title"])
+        built["mockups"] = quality.top_up_photos(quality.repair_cover(built["mockups"]), files, spec["title"])
+    except Exception as e:
+        print(f"[quality] onarım yapılamadı: {e}")
     p = {
         "id": pid,
         "created_at": int(time.time()),
@@ -187,13 +198,19 @@ def build_one(idea: dict, day: dt.date) -> dict:
         "price_usd": spec["price_usd"],
         "spec": spec,
         "build": {k: built[k] for k in ("taxonomy", "taxonomy_fallback_id", "is_supply", "skip_attributes", "listing") if k in built},
-        "files": [{"name": n, "size": len(b)} for n, b in built["delivery"]],
+        "files": files,
         "photos": [n for n, _ in built["mockups"]],
         "thumb": built["thumb"],
         "cover_version": _cover_version(),  # built with today's bundle cover: /kapak hepsi skips it
         "build_seconds": int(time.time() - t0),
     }
     p.update(built.get("product_extra", {}))
+    try:  # our own 100 point checklist, shown with the approval message
+        others = [o for o in storage.all_products() if o.get("status") != "rejected"]
+        p["quality"] = quality.score(p, built["mockups"], [o.get("title") for o in others],
+                                     [o.get("cover_layout") for o in sorted(others, key=lambda o: o.get("created_at", 0))])
+    except Exception as e:
+        print(f"[quality] puanlanamadı: {e}")
     storage.add_event(p, "oluşturuldu")
     payload = {f"file__{n}": b for n, b in built["delivery"]}
     payload.update(built.get("extra_assets", {}))  # e.g. custom: the artwork kept for rendering each order

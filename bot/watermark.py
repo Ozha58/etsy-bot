@@ -3,9 +3,10 @@ import io
 
 from PIL import Image, ImageDraw
 
+from . import config
 from .imgutil import font, jpeg_bytes
 
-TEXT = "SEBASTEIA"
+TEXT = config.SHOP_NAME.upper()
 SKIP = ("how",)       # listing images whose name contains these words get no watermark
 OPACITY = 46          # 0-255, low = subtle
 ANGLE = 28

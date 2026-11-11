@@ -25,8 +25,8 @@ HEADERS = ["Title", "Media URL", "Pinterest board", "Thumbnail", "Description", 
 SLOTS_UTC = [(13, 0), (16, 0), (19, 0), (22, 0), (1, 0)]
 PINS_PER_WEEK = 35
 WEIGHT = {"planner": 3, "stickers": 3, "journal": 3, "junk_journal": 2}  # planners sell best on Pinterest: more turns
-FEEDS = {"planner": ("feed-planner.xml", "Sebasteia Digital Planners", "Digital Planners & Stickers"),
-         "shop": ("feed-shop.xml", "Sebasteia Printables", "Printables & Junk Journals")}
+FEEDS = {"planner": ("feed-planner.xml", f"{config.SHOP_NAME} Digital Planners", "Digital Planners & Stickers"),
+         "shop": ("feed-shop.xml", f"{config.SHOP_NAME} Printables", "Printables & Junk Journals")}
 FEED_KEEP = 40
 KEEP_DAYS = 30
 
@@ -177,7 +177,7 @@ def _x(t):
 
 def _sample(key):
     site = config.pages_url()
-    img, title, link = "", "Sebasteia Digital Planners" if key == "planner" else "Sebasteia Printables", "https://www.etsy.com/shop/Sebasteia"
+    img, title, link = "", f"{config.SHOP_NAME} Digital Planners" if key == "planner" else f"{config.SHOP_NAME} Printables", config.SHOP_URL
     f = PINS_DIR / "latest.csv"
     if f.exists():
         for r in csv.DictReader(io.StringIO(f.read_text(encoding="utf-8"))):
@@ -187,7 +187,7 @@ def _sample(key):
     if not img:
         jpgs = sorted(PINS_DIR.glob("*.jpg"))
         img = site + "pins/" + jpgs[-1].name if jpgs else site + "icon.png"
-    return {"feed": key, "title": title, "desc": "Instant digital downloads from Sebasteia on Etsy.", "link": link,
+    return {"feed": key, "title": title, "desc": f"Instant digital downloads from {config.SHOP_NAME} on Etsy.", "link": link,
             "image": img, "guid": img + "#sample", "at": int(time.time()) - 30 * 86400, "size": 200000}
 
 
@@ -202,8 +202,8 @@ def write_feeds():
             mine = [_sample(key)]
         out = ['<?xml version="1.0" encoding="UTF-8"?>',
                '<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">',
-               "<channel>", f"<title>{_x(title)}</title>", "<link>https://www.etsy.com/shop/Sebasteia</link>",
-               f"<description>{_x(board)} - instant digital downloads from Sebasteia on Etsy</description>",
+               "<channel>", f"<title>{_x(title)}</title>", f"<link>{config.SHOP_URL}</link>",
+               f"<description>{_x(board)} - instant digital downloads from {config.SHOP_NAME} on Etsy</description>",
                f'<atom:link href="{_x(site + "pins/" + fname)}" rel="self" type="application/rss+xml"/>',
                f"<lastBuildDate>{_rfc822(time.time())}</lastBuildDate>"]
         for i in mine:
