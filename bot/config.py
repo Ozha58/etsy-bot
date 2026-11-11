@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATE_DIR = ROOT / "state"
 FONTS_DIR = ROOT / "assets" / "fonts"
+SHOP_NAME = "Foxlantern Studio"  # the one place for the shop name (watermark, shop texts, pins, social)
+SHOP_URL = "https://foxlantern.etsy.com"
 
 
 def _load_dotenv():

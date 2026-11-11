@@ -31,11 +31,11 @@ from .imgutil import font, jpeg_bytes
 from .telegram import esc
 
 VERSION = "shopfix-1"  # bump to treat every listing again
-SHOP_NAME = "Sebasteia"
+SHOP_NAME = config.SHOP_NAME
 
 # ------------------------------------------------------------------ shop level texts (English: buyers read them)
 SHOP_TITLE = "Realistic Printables, Coloring Pages, Junk Journal Kits"  # max 55
-ANNOUNCEMENT = """Welcome to Sebasteia - realistic, detailed printables you can download in seconds.
+ANNOUNCEMENT = f"""Welcome to {SHOP_NAME} - realistic, detailed printables you can download in seconds.
 
 What you will find here:
 • Coloring pages and coloring books (PDF)
@@ -50,7 +50,7 @@ New designs are added every week. Tap the heart next to our shop name to follow 
 
 Questions or a file problem? Send us a message - we answer within 24 hours and always make it right."""
 
-SALE_MESSAGE = """Thank you so much for your order from Sebasteia!
+SALE_MESSAGE = f"""Thank you so much for your order from {SHOP_NAME}!
 
 HOW TO DOWNLOAD
 1. Sign in to Etsy on a computer or the Etsy website (the app does not always show downloads).
@@ -87,7 +87,7 @@ MANUAL_STEPS = """📋 <b>Etsy'nin API ile izin vermediği adımlar (Shop Manage
 7️⃣ <b>Favori / takip</b>: Pinterest pinleri (/pin) ve TikTok videoları (/sosyal_3) mağazaya dış trafik getirir
 8️⃣ <b>Bölümler</b>: 3-8 bölüm ideal; boş veya 1 ilanlı bölümleri birleştir"""
 
-ABOUT_STORY = """Hi, I'm the maker behind Sebasteia.
+ABOUT_STORY = f"""Hi, I'm the maker behind {SHOP_NAME}.
 
 I create realistic, detailed printables - each one about a single charming subject: honey bees, lighthouses, cozy
 cottages, woodland animals and winter forests. Every design is drawn with the help of digital tools, then

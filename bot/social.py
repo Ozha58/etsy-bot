@@ -14,8 +14,8 @@ from . import config
 from .imgutil import fit_text, font, wrap_text
 from .mockups import _mix, palette_colors
 
-SHOP_NAME = "Sebasteia"
-HANDLE = "@Sebasteia"  # same handle on Pinterest, TikTok and Instagram
+SHOP_NAME = config.SHOP_NAME
+HANDLE = ""  # no account name in the post texts (owner's choice); set e.g. "@name" to show one
 FPS = 30
 
 HOOKS = {
@@ -160,7 +160,7 @@ def texts(p, link):
     main, sub = _split_title(p["title"])
     intro = re.split(r"(?<=[.!?])\s", (p.get("spec", {}).get("intro") or "").strip())[0][:240]
     kw = ", ".join(good_tags(p)[:8])
-    tail = f" More designs on TikTok & Instagram {HANDLE}"
+    tail = f" More designs on TikTok & Instagram {HANDLE}" if HANDLE else ""
     if main and main.lower()[:25] not in intro.lower():
         intro = f"{main}. {intro}".strip()
     pin_desc = (f"{intro} Instant digital download from {SHOP_NAME} on Etsy. {kw}"[:480 - len(tail)].rstrip(", ") + "." + tail).strip()
@@ -169,7 +169,7 @@ def texts(p, link):
         "",
         p["title"],
         "Instant digital download 📥  Link in bio → " + SHOP_NAME + " on Etsy",
-        f"📌 Also on Pinterest & Instagram: {HANDLE}",
+        *([f"📌 Also on Pinterest & Instagram: {HANDLE}"] if HANDLE else []),
         "",
         " ".join(_hashtags(p)),
     ])
@@ -306,7 +306,7 @@ def _pick_photos(p, photos):
 def build_pack(p, photos):
     """photos: [(name, jpeg bytes)] -> dict with pin, video, texts."""
     ims = _pick_photos(p, photos)
-    link = p.get("etsy", {}).get("url") or f"https://www.etsy.com/shop/{SHOP_NAME}"
+    link = p.get("etsy", {}).get("url") or config.SHOP_URL
     pack = texts(p, link)
     pack["pin"] = pin_image(p, ims)
     pack["video"] = video(p, ims)

@@ -93,6 +93,20 @@ class VintageBundleTest(unittest.TestCase):
         self.assertEqual(len([n for n in names if n.startswith("Designs-3600px/")]), 12)
         self.assertEqual(len([n for n in names if n.startswith("Mug-Wrap-11oz/")]), 12)
 
+    def test_vintage_bundle_passes_the_quality_gate(self):
+        from bot import generator, photo_ratio, quality
+        spec = research.product_spec({"type": "sublimation", "preset": PRESET})
+        built = sublimation.build(spec, "test-vintage-quality")
+        mock_ = photo_ratio.same_ratio(built["mockups"])
+        files = [{"name": n, "size": len(b)} for n, b in built["delivery"]]
+        mock_ = quality.top_up_photos(quality.repair_cover(mock_), files, spec["title"])
+        p = {"title": spec["title"], "description": generator.compose_description(spec, built), "type": "sublimation",
+             "tags": quality.fill_tags(spec["tags"], spec["title"]), "price_usd": spec["price_usd"], "spec": spec,
+             "files": files}
+        q = quality.score(p, mock_)
+        self.assertGreaterEqual(q["total"], quality.TARGET, q)
+        self.assertEqual(len(mock_), 10)
+
     def test_busy_art_still_fits_in_five_etsy_files(self):
         # real AI art is busy: 12 full-colour 3600 px PNGs + mug wraps can be over 5 x 20 MB (Etsy's limit)
         real = sublimation.make_zips

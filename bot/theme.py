@@ -1,4 +1,4 @@
-"""Shop focus: Sebasteia = realistic, detailed printables about one charming subject each.
+"""Shop focus: Foxlantern Studio = realistic, detailed printables about one charming subject each.
 
 Every new product stays inside this theme; the seasonal angle changes through the year so the
 shop always has something buyers are shopping for (they shop 3-8 weeks ahead).
