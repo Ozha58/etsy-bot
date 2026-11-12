@@ -8,15 +8,17 @@ from . import assets, config, etsy, storage, telegram
 from .telegram import esc
 
 HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
-<b>Üretim</b> (yalnızca bu 4 tür; otomatik üretim her gün 11:15'te her birinden 1 tane yapar)
+<b>Üretim</b> (yalnızca bu 5 tür; otomatik üretim her gün 11:15'te her birinden 1 tane yapar)
 /uret_sublimation_vintagexmas – vintage Noel tişört paketi: 12 retro tasarım, giyilmiş sweatshirt fotoğrafları (~16 görsel hakkı)
 /uret_sublimation_vintagexmas_cozy · _kids · _classic – temayı sen seç
 /uret_custom_xmaskids – kişiye özel çocuk ismi Noel PNG; yapılmamış bir tema seçer (~6 görsel hakkı)
 /uret_custom_xmaskids_dino – temayı sen seç: woodland, trucks, ballerina, dino, pets, classic
 /uret_custom_boyama – kişiye özel isimli boyama sayfaları, PDF (görsel hakkı HARCAMAZ)
 /uret_custom_boyama_birthday – temayı sen seç: name, birthday, babyshower, christmas
+/uret_custom_nursery – kişiye özel bebek odası duvar sanatı: 6 suluboya portre + isim/baş harf posteri, oda fotoğrafları (~10 görsel hakkı)
+/uret_custom_nursery_safari – temayı sen seç: puppy, safari, woodland
 /uret_coloring – normal boyama kitabı (konu: /uret coloring konu)
-/uret – bu 4 türden sıradaki 1 ürün · /uret_2 – 2 ürün
+/uret – bu 5 türden sıradaki 1 ürün · /uret_2 – 2 ürün
 /ozel – kişiye özel siparişi elle hazırla: /ozel &lt;sipariş no&gt; İsim
 /kisisel – kişiselleştirme kutusu kapalı kalan kişiye özel ilanlar için Etsy'ye ne yazacağını gönderir
 /bekleyen – onay bekleyen ürünleri tekrar gönderir
@@ -51,7 +53,8 @@ Onaydan sonra: /kod &lt;adres&gt;"""
 
 
 ALLOWED_TEXT = ("• /uret_sublimation_vintagexmas – vintage Noel tişört\n• /uret_custom_xmaskids – xmaskids\n"
-                "• /uret_custom_boyama – isimli boyama\n• /uret_coloring – normal boyama kitabı")
+                "• /uret_custom_boyama – isimli boyama\n• /uret_custom_nursery – bebek odası duvar sanatı\n"
+                "• /uret_coloring – normal boyama kitabı")
 
 
 def uret_allowed(only, subject=""):

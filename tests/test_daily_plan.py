@@ -21,23 +21,25 @@ class DailyPlanTest(unittest.TestCase):
     def test_settings_ask_for_exactly_the_three_daily_products(self):
         s = config.settings()
         self.assertTrue(s["auto_daily"])
-        self.assertEqual(s["products_per_day"], 4)
+        self.assertEqual(s["products_per_day"], 5)
         self.assertEqual(s["product_types"], {"coloring": 1})  # the open place is always a normal coloring book
-        self.assertEqual(s["daily_presets"], [["sublimation:vintagexmas"], ["custom:xmaskids"], ["custom:boyama"]])
+        self.assertEqual(s["daily_presets"], [["sublimation:vintagexmas"], ["custom:xmaskids"], ["custom:boyama"],
+                                              ["custom:nursery"]])
         for slot in s["daily_presets"]:
             for entry in filter(None, slot):
                 ptype, name = entry.split(":")
                 self.assertIsNotNone(presets.load(ptype, name), entry)
 
-    def test_every_day_one_of_each_of_the_four_kinds(self):
+    def test_every_day_one_of_each_kind(self):
         for k in range(3):
             d = self.plan([], DAY + dt.timedelta(days=k))
-            self.assertEqual([x[1] for x in d], ["vintagexmas", "xmaskids", "boyama"])  # + 1 normal coloring by AI
+            self.assertEqual([x[1] for x in d], ["vintagexmas", "xmaskids", "boyama", "nursery"])  # + 1 coloring by AI
 
     def test_closed_uret_commands_are_refused(self):
         from bot import poller
         for only, subj in (("coloring", ""), ("coloring", "bees"), ("sublimation", "vintagexmas"),
-                           ("sublimation", "vintagexmas cozy"), ("custom", "xmaskids dino"), ("custom", "boyama")):
+                           ("sublimation", "vintagexmas cozy"), ("custom", "xmaskids dino"), ("custom", "boyama"),
+                           ("custom", "nursery"), ("custom", "nursery safari")):
             self.assertTrue(poller.uret_allowed(only, subj), (only, subj))
         for only, subj in (("junk_journal", ""), ("stickers", "migraine"), ("tattoo", ""), ("custom", "teacher"),
                            ("sublimation", ""), ("clipart", ""), (None, "")):

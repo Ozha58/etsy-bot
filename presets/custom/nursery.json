@@ -1,0 +1,196 @@
+{
+  "name": "nursery",
+  "label_tr": "kişiye özel bebek odası duvar sanatı seti: 6 suluboya portre + isim ve baş harf posteri (3'lü set)",
+  "why": "Hazır ayar: 12 Kasım 2026, kişiye özel isim + baş harf posterli 3'lü bebek odası setleri Etsy'de çok satıyor; karakterler tamamen özgün.",
+  "set_name": "Puppy Nursery Prints",
+  "kind": "kids",
+  "audience": "parents, grandparents and friends decorating a nursery or looking for a baby shower gift",
+  "sample_name": "Ethan",
+  "sample_names": [
+    "Ethan",
+    "Mia",
+    "Noah"
+  ],
+  "look": "nursery",
+  "own_style": true,
+  "style": "ink and watercolor portrait",
+  "palette": [
+    "#6098D6",
+    "#E27C96",
+    "#789E7A",
+    "#F2C14E",
+    "#FDFCF9"
+  ],
+  "personalization_instructions": "Type the name exactly as it should appear on the poster (e.g. Ethan), max 16 characters. You get all 6 portraits right away; your name poster in blue, pink and sage is sent within 24 hours.",
+  "theme": "puppy",
+  "niche": "personalized puppy nursery wall art set of 3 with custom name and initial",
+  "search_query": "personalized puppy nursery wall art",
+  "title": "Personalized Puppy Nursery Wall Art, Custom Name Initial Prints, Baby Boy Room Decor",
+  "tags": [
+    "puppy nursery decor",
+    "custom name print",
+    "nursery wall art",
+    "dog nursery prints",
+    "baby boy room decor",
+    "initial letter print",
+    "baby shower gift",
+    "set of 3 prints",
+    "kids room poster",
+    "watercolor puppy",
+    "printable wall art",
+    "toddler room decor",
+    "new baby gift"
+  ],
+  "designs": [
+    {
+      "name": "Golden Retriever",
+      "tagline": "Golden Retriever",
+      "prompt": "a fluffy golden retriever puppy with a red bandana around its neck"
+    },
+    {
+      "name": "Dalmatian",
+      "tagline": "Dalmatian",
+      "prompt": "a dalmatian puppy with black spots and a blue bow tie"
+    },
+    {
+      "name": "Corgi",
+      "tagline": "Corgi",
+      "prompt": "a corgi puppy with big upright ears and a green bandana"
+    },
+    {
+      "name": "Husky",
+      "tagline": "Husky",
+      "prompt": "a grey and white husky puppy with blue eyes and a yellow scarf"
+    },
+    {
+      "name": "Beagle",
+      "tagline": "Beagle",
+      "prompt": "a beagle puppy with long soft ears and a red collar with a small round tag"
+    },
+    {
+      "name": "French Bulldog",
+      "tagline": "French Bulldog",
+      "prompt": "a cream french bulldog puppy with bat ears and a teal bandana"
+    }
+  ],
+  "themes": [
+    {
+      "theme": "safari",
+      "label_tr": "bebek odası duvar sanatı: safari yavruları (aslan, fil, zürafa...)",
+      "niche": "personalized safari animal nursery wall art set of 3 with custom name and initial",
+      "search_query": "personalized safari nursery wall art",
+      "set_name": "Safari Nursery Prints",
+      "title": "Personalized Safari Nursery Wall Art, Custom Name Initial Prints, Jungle Animal Decor",
+      "tags": [
+        "safari nursery decor",
+        "custom name print",
+        "nursery wall art",
+        "jungle animal print",
+        "baby room decor",
+        "initial letter print",
+        "baby shower gift",
+        "set of 3 prints",
+        "kids room poster",
+        "watercolor animals",
+        "printable wall art",
+        "gender neutral baby",
+        "new baby gift"
+      ],
+      "designs": [
+        {
+          "name": "Lion Cub",
+          "tagline": "Lion Cub",
+          "prompt": "a baby lion cub with a small fluffy mane"
+        },
+        {
+          "name": "Elephant",
+          "tagline": "Elephant",
+          "prompt": "a baby elephant with big round ears and a tiny flower behind one ear"
+        },
+        {
+          "name": "Giraffe",
+          "tagline": "Giraffe",
+          "prompt": "a baby giraffe with long eyelashes and brown patches"
+        },
+        {
+          "name": "Zebra",
+          "tagline": "Zebra",
+          "prompt": "a baby zebra with a short striped mane"
+        },
+        {
+          "name": "Monkey",
+          "tagline": "Monkey",
+          "prompt": "a baby monkey with a round face and big ears"
+        },
+        {
+          "name": "Tiger Cub",
+          "tagline": "Tiger Cub",
+          "prompt": "a baby tiger cub with soft orange fur and dark stripes"
+        }
+      ],
+      "intro": "Personalized Safari Nursery Wall Art for a nursery or kids room: a set of three prints with your child's name in the middle.\n\nYou receive all 6 watercolor safari animal portraits right away, and we make the name poster for you: the name in brush lettering over a big soft initial letter, in blue, pink and sage. Hang any two portraits beside it, or print them all."
+    },
+    {
+      "theme": "woodland",
+      "label_tr": "bebek odası duvar sanatı: orman yavruları (tilki, ayı, geyik...)",
+      "niche": "personalized woodland animal nursery wall art set of 3 with custom name and initial",
+      "search_query": "personalized woodland nursery wall art",
+      "set_name": "Woodland Nursery Prints",
+      "title": "Personalized Woodland Nursery Wall Art, Custom Name Initial Prints, Forest Animal Decor",
+      "tags": [
+        "woodland nursery",
+        "custom name print",
+        "nursery wall art",
+        "forest animal print",
+        "baby room decor",
+        "initial letter print",
+        "baby shower gift",
+        "set of 3 prints",
+        "kids room poster",
+        "watercolor fox print",
+        "printable wall art",
+        "gender neutral baby",
+        "new baby gift"
+      ],
+      "designs": [
+        {
+          "name": "Fox",
+          "tagline": "Fox",
+          "prompt": "a baby fox with a white-tipped fluffy tail curled beside it"
+        },
+        {
+          "name": "Bear Cub",
+          "tagline": "Bear Cub",
+          "prompt": "a brown bear cub with round ears and a knitted scarf"
+        },
+        {
+          "name": "Fawn",
+          "tagline": "Fawn",
+          "prompt": "a baby deer fawn with white spots and big dark eyes"
+        },
+        {
+          "name": "Bunny",
+          "tagline": "Bunny",
+          "prompt": "a grey bunny with long ears and a tiny bow"
+        },
+        {
+          "name": "Raccoon",
+          "tagline": "Raccoon",
+          "prompt": "a baby raccoon with a striped tail and a mask-like face pattern"
+        },
+        {
+          "name": "Owl",
+          "tagline": "Owl",
+          "prompt": "a round baby owl with big eyes and soft feathers"
+        }
+      ],
+      "intro": "Personalized Woodland Nursery Wall Art for a nursery or kids room: a set of three prints with your child's name in the middle.\n\nYou receive all 6 watercolor woodland animal portraits right away, and we make the name poster for you: the name in brush lettering over a big soft initial letter, in blue, pink and sage. Hang any two portraits beside it, or print them all."
+    }
+  ],
+  "intro": "Personalized Puppy Nursery Wall Art for a nursery or kids room: a set of three prints with your child's name in the middle.\n\nYou receive all 6 watercolor puppy portraits right away, and we make the name poster for you: the name in brush lettering over a big soft initial letter, in blue, pink and sage. Hang any two portraits beside it, or print them all.",
+  "price_range_usd": [
+    5.99,
+    8.99
+  ],
+  "price_usd": 6.99
+}
