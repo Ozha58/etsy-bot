@@ -75,3 +75,18 @@ class DailyPlanTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OnlyTypeTest(unittest.TestCase):
+    def test_requested_type_is_kept_when_the_text_ai_is_down(self):
+        from bot import etsy_miner, llm
+        mined = [{"type": "scenes", "niche": "cottage clipart, realistic detailed style", "search_query": "cottage clipart",
+                  "score": 1.0, "etsy_results": 900}]
+        with mock.patch.dict("os.environ", {"ONLY_TYPE": "tattoo", "ONLY_SUBJECT": ""}), \
+                mock.patch.object(smart_niche, "_ask", side_effect=llm.LLMError("quota")), \
+                mock.patch.object(etsy_miner, "find", lambda *a: [dict(m) for m in mined]), \
+                mock.patch.object(research, "_score", lambda idea: None), \
+                mock.patch.object(storage, "all_products", lambda: []):
+            ideas = smart_niche.find_trending_niches(1)
+        self.assertTrue(ideas)
+        self.assertEqual({i["type"] for i in ideas}, {"tattoo"})
