@@ -452,8 +452,15 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
     if mode == "active":
         _req("PATCH", f"/shops/{shop_id}/listings/{lid}", tok, json={"state": "active"})
         state = "active"
+    personal = None
+    if build_meta.get("listing", {}).get("is_personalizable"):
+        try:  # Etsy sometimes refuses or silently drops the personalization box: look what it really saved
+            personal = bool(_req("GET", f"/listings/{lid}", tok).get("is_personalizable"))
+        except Exception as e:
+            print(f"[etsy] kişiselleştirme durumu okunamadı: {e}")
+            personal = False
     return {"listing_id": lid, "url": f"https://www.etsy.com/listing/{lid}", "state": state, "price": price,
-            "currency": "USD", "attributes": attrs}
+            "currency": "USD", "attributes": attrs, "personalization_on": personal}
 
 
 # ---------------- maintenance ----------------

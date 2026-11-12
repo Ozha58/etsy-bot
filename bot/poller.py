@@ -26,6 +26,7 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 /uret_custom_boyama_birthday – temayı sen seç: name, birthday, babyshower, christmas
 /uret_tattoo – kişiye özel doğum çiçeği + isim dövme tasarımı (alıcı "İsim - Ay" yazar; ~12 görsel hakkı)
 /ozel – kişiye özel siparişi elle hazırla: /ozel &lt;sipariş no&gt; İsim
+/kisisel – kişiselleştirme kutusu kapalı kalan kişiye özel ilanlar için Etsy'ye ne yazacağını gönderir
 /uret_sublimation – tişört/kupa PNG tasarımı (8 tasarım + kupa şablonu, ~8 görsel hakkı)
 /uret_sublimation_vintagexmas – vintage Noel tişört paketi: 12 retro tasarım, komik sloganlar, eskitilmiş baskı dokusu, her seferinde farklı renklerde giyilmiş sweatshirt fotoğrafları (~16 görsel hakkı)
 /uret_stickers_migraine – migren sticker paketi (konuyu sen verirsin)
@@ -95,6 +96,31 @@ def publish_product(p: dict) -> str:
     storage.add_event(p, f"Etsy'de yayınlandı ({res['state']})")
     storage.save_product(p)
     return res
+
+
+def personalization_guide(p, res):
+    """Made-to-order products need Etsy's personalization box. The API often does not keep it, so the owner gets
+    the exact texts to type in, ready to copy (or a short confirmation when Etsy did keep it)."""
+    want = (p.get("build") or {}).get("listing") or {}
+    if not want.get("is_personalizable"):
+        return ""
+    instr = want.get("personalization_instructions") or "Enter the name exactly as you want it to appear."
+    limit = want.get("personalization_char_count_max") or 40
+    if res.get("personalization_on"):
+        return (f"✍️ <b>Kişiselleştirme kutusu Etsy'de açık</b> ({esc(p['title'][:60])}).\n"
+                f"Alıcı şunu görür: <i>{esc(instr)}</i>")
+    return ("✍️ <b>Kişiselleştirme kutusunu elle açman gerekiyor</b>\n"
+            f"{esc(p['title'][:80])}\n\n"
+            "Etsy bu ayarı API üzerinden kaydetmedi. Alıcı isim yazamazsa sipariş hazırlanamaz.\n\n"
+            "<b>Nerede:</b> Etsy uygulaması › Shop Manager › Listings › bu ilan › <b>Edit</b> › "
+            "<b>Personalization</b> (bilgisayarda: Listing details altında)\n\n"
+            "<b>1.</b> Personalization: <b>Aç</b> (Add personalization)\n"
+            "<b>2.</b> Instructions for buyers (kopyala):\n"
+            f"<code>{esc(instr)}</code>\n"
+            f"<b>3.</b> Character limit: <code>{limit}</code>\n"
+            "<b>4.</b> Personalization is required / Make it mandatory: <b>İşaretle</b>\n"
+            "<b>5.</b> Save / Publish changes\n\n"
+            f"🔗 {esc(res.get('url', ''))}")
 
 
 def _auto_pin(p: dict, pack: dict):
@@ -189,6 +215,9 @@ def _handle_callback(cb, meta):
             telegram.edit(chat_id, mid, base_html + f"\n\n✅ <b>Etsy'de {state_tr}</b> – {res['price']} {res['currency']}"
                           + (f"\n🏷 Özellikler: {esc('; '.join(res.get('attributes') or []))[:600]}" if res.get("attributes") else ""),
                           [[("🔗 Etsy'de aç", res["url"])]])
+            guide = personalization_guide(p, res)
+            if guide:
+                telegram.send(guide)
             send_social(storage.load_product(pid))
         except Exception as e:
             traceback.print_exc()
@@ -441,6 +470,23 @@ def _handle_message(m, meta):
             telegram.send(f"⚠️ Kota okunamadı: <code>{esc(str(e)[:300])}</code>")
     elif cmd == "/panel":
         telegram.send(f"🌐 Panel: {config.pages_url() or 'henüz yok'}")
+    elif cmd in ("/kisisel", "/kişisel"):
+        sent = 0
+        for q in storage.all_products():
+            lid = (q.get("etsy") or {}).get("listing_id")
+            if q.get("status") != "published" or not lid or \
+                    not ((q.get("build") or {}).get("listing") or {}).get("is_personalizable"):
+                continue
+            try:
+                on = bool(etsy._req("GET", f"/listings/{lid}", etsy.token()).get("is_personalizable"))
+            except Exception as e:
+                print(f"[poll] {lid} okunamadı: {e}")
+                on = False
+            if not on:
+                telegram.send(personalization_guide(q, {"personalization_on": False, "url": q["etsy"].get("url", "")}))
+                sent += 1
+        telegram.send(f"✍️ Kişiselleştirme kutusu kapalı {sent} kişiye özel ilan var." if sent else
+                      "✅ Kişiye özel bütün ilanlarda kişiselleştirme kutusu açık.")
     return changed
 
 
