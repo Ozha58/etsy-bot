@@ -56,6 +56,7 @@ class NurseryTest(unittest.TestCase):
             spec = presets.spec({"type": "custom", "preset": "nursery", "theme": "puppy"})
             built = custom.build(spec, "test-nursery-art")
         self.assertEqual(len(prompts), 10)  # 6 portraits + 4 rooms
+        self.assertTrue(5.99 <= spec["price_usd"] <= 8.99, spec["price_usd"])  # a poster set, not a $3 clip art
         self.assertEqual(sum("interior photograph" in p for p in prompts), 4)
         self.assertTrue(all("no badges" in p for p in prompts if "interior" not in p))
         # delivery: every portrait in the three print ratios, inside Etsy's limits

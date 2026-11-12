@@ -192,7 +192,8 @@ def score(p, mockups, other_titles=(), recent_layouts=()):
         (2, "ai tools" in low or "ai-" in low, "yapay zekâ açıklaması yok"),
         (2, "use" in low and ("commercial" in low or "personal" in low), "lisans bilgisi yok")])
 
-    lo, hi = config.settings()["price_ranges_usd"].get(p.get("type"), [0, 1e9])
+    lo, hi = (p.get("spec") or {}).get("price_range_usd") or \
+        config.settings()["price_ranges_usd"].get(p.get("type"), [0, 1e9])
     price = float(p.get("price_usd") or 0)
     med = (p.get("research") or {}).get("etsy_median_price")
     part("Ticari sunum", 15, [
