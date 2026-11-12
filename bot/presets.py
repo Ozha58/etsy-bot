@@ -16,6 +16,7 @@ FIXED = ("title", "tags", "palette", "set_name", "kind", "sample_name", "sample_
          "personalization_instructions", "page_style", "doodles", "above", "art", "subject")
 # product types whose preset may ask for more (or fewer) designs than the type's usual number: "count": 12
 FLEX_COUNT = {"sublimation": (4, 16)}
+PERSONALIZATION_MAX = 120  # Etsy: "instructions for buyers" of the personalization box
 
 
 # a theme may replace these fields of the preset (same look and delivery, other characters, title and tags)
@@ -147,6 +148,8 @@ def problems(preset, ptype):
     if probs:
         return probs
     probs += research.title_problems(preset["title"]) + research.tag_problems(preset["tags"], preset["title"])
+    if len(str(preset.get("personalization_instructions") or "")) > PERSONALIZATION_MAX:
+        probs.append(f"personalization_instructions is longer than {PERSONALIZATION_MAX} characters (Etsy's limit)")
     field, n = _count(preset, ptype)
     if preset.get("count") not in (None, n):
         lo, hi = FLEX_COUNT.get(ptype, (n, n))
