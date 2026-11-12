@@ -97,7 +97,9 @@ def top_up_photos(mockups, files, title, ptype=None):
     names = " ".join(n.lower() for n, _ in mockups)
     have = {k for k, words in (("what", ("what", "info", "included")), ("how", ("how", "download")),
                                ("detail", ("detail", "closeup"))) if any(w in names for w in words)}
-    extra = shopfix.extra_photos(ims[0], ims[1:] or ims, [{"filename": f["name"], "size": f["size"]} for f in files],
+    text = ("what", "info", "included", "how", "download", "order", "ideas", "license", "licence", "commercial", "sizes")
+    art = [im for (n, _), im in list(zip(mockups, ims))[1:] if not any(w in n.lower() for w in text)]
+    extra = shopfix.extra_photos(ims[0], art, [{"filename": f["name"], "size": f["size"]} for f in files],
                                  title, PHOTOS - len(mockups), have, cards=ptype not in shopfix.MADE_TO_ORDER)
     out = list(mockups)
     for n, b in extra:
