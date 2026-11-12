@@ -70,7 +70,28 @@ def save_product(p: dict) -> None:
 
 
 def load_product(pid: str):
-    return _read(PRODUCTS_DIR / f"{pid}.enc")
+    p = _read(PRODUCTS_DIR / f"{pid}.enc")
+    if p is None and pid and _fetch_new(pid):
+        p = _read(PRODUCTS_DIR / f"{pid}.enc")
+    return p
+
+
+def _fetch_new(pid: str) -> bool:
+    """The listener runs for minutes from one checkout; a product made meanwhile (daily run) is only on GitHub.
+    Take just that file from origin/main, so its buttons work at once instead of answering "not found"."""
+    if not all(c.isalnum() or c == "-" for c in pid):
+        return False
+    rel = f"{PRODUCTS_DIR.relative_to(config.ROOT).as_posix()}/{pid}.enc"
+    try:
+        subprocess.run(["git", "fetch", "-q", "origin", "main"], cwd=config.ROOT, timeout=60, check=True,
+                       capture_output=True)
+        subprocess.run(["git", "checkout", "origin/main", "--", rel], cwd=config.ROOT, timeout=30, check=True,
+                       capture_output=True)
+        print(f"[storage] yeni ürün GitHub'dan alındı: {pid}")
+        return True
+    except Exception as e:
+        print(f"[storage] {pid} GitHub'da da yok: {e}")
+        return False
 
 
 def all_products() -> list:
