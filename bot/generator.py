@@ -180,7 +180,8 @@ def build_one(idea: dict, day: dt.date) -> dict:
     files = [{"name": n, "size": len(b)} for n, b in built["delivery"]]
     try:  # shop audit: all 13 tags, a bright cover, 10 photos (extra ones are honest info cards and close-ups)
         spec["tags"] = quality.fill_tags(spec.get("tags"), spec["title"])
-        built["mockups"] = quality.top_up_photos(quality.repair_cover(built["mockups"]), files, spec["title"])
+        built["mockups"] = quality.top_up_photos(quality.repair_cover(built["mockups"]), files, spec["title"],
+                                                      idea["type"])
     except Exception as e:
         print(f"[quality] onarım yapılamadı: {e}")
     p = {

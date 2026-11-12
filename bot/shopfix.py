@@ -25,13 +25,13 @@ import re
 import time
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from . import config, etsy, llm, research, storage, telegram
 from .imgutil import font, jpeg_bytes
 from .telegram import esc
 
-VERSION = "shopfix-2"  # bump to treat every listing again
+VERSION = "shopfix-3"  # bump to treat every listing again
 SHOP_NAME = config.SHOP_NAME
 OLD_NAMES = ("Sebasteia",)  # earlier shop name: shop texts that still say it are rewritten
 
@@ -319,28 +319,39 @@ INK, PAPER, ACCENT = (44, 40, 36), (250, 246, 239), (176, 112, 74)
 
 
 def _card(cover, heading, lines, sub=""):
-    """Square info photo: blurred cover band at the top, clear text on paper below."""
+    """Square info photo: heading, large lines on the left, the WHOLE cover as a framed thumbnail on the right.
+    (The first version used a cut strip of the cover as a top band: half a title, half a picture - it looked like
+    a mistake between the other photos.)"""
     im = Image.new("RGB", (S, S), PAPER)
-    band = ImageOps.fit(cover.convert("RGB"), (S, 760), Image.LANCZOS)
-    im.paste(band, (0, 0))
-    ov = Image.new("RGBA", (S, 760), (250, 246, 239, 70))
-    im.paste(ov, (0, 0), ov)
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((120, 640, S - 120, 860), 40, fill=PAPER)
-    f = font("serif", 112)
-    d.text((S // 2, 750), heading, font=f, fill=INK, anchor="mm")
-    y = 980
+    d.rectangle((0, 0, S, 26), fill=ACCENT)
+    d.text((140, 250), heading, font=font("serif", 150), fill=INK, anchor="lm")
+    d.rectangle((140, 372, 420, 384), fill=ACCENT)
+    th = 760  # the cover, complete and small: this card belongs to that product
+    thumb = ImageOps.contain(cover.convert("RGB"), (th, th), Image.LANCZOS)
+    tx, ty = S - 140 - thumb.width, 640 + (th - thumb.height) // 2
+    sh = Image.new("RGBA", (thumb.width + 80, thumb.height + 80), (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rounded_rectangle((40, 48, thumb.width + 40, thumb.height + 48), 36, fill=(60, 45, 30, 70))
+    im.paste(sh.filter(ImageFilter.GaussianBlur(18)), (tx - 40, ty - 40), sh.filter(ImageFilter.GaussianBlur(18)))
+    mask = Image.new("L", thumb.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, thumb.width - 1, thumb.height - 1), 36, fill=255)
+    im.paste(thumb, (tx, ty), mask)
+    y, width = 640, tx - 140 - 110
     for ln in lines:
-        fl = font("sans_medium", 78)
-        while d.textlength(ln, font=fl) > S - 360 and fl.size > 36:
-            fl = font("sans_medium", fl.size - 4)
-        d.ellipse((200, y + 26, 236, y + 62), fill=ACCENT)
-        d.text((270, y), ln, font=fl, fill=INK)
-        y += 158
-        if y > S - 220:
+        fl = font("sans_medium", 80)
+        while d.textlength(ln, font=fl) > width and fl.size > 54:
+            fl = font("sans_medium", fl.size - 2)
+        if d.textlength(ln, font=fl) > width:  # a long file name: shorten it instead of running under the picture
+            while len(ln) > 8 and d.textlength(ln + "…", font=fl) > width:
+                ln = ln[:-1]
+            ln += "…"
+        d.ellipse((140, y + 22, 180, y + 62), fill=ACCENT)
+        d.text((220, y), ln, font=fl, fill=INK)
+        y += 190
+        if y > S - 330:
             break
     if sub:
-        d.text((S // 2, S - 130), sub, font=font("sans", 48), fill=(110, 100, 92), anchor="mm")
+        d.text((140, S - 170), sub, font=font("sans", 54), fill=(110, 100, 92), anchor="lm")
     return im
 
 
@@ -410,46 +421,38 @@ def closeups(photos: list, n: int) -> list:
     return out
 
 
-# which extra photo is worth a free slot first (close-ups sell, the cards answer questions) ...
-_PRIORITY = ("info-whats-included", "detail-1", "how-to-download", "file-details", "detail-2", "detail-3",
-             "good-to-know", "detail-4")
+# which extra photo is worth a free slot first (close-ups sell, the two cards answer the usual questions) ...
+_PRIORITY = ("detail-1", "files-included", "download-steps", "detail-2", "detail-3", "detail-4")
 # ... and the order they are shown in: artwork first, download help last
-_ORDER = ("detail-1", "detail-2", "detail-3", "detail-4", "info-whats-included", "file-details", "good-to-know",
-          "how-to-download")
+_ORDER = ("detail-1", "detail-2", "detail-3", "detail-4", "files-included", "download-steps")
 
 
-def extra_photos(cover, existing: list, files, title, need: int) -> list:
-    """[(name, jpeg)] honest extra photos made from the listing's own images and real file list, in display order."""
+def extra_photos(cover, existing: list, files, title, need: int, have=(), cards=True) -> list:
+    """[(name, jpeg)] honest extra photos made from the listing's own images and real file list, in display order.
+    At most two text cards (four near-identical ones in a row looked like filler). `have`: what the listing already
+    shows ("what" / "how"), so nothing is said twice. cards=False: close-ups only - a made-to-order product is not
+    an instant download, those cards would be wrong for it."""
     made = {}
     names = [f.get("filename") or "" for f in files or []]
     exts = sorted({n.rsplit(".", 1)[-1].upper() for n in names if "." in n})
     total = sum(_fsize(f) for f in files or [])
-    if names:
-        lines = [f"{len(names)} file{'s' if len(names) > 1 else ''} · {_mb(total)}"] + \
-                [n[:44] for n in names[:4]] + ["Instant digital download"]
-        made["info-whats-included"] = _card(cover, "What's Included", lines, title_parts(title)[0][:60] if title else "")
-    made["how-to-download"] = _card(cover, "How to Download", [
-        "1. Complete your purchase",
-        "2. Go to You > Purchases and Reviews",
-        "3. Click Download Files",
-        "4. Unzip and print or use" if "ZIP" in exts else "4. Print at home or use digitally",
-        "Questions? Message us any time",
-    ], "No physical item is shipped")
-    if exts:
-        made["file-details"] = _card(cover, "File Details", [
-            "Format: " + ", ".join(exts),
-            f"Total size: {_mb(total)}",
-            "Print at home or at a print shop",
-            "Works on computer, tablet and phone",
-            "Instant access after checkout",
-        ])
-    made["good-to-know"] = _card(cover, "Good to Know", [
-        "Digital download - nothing is shipped",
-        "Colors vary a little by screen and printer",
-        "Download again any time from your account",
-        "We answer messages within 24 hours",
-    ])
-    if need > 0:
+    if cards and names and "what" not in have:
+        fmt = [e for e in exts if e != "ZIP"]
+        lines = [f"{len(names)} file{'s' if len(names) > 1 else ''}, {_mb(total)} in total",
+                 "Format: " + ", ".join(fmt) if fmt else "ZIP folder, unzip to open",
+                 "Instant digital download",
+                 "Opens on any device",
+                 "Yours to keep"]
+        made["files-included"] = _card(cover, "What's Included", lines, title_parts(title)[0][:60] if title else "")
+    if cards and "how" not in have:
+        made["download-steps"] = _card(cover, "How to Download", [
+            "1. Complete your purchase",
+            "2. Go to your Purchases",
+            "3. Click Download Files",
+            "4. Unzip, then print or use" if "ZIP" in exts else "4. Print at home or use it",
+            "Download again any time",
+        ], "Digital item, nothing is shipped. Questions? Message us any time.")
+    if need > 0 and "detail" not in have:
         for k, im in enumerate(closeups(existing, 4), 1):
             made[f"detail-{k}"] = im
     pick = [n for n in _PRIORITY if n in made][:max(0, need)]
@@ -518,23 +521,60 @@ def treat_shop(dry_run=False) -> list:
 
 
 NO_LLM = "başlık/etiket bekliyor (Gemini yanıt vermedi)"
+MADE_TO_ORDER = ("custom", "tattoo")  # personalised, sent later: "instant download" cards would be wrong
 
 
 def _alt(im):
     return (im.get("alt_text") or "").rsplit(" - ", 1)[-1].strip().lower()
 
 
-def old_extras(images) -> list:
-    """Photos the first treatment (shopfix-1) added, recognised by their order: [what is included,] how to download,
-    [file details,] close-ups. Listings without a close-up AFTER the download card are left alone."""
-    ims = sorted(images, key=lambda i: i.get("rank", 99))
-    how = next((k for k, im in enumerate(ims) if _alt(im) == "how to download"), None)
-    if how is None or not any(_alt(im) == "close-up detail" for im in ims[how + 1:]):
+_OLD_CARDS = ("what is included", "how to download", "file formats and details", "good to know before you buy")
+_NEW_CARDS = ("files you receive", "download steps")
+
+
+def _late(images) -> list:
+    """Photos added well after the listing's first photo: ours (a treatment), not the product's own set."""
+    ts = [im.get("created_timestamp") for im in images if im.get("created_timestamp")]
+    if not ts:
         return []
-    out = [ims[how]] + [im for im in ims[how + 1:] if _alt(im) in ("file formats and details", "close-up detail")]
-    if how > 0 and _alt(ims[how - 1]) == "what is included":
-        out.insert(0, ims[how - 1])
-    return out
+    return [im for im in images if (im.get("created_timestamp") or 0) >= min(ts) + 3600]
+
+
+def old_extras(images) -> list:
+    """Photos of earlier treatments that have to go:
+    shopfix-1  blind crops as close-ups, recognised by their order: [what is included,] how to download,
+               [file details,] close-ups
+    shopfix-2  four text cards with a cut strip of the cover on top (looked like a broken picture)
+    The product's own photos (also its own "how it works" card) and the good close-ups stay."""
+    ims = sorted(images, key=lambda i: i.get("rank", 99))
+    late = _late(ims)
+    ours = late if late else ims  # with dates only photos added later can be ours
+    out = []
+    how = next((k for k, im in enumerate(ims) if _alt(im) == "how to download" and im in ours), None)
+    if how is not None and any(_alt(im) == "close-up detail" for im in ims[how + 1:]):
+        out = [ims[how]] + [im for im in ims[how + 1:] if _alt(im) in ("file formats and details", "close-up detail")]
+        if how > 0 and _alt(ims[how - 1]) == "what is included" and ims[how - 1] in ours:
+            out.insert(0, ims[how - 1])
+    for im in ims:
+        mine = im in late if late else _alt(im) in _OLD_CARDS[2:]  # no dates: only the labels nothing else uses
+        if im not in out and mine and _alt(im) in _OLD_CARDS:
+            out.append(im)
+    return sorted(out, key=lambda i: i.get("rank", 99))
+
+
+def shown(images) -> set:
+    """What the listing already tells the buyer, so an extra photo never repeats it."""
+    late = _late(images)
+    have = set()
+    for im in images:
+        a = _alt(im)
+        if a in ("what is included", "files you receive"):
+            have.add("what")
+        if a in ("how to download", "download steps"):
+            have.add("how")
+        if a == "close-up detail" and im in late:
+            have.add("detail")
+    return have
 
 
 def treat_listing(li, product, dry_run=False) -> list:
@@ -630,7 +670,8 @@ def treat_listing(li, product, dry_run=False) -> list:
     # extra photos up to 10, and a video when there is none
     pics = []
     need = 10 - len(images)
-    if any(_alt(im) in ("how to download", "good to know before you buy") for im in images):
+    have = shown(images)
+    if any(_alt(im) in _NEW_CARDS for im in images):
         need = 0  # our extra set is already there (an earlier run): a second set would only repeat it
     if (need > 0 or not has_video) and images:
         for im in images[:8 if need > 0 else 5]:  # more photos = more chances for a whole-design close-up
@@ -641,7 +682,8 @@ def treat_listing(li, product, dry_run=False) -> list:
         pics = [p for p in pics if p is not None]
     if need > 0 and pics:
         # close-ups from the inner photos first: a crop of the cover would cut its title text in half
-        extra = extra_photos(pics[0], pics[1:] or pics, files, new_title, need)
+        extra = extra_photos(pics[0], pics[1:] or pics, files, new_title, need, have,
+                             cards=ptype not in MADE_TO_ORDER)
         if dry_run:
             notes.append(f"(önizleme) +{len(extra)} foto")
         else:
