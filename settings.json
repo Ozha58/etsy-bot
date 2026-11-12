@@ -1,5 +1,5 @@
 {
-  "products_per_day": 3,
+  "products_per_day": 4,
   "publish_mode": "active",
   "product_types": {
     "coloring": 1
@@ -67,8 +67,13 @@
       "custom:xmaskids"
     ],
     [
-      "custom:boyama",
-      ""
+      "custom:boyama"
     ]
+  ],
+  "allowed_uret": [
+    "coloring",
+    "sublimation:vintagexmas",
+    "custom:xmaskids",
+    "custom:boyama"
   ]
 }

@@ -21,21 +21,41 @@ class DailyPlanTest(unittest.TestCase):
     def test_settings_ask_for_exactly_the_three_daily_products(self):
         s = config.settings()
         self.assertTrue(s["auto_daily"])
-        self.assertEqual(s["products_per_day"], 3)
+        self.assertEqual(s["products_per_day"], 4)
         self.assertEqual(s["product_types"], {"coloring": 1})  # the open place is always a normal coloring book
-        self.assertEqual(s["daily_presets"], [["sublimation:vintagexmas"], ["custom:xmaskids"], ["custom:boyama", ""]])
+        self.assertEqual(s["daily_presets"], [["sublimation:vintagexmas"], ["custom:xmaskids"], ["custom:boyama"]])
         for slot in s["daily_presets"]:
             for entry in filter(None, slot):
                 ptype, name = entry.split(":")
                 self.assertIsNotNone(presets.load(ptype, name), entry)
 
-    def test_named_coloring_and_normal_coloring_take_turns(self):
-        days = [self.plan([], DAY + dt.timedelta(days=k)) for k in range(4)]
-        for d in days:
-            self.assertEqual([x[1] for x in d[:2]], ["vintagexmas", "xmaskids"])
-        self.assertEqual([len(d) for d in days].count(3), 2)  # boyama every second day ...
-        self.assertEqual([len(d) for d in days].count(2), 2)  # ... the other days leave the place to /uret_coloring style
-        self.assertNotEqual(len(days[0]), len(days[1]))
+    def test_every_day_one_of_each_of_the_four_kinds(self):
+        for k in range(3):
+            d = self.plan([], DAY + dt.timedelta(days=k))
+            self.assertEqual([x[1] for x in d], ["vintagexmas", "xmaskids", "boyama"])  # + 1 normal coloring by AI
+
+    def test_closed_uret_commands_are_refused(self):
+        from bot import poller
+        for only, subj in (("coloring", ""), ("coloring", "bees"), ("sublimation", "vintagexmas"),
+                           ("sublimation", "vintagexmas cozy"), ("custom", "xmaskids dino"), ("custom", "boyama")):
+            self.assertTrue(poller.uret_allowed(only, subj), (only, subj))
+        for only, subj in (("junk_journal", ""), ("stickers", "migraine"), ("tattoo", ""), ("custom", "teacher"),
+                           ("sublimation", ""), ("clipart", ""), (None, "")):
+            self.assertFalse(poller.uret_allowed(only, subj), (only, subj))
+        sent = []
+        with mock.patch.object(poller.telegram, "send", lambda t, *a, **k: sent.append(t)), \
+                mock.patch.object(poller, "_dispatch_generate", lambda *a, **k: self.fail("closed type started")):
+            poller._handle_message({"text": "/uret_junk"}, {})
+            poller._handle_message({"text": "/uret_tattoo"}, {})
+        self.assertTrue(all("kapalı" in t for t in sent) and len(sent) == 2)
+        started = []
+        with mock.patch.object(poller.telegram, "send", lambda t, *a, **k: None), \
+                mock.patch.object(poller, "_dispatch_generate", lambda *a, **k: started.append(a)):
+            for c in ("/uret_custom_boyama", "/uret_sublimation_vintagexmas_kids", "/uret_coloring", "/uret", "/uret_2"):
+                poller._handle_message({"text": c}, {})
+        self.assertEqual(len(started), 5)
+        self.assertNotIn("/uret_junk", poller.HELP)
+        self.assertNotIn("/uret_tattoo", poller.HELP)
 
     def test_every_day_a_theme_that_is_not_in_the_shop_yet(self):
         first = self.plan([])[0]
