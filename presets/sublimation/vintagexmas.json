@@ -94,5 +94,177 @@
       "phrase": "90s Kid Christmas",
       "prompt": "a 1990s nostalgic Christmas sticker collage: a music cassette tape, roller skates with red laces, a mug of cocoa, a candy cane, knitted mittens, a wrapped gift with a plaid bow and a small pine tree, arranged in a tight round cluster with four-point stars"
     }
+  ],
+  "themes": [
+    {
+      "theme": "cozy",
+      "label_tr": "Vintage Noel tişört paketi: sıcak ev temaları (kakao, kurabiye, pijama)",
+      "niche": "retro vintage cozy Christmas baking and cocoa sublimation shirt designs",
+      "search_query": "cozy christmas sublimation png",
+      "set_name": "Retro Cozy Christmas",
+      "title": "Cozy Christmas Sublimation PNG Bundle, Retro Baking Cocoa Shirt Designs, Holiday Pajama Gift",
+      "tags": [
+        "cozy christmas png",
+        "hot cocoa png",
+        "christmas baking png",
+        "retro holiday shirt",
+        "gingerbread house",
+        "family pajama design",
+        "winter mug wrap",
+        "dtf transfer print",
+        "vintage xmas clipart",
+        "cookie baking crew",
+        "fireplace stocking",
+        "holiday sweatshirt",
+        "distressed xmas png"
+      ],
+      "designs": [
+        {
+          "name": "Cocoa Mug",
+          "phrase": "Powered By Hot Cocoa",
+          "prompt": "a big retro enamel mug of hot cocoa piled with marshmallows and a candy cane, steam curling up, a smiling face on the mug"
+        },
+        {
+          "name": "Baking Mixer",
+          "phrase": "Baking Spirits Bright",
+          "prompt": "a retro stand mixer with a bowl of cookie dough, a rolling pin, star cookie cutters and a little bag of flour with a happy face"
+        },
+        {
+          "name": "Gingerbread House",
+          "phrase": "Home Sweet Gingerbread",
+          "prompt": "a retro gingerbread house with white icing roof, gumdrop door, candy cane fence and smoke curling from the chimney"
+        },
+        {
+          "name": "Cookie Plate",
+          "phrase": "Official Cookie Tester",
+          "prompt": "a retro plate stacked with star and tree sugar cookies and a glass of milk with a striped straw, cookie crumbs around"
+        },
+        {
+          "name": "Fireplace",
+          "phrase": "Cozy Season",
+          "prompt": "a retro brick fireplace with a crackling fire, three knitted stockings hanging and a sleeping cat on a rug"
+        },
+        {
+          "name": "Knit Sweater",
+          "phrase": "Sweater Weather Club",
+          "prompt": "a folded retro knitted sweater with a fair isle snowflake pattern, a ball of yarn with knitting needles and a button"
+        },
+        {
+          "name": "Pajama Bear",
+          "phrase": "Pajamas All Day",
+          "prompt": "a sleepy retro teddy bear wearing plaid pajamas and a nightcap, holding a small pillow, tiny stars around"
+        },
+        {
+          "name": "Slippers",
+          "phrase": "Too Cozy To Move",
+          "prompt": "a pair of fluffy retro plaid house slippers next to a steaming teacup and an open book"
+        },
+        {
+          "name": "Snow Globe",
+          "phrase": "Shake It Till It Snows",
+          "prompt": "a retro snow globe with a tiny house and pine tree inside, snow swirling, on a wooden base with a ribbon"
+        },
+        {
+          "name": "Tree Truck",
+          "phrase": "Fresh Cut Trees",
+          "prompt": "a retro red pickup seen from the side carrying a tied pine tree in the back, a wreath on the grille, snow on the roof"
+        },
+        {
+          "name": "Candle Lantern",
+          "phrase": "Merry And Bright",
+          "prompt": "a retro glowing lantern with a candle inside, a plaid bow on top and pine cones at its base"
+        },
+        {
+          "name": "Kettle",
+          "phrase": "Warm Wishes",
+          "prompt": "a retro whistling kettle with a knitted cozy, two mugs beside it and steam shaped like little hearts"
+        }
+      ]
+    },
+    {
+      "theme": "kids",
+      "label_tr": "Vintage Noel tişört paketi: sevimli çocuk tasarımları (ekose kurdele, bebek hayvanlar)",
+      "niche": "cute retro kids Christmas sublimation shirt designs with plaid bows",
+      "search_query": "kids christmas sublimation png",
+      "set_name": "Retro Christmas Cuties",
+      "title": "Kids Christmas Sublimation PNG Bundle, Retro Baby Animal Shirt Designs, Toddler Holiday Outfit",
+      "tags": [
+        "kids christmas png",
+        "cute reindeer png",
+        "toddler xmas shirt",
+        "baby first holiday",
+        "plaid bow design",
+        "retro penguin png",
+        "polar bear clipart",
+        "girls holiday tee",
+        "boys winter shirt",
+        "dtf transfer kids",
+        "nursery xmas print",
+        "sibling matching",
+        "sweet santa png"
+      ],
+      "designs": [
+        {
+          "name": "Baby Reindeer",
+          "phrase": "Little Deer",
+          "prompt": "a cute baby reindeer sitting with big sparkling eyes, tiny antlers and a large red plaid ribbon bow on its head"
+        },
+        {
+          "name": "Penguin",
+          "phrase": "Chill Little Guy",
+          "prompt": "a cute chubby baby penguin wearing a knitted bobble hat and striped scarf, holding a tiny wrapped present"
+        },
+        {
+          "name": "Polar Bear",
+          "phrase": "Beary Merry",
+          "prompt": "a cute fluffy baby polar bear hugging a big candy cane, wearing a red plaid bow tie"
+        },
+        {
+          "name": "Kitten Stocking",
+          "phrase": "Santa's Favorite",
+          "prompt": "a cute kitten peeking out of a knitted stocking with a plaid ribbon bow, a little bell on its collar"
+        },
+        {
+          "name": "Puppy Present",
+          "phrase": "Best Gift Ever",
+          "prompt": "a cute puppy sitting inside an open gift box with tissue paper, wearing a Santa hat, the lid with a plaid bow beside it"
+        },
+        {
+          "name": "Bunny Mittens",
+          "phrase": "Snow Much Fun",
+          "prompt": "a cute bunny wearing oversized red mittens and ear muffs, catching a snowflake on its nose"
+        },
+        {
+          "name": "Little Elf",
+          "phrase": "Tiny But Mighty",
+          "prompt": "a cute round-cheeked elf child character in a green hat with a bell, striped socks, carrying a toy hammer"
+        },
+        {
+          "name": "Gingerbread Girl",
+          "phrase": "Sweet But Sassy",
+          "prompt": "a cute gingerbread cookie girl with icing curls, a pink plaid bow and a gumdrop skirt, one hand on her hip"
+        },
+        {
+          "name": "Snowman Kid",
+          "phrase": "Chillin With My Snowmies",
+          "prompt": "a cute small snowman with a carrot nose, a too-big top hat and a plaid scarf, waving a twig hand"
+        },
+        {
+          "name": "Baby Fox",
+          "phrase": "Foxy And Bright",
+          "prompt": "a cute baby fox curled up in a knitted blanket with a string of colorful lights around it"
+        },
+        {
+          "name": "Mouse Cookie",
+          "phrase": "Cookie Crew",
+          "prompt": "a cute little mouse holding a star cookie bigger than its head, wearing a tiny red scarf"
+        },
+        {
+          "name": "Owl Hat",
+          "phrase": "Whooo Loves Christmas",
+          "prompt": "a cute round baby owl on a pine branch wearing a Santa hat, with a small plaid bow on the branch"
+        }
+      ]
+    }
   ]
 }

@@ -83,6 +83,13 @@ def choose(preset, want=""):
     return min(vs, key=lambda v: last.get(v["theme"], -1))
 
 
+def fresh(preset):
+    """A theme of the preset that has not become a product yet, or None when every theme is already in the shop
+    (the daily plan then makes something else instead of the same listing a second time)."""
+    used = _used_themes(preset["name"])
+    return next((v for v in variants(preset) if v["theme"] not in used), None)
+
+
 def names(ptype):
     d = DIR / ptype
     return sorted(p.stem for p in d.glob("*.json")) if d.is_dir() else []
