@@ -87,22 +87,21 @@ def brighten(im):
     return ImageEnhance.Contrast(out).enhance(1.04)
 
 
-def top_up_photos(mockups, files, title):
-    """[(name, jpeg)] -> at least 10 photos; the extra ones come from the product's own images and file list."""
+def top_up_photos(mockups, files, title, ptype=None):
+    """[(name, jpeg)] -> up to 10 photos; the extra ones come from the product's own images and file list.
+    Nothing the product already shows is repeated, and a made-to-order product gets no "instant download" cards."""
     if len(mockups) >= PHOTOS or not mockups:
         return mockups
     from . import shopfix
     ims = [Image.open(io.BytesIO(b)).convert("RGB") for _, b in mockups]
-    have = {n for n, _ in mockups}
-    extra = shopfix.extra_photos(ims[0], ims, [{"filename": f["name"], "size": f["size"]} for f in files], title,
-                                 PHOTOS - len(mockups))
-    k = len(mockups)
+    names = " ".join(n.lower() for n, _ in mockups)
+    have = {k for k, words in (("what", ("what", "info", "included")), ("how", ("how", "download")),
+                               ("detail", ("detail", "closeup"))) if any(w in names for w in words)}
+    extra = shopfix.extra_photos(ims[0], ims[1:] or ims, [{"filename": f["name"], "size": f["size"]} for f in files],
+                                 title, PHOTOS - len(mockups), have, cards=ptype not in shopfix.MADE_TO_ORDER)
     out = list(mockups)
     for n, b in extra:
-        k += 1
-        n = f"{k:02d}-{n}"
-        if n not in have:
-            out.append((n, b))
+        out.append((f"{len(out):02d}-{n}", b))
     return out[:PHOTOS]
 
 

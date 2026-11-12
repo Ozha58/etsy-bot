@@ -98,28 +98,75 @@ class QualityTest(unittest.TestCase):
         self.assertGreater(calm / len(edge), 0.9)  # the design is not cut by the frame
         self.assertGreater(max(up.getpixel((1000, 1000))) - min(up.getpixel((1000, 1000))), 50)  # and fills the middle
 
-        extra = [n for n, _ in shopfix.extra_photos(grid, [card, grid], [{"filename": "a.zip", "size": 5 << 20}], TITLE, 6)]
-        self.assertEqual(extra, ["detail-1.jpg", "info-whats-included.jpg", "file-details.jpg", "good-to-know.jpg",
-                                 "how-to-download.jpg"])  # artwork first, download help last
-        two = [n for n, _ in shopfix.extra_photos(grid, [card, grid], [{"filename": "a.zip", "size": 5 << 20}], TITLE, 2)]
-        self.assertEqual(two, ["detail-1.jpg", "info-whats-included.jpg"])
+        files = [{"filename": "a.zip", "size": 5 << 20}]
+        extra = [n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 6)]
+        self.assertEqual(extra, ["detail-1.jpg", "files-included.jpg", "download-steps.jpg"])  # artwork first; 2 cards, not 4
+        two = [n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 2)]
+        self.assertEqual(two, ["detail-1.jpg", "files-included.jpg"])
+        # nothing the listing already shows is repeated; a made-to-order product gets no "instant download" card
+        self.assertEqual([n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 6, {"what", "detail"})],
+                         ["download-steps.jpg"])
+        self.assertEqual([n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 6, cards=False)],
+                         ["detail-1.jpg"])
 
-    def test_first_treatment_photos_are_found_for_replacement(self):
-        def im(rank, label):
-            return {"listing_image_id": rank, "rank": rank, "alt_text": f"Some Title, B, C - {label}"}
-        v1 = [im(1, "cover preview"), im(2, "page preview"), im(3, "what is included"), im(4, "what is included"),
-              im(5, "how to download"), im(6, "file formats and details"), im(7, "close-up detail"), im(8, "close-up detail")]
+    def test_info_card_shows_the_whole_cover_not_a_cut_strip(self):
+        cover = Image.new("RGB", (2000, 2000), (200, 40, 40))
+        ImageDraw.Draw(cover).rectangle((0, 0, 1999, 80), fill=(20, 160, 60))  # a marker on the cover's top edge
+        card = shopfix._card(cover, "What's Included", ["2 files", "Instant digital download"])
+        self.assertEqual(card.size, (2000, 2000))
+        self.assertEqual(card.getpixel((1700, 250)), shopfix.PAPER)  # calm paper behind the heading, no picture band
+        px = [card.getpixel((x, y)) for x in range(1100, 1900, 10) for y in range(600, 1500, 10)]
+        self.assertTrue(any(p[1] > 140 and p[0] < 60 for p in px))   # top edge of the cover is inside the thumbnail
+        self.assertTrue(any(p[0] > 180 and p[1] < 70 for p in px))   # and its body too: the cover is complete
+
+    def test_made_to_order_product_gets_no_download_cards(self):
+        mock_ = [(f"{k:02d}-p.jpg", photo((245 - 6 * k, 240, 232), k)) for k in range(6)]
+        files = [{"name": "custom.zip", "size": 1 << 20}]
+        names = [n for n, _ in quality.top_up_photos(mock_, files, TITLE, "custom")]
+        self.assertFalse(any("files-included" in n or "download-steps" in n for n in names), names)
+        normal = [n for n, _ in quality.top_up_photos(mock_, files, TITLE, "coloring")]
+        self.assertTrue(any("download-steps" in n for n in normal))
+        own = mock_[:5] + [("05-what.jpg", mock_[5][1])]  # the product explains its content itself
+        self.assertFalse(any("files-included" in n for n, _ in quality.top_up_photos(own, files, TITLE, "coloring")))
+
+    def test_kids_sample_name_changes_every_time(self):
+        from unittest import mock
+        from bot import presets, storage
+        made = []
+        with mock.patch.object(storage, "all_products", lambda: made):
+            leads = []
+            for k in range(12):
+                names = presets.sample_names("boyama")
+                self.assertEqual(len(set(names)), 3)
+                leads.append(names[0])
+                made.append({"created_at": k, "spec": {"preset": "boyama", "sample_name": names[0]}})
+        for k in range(1, 12):
+            self.assertNotIn(leads[k], leads[max(0, k - 8):k])  # never one of the last eight lead names
+        self.assertTrue(all(len(n) <= 6 for n in presets.KIDS_NAMES))  # fits the layouts made for "Olivia"
+
+    def test_old_treatment_photos_are_found_for_replacement(self):
+        def im(rank, label, t=1000):
+            return {"listing_image_id": rank, "rank": rank, "alt_text": f"Some Title, B, C - {label}", "created_timestamp": t}
+        late = 90000
+        v1 = [im(1, "cover preview"), im(2, "page preview"), im(3, "what is included"), im(4, "what is included", late),
+              im(5, "how to download", late), im(6, "file formats and details", late), im(7, "close-up detail", late),
+              im(8, "close-up detail", late)]
         self.assertEqual([i["rank"] for i in shopfix.old_extras(v1)], [4, 5, 6, 7, 8])
-        own = [im(1, "cover preview"), im(2, "close-up detail"), im(3, "what is included")]
-        self.assertEqual(shopfix.old_extras(own), [])  # a product's own detail photo stays
-        v2 = [im(1, "cover preview"), im(2, "close-up detail"), im(3, "what is included"), im(4, "how to download")]
-        self.assertEqual(shopfix.old_extras(v2), [])  # the new order is never touched again
+        own = [im(1, "cover preview"), im(2, "close-up detail"), im(3, "what is included"), im(4, "how to download")]
+        self.assertEqual(shopfix.old_extras(own), [])  # the product's own info and how-it-works photos stay
+        # second treatment: good close-ups stay, its four cut-strip cards go, the product's own "how" card stays
+        v2 = [im(1, "cover preview"), im(2, "how to download"), im(3, "close-up detail", late), im(4, "what is included", late),
+              im(5, "file formats and details", late), im(6, "good to know before you buy", late), im(7, "how to download", late)]
+        self.assertEqual([i["rank"] for i in shopfix.old_extras(v2)], [4, 5, 6, 7])
+        self.assertEqual(shopfix.shown([i for i in v2 if i["rank"] <= 3]), {"how", "detail"})
+        v3 = [im(1, "cover preview"), im(2, "close-up detail", late), im(3, "files you receive", late), im(4, "download steps", late)]
+        self.assertEqual(shopfix.old_extras(v3), [])  # the new set is never touched again
 
     def test_second_run_does_not_add_the_extra_photos_again(self):
         from unittest import mock
         from bot import etsy
         imgs = [{"listing_image_id": k, "rank": k, "alt_text": f"Bee Pages, B, C - {lab}"} for k, lab in
-                enumerate(["cover preview", "page preview", "close-up detail", "what is included", "how to download"], 1)]
+                enumerate(["cover preview", "page preview", "close-up detail", "files you receive", "download steps"], 1)]
         li = {"listing_id": 7, "title": "Bee Coloring Pages, Printable PDF Book, Kids Spring Activity",
               "tags": [], "description": ""}
         added = []
@@ -161,9 +208,10 @@ class QualityTest(unittest.TestCase):
     def test_photos_are_topped_up_to_ten_square_ones(self):
         mock = [(f"{k:02d}-p.jpg", photo((245 - 6 * k, 240, 232), k)) for k in range(6)]
         out = quality.top_up_photos(mock, [{"name": "bee-coloring.zip", "size": 9 * 1048576}], TITLE)
-        self.assertEqual(len(out), 10)
+        self.assertGreaterEqual(len(out), 8)  # close-ups + two cards; never padded with look-alike cards
+        self.assertLessEqual(len(out), 10)
         self.assertEqual(out[:6], mock)
-        self.assertEqual(len({n for n, _ in out}), 10)
+        self.assertEqual(len({n for n, _ in out}), len(out))
         for _, b in out:
             self.assertEqual(Image.open(io.BytesIO(b)).size, (2000, 2000))
         self.assertEqual(quality.top_up_photos(out, [], TITLE), out)

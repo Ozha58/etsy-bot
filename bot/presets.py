@@ -90,6 +90,32 @@ def fresh(preset):
     return next((v for v in variants(preset) if v["theme"] not in used), None)
 
 
+# example names on the photos of kids products: short (they must fit the layouts made for "Olivia"), common in the US
+KIDS_NAMES = ["Olivia", "Noah", "Emma", "Liam", "Ava", "Lucas", "Mia", "Ethan", "Lily", "Mason", "Chloe", "Henry",
+              "Ella", "Owen", "Sophie", "Jack", "Zoe", "Leo", "Ruby", "Theo", "Nora", "Miles", "Hazel", "Finn"]
+
+
+def sample_names(preset_name, n=3):
+    """n example names for one production: a new lead name every time, never the lead names of this preset's last
+    products (so two listings side by side in the shop do not show the same child)."""
+    import random
+    recent = []
+    try:
+        from . import storage
+        ps = sorted((p for p in storage.all_products() if (p.get("spec") or {}).get("preset") == preset_name),
+                    key=lambda p: p.get("created_at", 0))
+        recent = [str((p.get("spec") or {}).get("sample_name") or "") for p in ps][-8:]
+    except Exception as e:
+        print(f"[presets] önceki örnek isimler okunamadı: {e}")
+    pool = [x for x in KIDS_NAMES if x not in recent] or list(KIDS_NAMES)
+    lead = random.choice(pool)
+    girl = KIDS_NAMES.index(lead) % 2 == 0  # the list alternates girl / boy: show both on the "any name" photo
+    others = [x for x in KIDS_NAMES if x != lead]
+    second = random.choice([x for x in others if (KIDS_NAMES.index(x) % 2 == 0) != girl])
+    third = random.choice([x for x in others if x != second])
+    return [lead, second, third][:n]
+
+
 def names(ptype):
     d = DIR / ptype
     return sorted(p.stem for p in d.glob("*.json")) if d.is_dir() else []
@@ -201,6 +227,9 @@ def spec(idea):
     out[field] = [dict(d) for d in preset[field][:n]]
     out["preset"] = preset["name"]
     out["theme"] = preset["theme"]
+    if preset.get("kind") == "kids" and out.get("sample_name"):  # not "Olivia" on every listing of the shop
+        out["sample_names"] = sample_names(preset["name"])
+        out["sample_name"] = out["sample_names"][0]
     if ptype in FLEX_COUNT:
         out["count"] = n
     if preset.get("look") == "festive":  # every theme gets its own colours and decorations (custom_festive.SKINS)
