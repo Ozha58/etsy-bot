@@ -270,6 +270,10 @@ def find_trending_niches(count=1, plan=True):
                           "etsy_velocity": v.get("speed"), "score": v["score"]})
     except Exception as e:
         print(f"[smart_niche] niş taraması verisi kullanılamadı: {e}")
+    only = config.env("ONLY_TYPE", "").strip()
+    if only:  # /uret_tattoo: ideas from Etsy data come with their own type; the owner asked for this one
+        for i in ideas:
+            i["type"] = only
     cap = int(s.get("max_competition", 8000) or 0)
     floor = int(s.get("min_results", 150) or 0)
     crowded = [i for i in ideas if (cap and (i.get("etsy_results") or 0) > cap)
