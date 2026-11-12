@@ -31,7 +31,7 @@ from . import config, etsy, llm, research, storage, telegram
 from .imgutil import font, jpeg_bytes
 from .telegram import esc
 
-VERSION = "shopfix-3"  # bump to treat every listing again
+VERSION = "shopfix-4"  # bump to treat every listing again
 SHOP_NAME = config.SHOP_NAME
 OLD_NAMES = ("Sebasteia",)  # earlier shop name: shop texts that still say it are rewritten
 
@@ -201,6 +201,7 @@ def shop_audit(listings, details=None) -> dict:
 
 # ------------------------------------------------------------------ titles and tags
 _llm_fails = [0]  # text AI failures in a row during this run
+_llm_skip = [0]   # listings skipped since the last failed try
 
 
 def new_seo(li, ptype, product=None) -> dict:
@@ -228,8 +229,10 @@ Write:
 Return ONLY JSON: {{"title": "...", "tags": ["..."], "styles": ["...", "..."]}}"""
     best = None
     for attempt in range(3):
-        if _llm_fails[0] >= 2:  # the text AI is down for this run (quota): do not wait for it on every listing
+        if _llm_fails[0] >= 2 and _llm_skip[0] < 3:  # the text AI is down (overloaded or out of quota): the next
+            _llm_skip[0] += 1                        # three listings do not wait for it, the fourth asks again
             break
+        _llm_skip[0] = 0
         try:
             res = llm.ask_json(prompt, temperature=0.5)
             _llm_fails[0] = 0
@@ -387,6 +390,16 @@ def closeups(photos: list, n: int) -> list:
                                    busy[y0:y1, x0:x0 + r].ravel(), busy[y0:y1, x1 - r:x1].ravel()])
             return (rimb | (np.abs(rim - np.median(rim)) > 30)).mean() <= limit
 
+        def artwork(x0, y0, side):
+            """Real artwork has many colours. A flat shape (the round "1" of a how-it-works card, a button, a
+            coloured box) has one or two and is no close-up - that is what got into the shop."""
+            win = a[y0:y0 + side, x0:x0 + side][busy[y0:y0 + side, x0:x0 + side]]
+            if len(win) < 30:
+                return False
+            codes = (win[:, 0] >> 5) * 64 + (win[:, 1] >> 5) * 8 + (win[:, 2] >> 5)
+            counts = np.bincount(codes, minlength=512)
+            return int((counts >= max(3, 0.03 * len(win))).sum()) >= 4 and counts.max() <= 0.7 * len(win)
+
         best = None
         for frac in (0.55, 0.45, 0.36, 0.28):
             side = int(min(sw, sh) * frac)
@@ -395,7 +408,7 @@ def closeups(photos: list, n: int) -> list:
             for y0 in range(0, sh - side + 1, step):
                 for x0 in range(0, sw - side + 1, step):
                     fill = busy[y0 + ring:y0 + side - ring, x0 + ring:x0 + side - ring].mean()
-                    if fill < 0.15 or not calm_edge(x0, y0, side):
+                    if fill < 0.15 or not calm_edge(x0, y0, side) or not artwork(x0, y0, side):
                         continue
                     score = fill * (1 + frac)
                     if best is None or score > best[0]:
@@ -428,9 +441,9 @@ def closeups(photos: list, n: int) -> list:
 
 
 # which extra photo is worth a free slot first (close-ups sell, the two cards answer the usual questions) ...
-_PRIORITY = ("detail-1", "files-included", "download-steps", "detail-2", "detail-3", "detail-4")
+_PRIORITY = ("closeup-1", "files-included", "download-steps", "closeup-2", "closeup-3", "closeup-4")
 # ... and the order they are shown in: artwork first, download help last
-_ORDER = ("detail-1", "detail-2", "detail-3", "detail-4", "files-included", "download-steps")
+_ORDER = ("closeup-1", "closeup-2", "closeup-3", "closeup-4", "files-included", "download-steps")
 
 
 def extra_photos(cover, existing: list, files, title, need: int, have=(), cards=True) -> list:
@@ -460,7 +473,7 @@ def extra_photos(cover, existing: list, files, title, need: int, have=(), cards=
         ], "Digital item, nothing is shipped. Questions? Message us any time.")
     if need > 0 and "detail" not in have:
         for k, im in enumerate(closeups(existing, 4), 1):
-            made[f"detail-{k}"] = im
+            made[f"closeup-{k}"] = im
     pick = [n for n in _PRIORITY if n in made][:max(0, need)]
     return [(f"{n}.jpg", jpeg_bytes(made[n].convert("RGB"), 90, dpi=72)) for n in _ORDER if n in pick]
 
@@ -536,6 +549,7 @@ def _alt(im):
 
 _OLD_CARDS = ("what is included", "how to download", "file formats and details", "good to know before you buy")
 _NEW_CARDS = ("files you receive", "download steps")
+_TEXT_ALTS = _OLD_CARDS + _NEW_CARDS + ("included sizes",)  # text cards: nothing to zoom into
 
 
 def _late(images) -> list:
@@ -565,6 +579,10 @@ def old_extras(images) -> list:
         mine = im in late if late else _alt(im) in _OLD_CARDS[2:]  # no dates: only the labels nothing else uses
         if im not in out and mine and _alt(im) in _OLD_CARDS:
             out.append(im)
+    # shopfix-2/3 close-ups could be a flat shape cut from a text card (a big round "1"): they carry the old label.
+    # Then the whole late set goes, so the new one is built in the right order (artwork first, cards last).
+    if any(_alt(im) == "close-up detail" for im in late):
+        out += [im for im in late if im not in out and _alt(im) in ("close-up detail",) + _NEW_CARDS]
     return sorted(out, key=lambda i: i.get("rank", 99))
 
 
@@ -578,7 +596,7 @@ def shown(images) -> set:
             have.add("what")
         if a in ("how to download", "download steps"):
             have.add("how")
-        if a == "close-up detail" and im in late:
+        if a == "close-up of one design":
             have.add("detail")
     return have
 
@@ -676,22 +694,27 @@ def treat_listing(li, product, dry_run=False) -> list:
     # extra photos up to 10, and a video when there is none
     pics = []
     need = 10 - len(images)
-    have = shown(images)
-    if any(_alt(im) in _NEW_CARDS for im in images):
-        need = 0  # our extra set is already there (an earlier run): a second set would only repeat it
+    have = shown(images)  # what is already there is never added a second time
     if (need > 0 or not has_video) and images:
-        for im in images[:8 if need > 0 else 5]:  # more photos = more chances for a whole-design close-up
+        art = []  # photos a close-up may come from: the product's own artwork, never a text card
+        for k, im in enumerate(images[:8 if need > 0 else 5]):  # more photos = more chances for a close-up
             try:
-                pics.append(_img(etsy.download_image(im)))
+                pic = _img(etsy.download_image(im))
             except Exception as e:
                 print(f"[shopfix] {lid} foto indirilemedi: {e}")
-        pics = [p for p in pics if p is not None]
+                continue
+            if pic is None:
+                continue
+            pics.append(pic)
+            if k and _alt(im) not in _TEXT_ALTS:
+                art.append(pic)
     if need > 0 and pics:
         # close-ups from the inner photos first: a crop of the cover would cut its title text in half
-        extra = extra_photos(pics[0], pics[1:] or pics, files, new_title, need, have,
+        extra = extra_photos(pics[0], art, files, new_title, need, have,
                              cards=ptype not in MADE_TO_ORDER)
         if dry_run:
-            notes.append(f"(önizleme) +{len(extra)} foto")
+            if extra:
+                notes.append(f"(önizleme) +{len(extra)} foto")
         else:
             added = 0
             for i, (name, data) in enumerate(extra):

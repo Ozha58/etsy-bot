@@ -99,7 +99,7 @@ def _gemini(prompt: str, system: str, temperature: float):
                     f"{GEMINI_BASE}/models/{model}:generateContent",
                     params={"key": config.GEMINI_API_KEY},
                     json=body,
-                    timeout=180,
+                    timeout=90,  # an overloaded model hangs: the next one is tried sooner
                 )
                 if r.status_code == 404:
                     raise LLMError(f"{model} yok")
@@ -147,7 +147,7 @@ def _cloudflare(prompt: str, system: str, temperature: float):
                     "temperature": temperature,
                     "max_tokens": 6000,
                 },
-                timeout=180,
+                timeout=90,  # an overloaded model hangs: the next one is tried sooner
             )
             r.raise_for_status()
             res = r.json().get("result", {})

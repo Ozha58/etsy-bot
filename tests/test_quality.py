@@ -56,13 +56,17 @@ class QualityTest(unittest.TestCase):
         from unittest import mock
         from bot import etsy, llm, storage, telegram
         li = {"listing_id": 1, "title": "Bee Pages - Cute Bee Coloring", "tags": ["bee"], "description": "x"}
-        shopfix._llm_fails[0] = 0
+        shopfix._llm_fails[0] = shopfix._llm_skip[0] = 0
         with mock.patch.object(llm, "ask_json", side_effect=llm.LLMError("429 quota")) as ask:
             for _ in range(4):
                 seo = shopfix.new_seo(li, "coloring")
         self.assertTrue(seo["no_llm"])
-        self.assertEqual(ask.call_count, 2)  # after two failures the run stops asking (no minutes lost per listing)
-        shopfix._llm_fails[0] = 0
+        self.assertEqual(ask.call_count, 2)  # after two failures the next listings do not wait for it ...
+        with mock.patch.object(llm, "ask_json", side_effect=llm.LLMError("503")) as ask:
+            for _ in range(8):
+                shopfix.new_seo(li, "coloring")
+        self.assertEqual(ask.call_count, 2)  # ... but every 4th listing asks again: an overloaded server recovers
+        shopfix._llm_fails[0] = shopfix._llm_skip[0] = 0
 
         meta, treated, sent = {}, [], []
         listings = [dict(li, listing_id=k) for k in range(5)]
@@ -82,8 +86,11 @@ class QualityTest(unittest.TestCase):
         grid = Image.new("RGB", (2000, 2000), (244, 240, 234))  # four designs on a calm sheet
         d = ImageDraw.Draw(grid)
         for cx, cy in ((520, 520), (1480, 520), (520, 1480), (1480, 1480)):
-            d.ellipse((cx - 300, cy - 300, cx + 300, cy + 300), fill=(190, 60, 50))
-            d.rectangle((cx - 120, cy - 120, cx + 120, cy + 120), fill=(30, 110, 80))
+            d.ellipse((cx - 300, cy - 300, cx + 300, cy + 300), fill=(190, 60, 50))  # artwork: several colours
+            d.rectangle((cx - 200, cy - 200, cx, cy), fill=(30, 110, 80))
+            d.rectangle((cx, cy - 200, cx + 200, cy), fill=(230, 170, 40))
+            d.rectangle((cx - 200, cy, cx, cy + 200), fill=(40, 90, 190))
+            d.rectangle((cx, cy, cx + 200, cy + 200), fill=(140, 60, 160))
         card = Image.new("RGB", (2000, 2000), (250, 246, 239))  # a text card: lines of dark text
         dc = ImageDraw.Draw(card)
         for y in range(300, 1700, 140):
@@ -100,14 +107,36 @@ class QualityTest(unittest.TestCase):
 
         files = [{"filename": "a.zip", "size": 5 << 20}]
         extra = [n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 6)]
-        self.assertEqual(extra, ["detail-1.jpg", "files-included.jpg", "download-steps.jpg"])  # artwork first; 2 cards, not 4
+        self.assertEqual(extra, ["closeup-1.jpg", "files-included.jpg", "download-steps.jpg"])  # artwork first; 2 cards, not 4
         two = [n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 2)]
-        self.assertEqual(two, ["detail-1.jpg", "files-included.jpg"])
+        self.assertEqual(two, ["closeup-1.jpg", "files-included.jpg"])
         # nothing the listing already shows is repeated; a made-to-order product gets no "instant download" card
         self.assertEqual([n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 6, {"what", "detail"})],
                          ["download-steps.jpg"])
         self.assertEqual([n for n, _ in shopfix.extra_photos(grid, [card, grid], files, TITLE, 6, cards=False)],
-                         ["detail-1.jpg"])
+                         ["closeup-1.jpg"])
+
+    def test_flat_shape_from_a_text_card_is_never_a_closeup(self):
+        how = Image.new("RGB", (2000, 2000), (238, 236, 232))  # "HOW IT WORKS": three gold circles with a number
+        d = ImageDraw.Draw(how)
+        for k, cx in enumerate((400, 1000, 1600)):
+            d.ellipse((cx - 260, 700, cx + 260, 1220), fill=(214, 168, 96))
+            d.rectangle((cx - 30, 840, cx + 30, 1080), fill=(255, 255, 255))
+        self.assertEqual(shopfix.closeups([how], 3), [])
+        ours = shopfix._card(how, "What's Included", ["2 files"])  # our own card with its thumbnail: no source either
+        self.assertEqual(shopfix.closeups([ours], 3), [])
+
+    def test_old_closeups_and_their_set_are_rebuilt_once(self):
+        def im(rank, label, t=1000):
+            return {"listing_image_id": rank, "rank": rank, "alt_text": f"T, B, C - {label}", "created_timestamp": t}
+        late = 90000
+        v3 = [im(1, "cover preview"), im(2, "how to download"), im(3, "close-up detail", late),
+              im(4, "files you receive", late), im(5, "download steps", late)]
+        self.assertEqual([i["rank"] for i in shopfix.old_extras(v3)], [3, 4, 5])  # whole late set, own "how" card stays
+        v4 = [im(1, "cover preview"), im(2, "how to download"), im(3, "close-up of one design", late),
+              im(4, "files you receive", late), im(5, "download steps", late)]
+        self.assertEqual(shopfix.old_extras(v4), [])  # stable: a later run leaves it alone
+        self.assertEqual(shopfix.shown(v4), {"how", "what", "detail"})
 
     def test_info_card_shows_the_whole_cover_not_a_cut_strip(self):
         cover = Image.new("RGB", (2000, 2000), (200, 40, 40))
@@ -154,19 +183,20 @@ class QualityTest(unittest.TestCase):
         self.assertEqual([i["rank"] for i in shopfix.old_extras(v1)], [4, 5, 6, 7, 8])
         own = [im(1, "cover preview"), im(2, "close-up detail"), im(3, "what is included"), im(4, "how to download")]
         self.assertEqual(shopfix.old_extras(own), [])  # the product's own info and how-it-works photos stay
-        # second treatment: good close-ups stay, its four cut-strip cards go, the product's own "how" card stays
+        # second treatment: its close-ups (old label) and four cut-strip cards go, the product's own "how" card stays
         v2 = [im(1, "cover preview"), im(2, "how to download"), im(3, "close-up detail", late), im(4, "what is included", late),
               im(5, "file formats and details", late), im(6, "good to know before you buy", late), im(7, "how to download", late)]
-        self.assertEqual([i["rank"] for i in shopfix.old_extras(v2)], [4, 5, 6, 7])
-        self.assertEqual(shopfix.shown([i for i in v2 if i["rank"] <= 3]), {"how", "detail"})
-        v3 = [im(1, "cover preview"), im(2, "close-up detail", late), im(3, "files you receive", late), im(4, "download steps", late)]
-        self.assertEqual(shopfix.old_extras(v3), [])  # the new set is never touched again
+        self.assertEqual([i["rank"] for i in shopfix.old_extras(v2)], [3, 4, 5, 6, 7])
+        self.assertEqual(shopfix.shown([i for i in v2 if i["rank"] <= 3]), {"how"})
+        v4 = [im(1, "cover preview"), im(2, "close-up of one design", late), im(3, "files you receive", late),
+              im(4, "download steps", late)]
+        self.assertEqual(shopfix.old_extras(v4), [])  # the new set is never touched again
 
     def test_second_run_does_not_add_the_extra_photos_again(self):
         from unittest import mock
         from bot import etsy
         imgs = [{"listing_image_id": k, "rank": k, "alt_text": f"Bee Pages, B, C - {lab}"} for k, lab in
-                enumerate(["cover preview", "page preview", "close-up detail", "files you receive", "download steps"], 1)]
+                enumerate(["cover preview", "page preview", "close-up of one design", "files you receive", "download steps"], 1)]
         li = {"listing_id": 7, "title": "Bee Coloring Pages, Printable PDF Book, Kids Spring Activity",
               "tags": [], "description": ""}
         added = []
