@@ -1,4 +1,5 @@
 """Etsy Open API v3: OAuth 2.0 (PKCE), shop info, public search, listing publishing."""
+import re
 import base64
 import hashlib
 import hmac
@@ -396,6 +397,8 @@ def publish(p: dict, delivery: list, photos: list, build_meta: dict, mode="activ
     if sec:
         data["shop_section_id"] = sec
     data.update(build_meta.get("listing", {}))  # e.g. personalization for made-to-order custom PNGs
+    if data.get("personalization_instructions"):
+        data["personalization_instructions"] = short_instructions(data["personalization_instructions"])
     listing_id = p.get("etsy", {}).get("listing_id")
     if not listing_id:
         try:
@@ -712,6 +715,21 @@ def set_alt_text(listing_id, listing_image_id, rank, alt_text):
     tok = token()
     return _req("POST", f"/shops/{shop_id_of(tok)}/listings/{listing_id}/images", tok,
                 data={"listing_image_id": listing_image_id, "rank": rank, "alt_text": alt_text[:250]}, timeout=120)
+
+
+def short_instructions(text, limit=120):
+    """Etsy takes at most 120 characters as personalization instructions (a longer text makes it refuse the whole
+    box): keep whole sentences that fit, otherwise cut at a word."""
+    text = " ".join(str(text or "").split())
+    if len(text) <= limit:
+        return text
+    out = ""
+    for sentence in re.split(r"(?<=[.!?;])\s+", text):
+        if len((out + " " + sentence).strip()) > limit:
+            break
+        out = (out + " " + sentence).strip()
+    out = re.sub(r"\s*\([^)]*\)", "", out) if not out else out
+    return out.rstrip(";") or text[:limit].rsplit(" ", 1)[0].rstrip(",;") + "."
 
 
 def delete_image(listing_id, listing_image_id):

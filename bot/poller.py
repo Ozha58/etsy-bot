@@ -110,7 +110,8 @@ def personalization_guide(p, res):
     want = (p.get("build") or {}).get("listing") or {}
     if not want.get("is_personalizable"):
         return ""
-    instr = want.get("personalization_instructions") or "Enter the name exactly as you want it to appear."
+    instr = etsy.short_instructions(want.get("personalization_instructions")
+                                    or "Enter the name exactly as you want it to appear.")
     limit = want.get("personalization_char_count_max") or 40
     if res.get("personalization_on"):
         return (f"✍️ <b>Kişiselleştirme kutusu Etsy'de açık</b> ({esc(p['title'][:60])}).\n"
@@ -122,7 +123,7 @@ def personalization_guide(p, res):
             "<b>Personalization</b> (bilgisayarda: Listing details altında)\n\n"
             "<b>1.</b> Personalization: <b>Aç</b> (Add personalization)\n"
             "<b>2.</b> Instructions for buyers (kopyala):\n"
-            f"<code>{esc(instr)}</code>\n"
+            f"<code>{esc(instr)}</code>\n({len(instr)} karakter; Etsy sınırı 120)\n"
             f"<b>3.</b> Character limit: <code>{limit}</code>\n"
             "<b>4.</b> Personalization is required / Make it mandatory: <b>İşaretle</b>\n"
             "<b>5.</b> Save / Publish changes\n\n"
