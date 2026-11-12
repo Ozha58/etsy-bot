@@ -163,13 +163,55 @@ Return ONLY a JSON array with exactly {len(slots)} objects in slot order:
     return data or []
 
 
-def find_trending_niches(count=1):
+def daily_plan(today):
+    """Preset ideas for today's automatic production, from settings.json "daily_presets": one list per daily slot,
+    e.g. [["sublimation:vintagexmas"], ["custom:xmaskids"], ["custom:boyama", ""]]. A slot with several entries
+    takes the next one each day ("" = no preset that day, an AI idea of the normal product types fills the place).
+    A preset whose themes are all in the shop already, or that was made today, is skipped the same way."""
+    from . import presets, storage
+    out = []
+    try:
+        today_presets = {(p.get("spec") or {}).get("preset") for p in storage.all_products()
+                         if p.get("day") == today.isoformat() and p.get("status") != "rejected"}
+    except Exception:
+        today_presets = set()
+    for slot in config.settings().get("daily_presets") or []:
+        entry = slot[today.toordinal() % len(slot)] if slot else ""
+        ptype, _, name = str(entry).partition(":")
+        if not name or name in today_presets:
+            continue
+        try:
+            preset = presets.load(ptype, name)
+            v = presets.fresh(preset) if preset else None
+        except Exception as e:
+            print(f"[smart_niche] günlük plan: {entry} atlandı: {e}")
+            continue
+        if not v:
+            print(f"[smart_niche] günlük plan: {entry} temalarının hepsi mağazada, bugün atlandı")
+            continue
+        idea = presets.idea(v, ptype)
+        research._score(idea)
+        out.append(idea)
+    return out
+
+
+def find_trending_niches(count=1, plan=True):
     from . import presets
     preset = presets.for_request()  # /uret custom xmaskids: a researched niche stored in presets/, no AI idea needed
     if preset:
         idea = presets.idea(preset, config.env("ONLY_TYPE"))
         research._score(idea)  # Etsy numbers for the approval message and the price (best effort)
         return [idea]
+    if plan and not config.env("ONLY_TYPE") and not config.env("ONLY_SUBJECT", "").strip():
+        from zoneinfo import ZoneInfo
+        planned = daily_plan(dt.datetime.now(ZoneInfo(config.settings()["timezone"])).date())[:count]
+        if planned:  # the owner's fixed daily products first, AI ideas only for the places they leave open
+            rest = count - len(planned)
+            try:
+                return planned + (find_trending_niches(rest, plan=False) if rest > 0 else [])
+            except Exception as e:
+                print(f"[smart_niche] plan dışı fikirler bulunamadı: {e}")
+                return planned
     today = dt.date.today()
     s = config.settings()
     used = _used(today)

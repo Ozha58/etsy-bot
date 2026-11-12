@@ -1,8 +1,8 @@
 {
-  "products_per_day": 4,
+  "products_per_day": 3,
   "publish_mode": "active",
   "product_types": {
-    "custom": 1
+    "coloring": 1
   },
   "max_same_type_per_day": 4,
   "price_ranges_usd": {
@@ -58,5 +58,17 @@
   "niche_memory_days": 60,
   "timezone": "Europe/Istanbul",
   "christmas_share": 0.5,
-  "auto_daily": false
+  "auto_daily": true,
+  "daily_presets": [
+    [
+      "sublimation:vintagexmas"
+    ],
+    [
+      "custom:xmaskids"
+    ],
+    [
+      "custom:boyama",
+      ""
+    ]
+  ]
 }
