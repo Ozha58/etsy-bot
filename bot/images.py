@@ -304,5 +304,14 @@ def quota_report() -> str:
             "• /uret_stickers → 8 görsel\n"
             "• /uret_junk → 14 görsel\n"
             "• diğer ürünler → 10-20 görsel\n"
-            "• 11:15 otomatik üretim (4 ürün) → ~50-60 görsel\n\n"
-            "Not: Yazı kotası (Gemini) ayrı: her gün 11:00'de yenilenir.")
+            + _auto_line() +
+            "\nNot: Yazı kotası (Gemini) ayrı: her gün 11:00'de yenilenir.")
+
+
+def _auto_line():
+    """The daily production line follows settings.json, so it never promises a run that is switched off."""
+    st = config.settings()
+    if not st.get("auto_daily", True):
+        return "• otomatik günlük üretim: <b>kapalı</b> (yalnızca senin /uret komutların)\n"
+    n = st.get("products_per_day", 4)
+    return f"• 11:15 otomatik üretim ({n} ürün) → ~{n * 12}-{n * 15} görsel\n"
