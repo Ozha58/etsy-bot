@@ -16,6 +16,7 @@ FONTS = {  # kind -> (path in the google/fonts repo, fallback shop font)
     "serif": ("abrilfatface/AbrilFatface-Regular.ttf", "Lora-Variable.ttf"),
     "rounded": ("fredoka/Fredoka%5Bwdth,wght%5D.ttf", "Poppins-Bold.ttf"),
     "hand": ("caveat/Caveat%5Bwght%5D.ttf", "Lora-Italic-Variable.ttf"),
+    "brush": ("caveatbrush/CaveatBrush-Regular.ttf", "Poppins-Bold.ttf"),
 }
 _cache = {}
 

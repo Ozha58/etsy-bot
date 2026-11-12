@@ -69,6 +69,9 @@ def _design(p_or_spec, art, name, k):
 
 def render(p, name):
     """All designs of a published custom product with the buyer's name -> [(file name, png bytes)]."""
+    if (p.get("spec") or {}).get("look") == "nursery":  # wall art set: the name poster, drawn for this order
+        from . import custom_nursery
+        return custom_nursery.render(p, name, clean_name)
     if (p.get("spec") or {}).get("look") == "coloring":  # name coloring pages: two PDFs instead of PNG designs
         from . import custom_coloring
         return custom_coloring.render(p, name, clean_name, assets.download)
@@ -120,6 +123,9 @@ def _watermark(im):
 
 
 def build(spec, slug):
+    if spec.get("look") == "nursery":
+        from . import custom_nursery
+        return custom_nursery.build(spec, slug, clean_name, COUNT)
     if spec.get("look") == "coloring":
         from . import custom_coloring
         return custom_coloring.build(spec, slug, clean_name, COUNT)

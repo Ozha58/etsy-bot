@@ -1,5 +1,5 @@
 {
-  "products_per_day": 4,
+  "products_per_day": 5,
   "publish_mode": "active",
   "product_types": {
     "coloring": 1
@@ -68,12 +68,16 @@
     ],
     [
       "custom:boyama"
+    ],
+    [
+      "custom:nursery"
     ]
   ],
   "allowed_uret": [
     "coloring",
     "sublimation:vintagexmas",
     "custom:xmaskids",
-    "custom:boyama"
+    "custom:boyama",
+    "custom:nursery"
   ]
 }
