@@ -8,29 +8,17 @@ from . import assets, config, etsy, storage, telegram
 from .telegram import esc
 
 HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
-/uret – hemen 1 ek ürün üretir
-/uret_2 – 2 ürün üretir
-/uret_journal – yazdırılabilir günlük paketi
-/uret_planner – dijital planner
-/uret_stickers – sticker paketi
-/uret_junk – junk journal kiti
-/uret_coloring – boyama sayfaları
-/uret_wallpaper – telefon duvar kâğıdı
-/uret_wall_art – duvar posteri
-/uret_scenes – illüstrasyon paketi
-/uret_clipart – clipart (30 şeffaf PNG + sticker sayfaları, ~30 görsel hakkı)
-/uret_custom_teacher – kişiye özel öğretmen adı PNG (alıcı adı yazar, sipariş gelince bot dosyayı hazırlar)
-/uret_custom_xmaskids – kişiye özel çocuk ismi Noel PNG; her seferinde yapılmamış bir tema seçer (~6 görsel hakkı)
+<b>Üretim</b> (yalnızca bu 4 tür; otomatik üretim her gün 11:15'te her birinden 1 tane yapar)
+/uret_sublimation_vintagexmas – vintage Noel tişört paketi: 12 retro tasarım, giyilmiş sweatshirt fotoğrafları (~16 görsel hakkı)
+/uret_sublimation_vintagexmas_cozy · _kids · _classic – temayı sen seç
+/uret_custom_xmaskids – kişiye özel çocuk ismi Noel PNG; yapılmamış bir tema seçer (~6 görsel hakkı)
 /uret_custom_xmaskids_dino – temayı sen seç: woodland, trucks, ballerina, dino, pets, classic
-/uret_custom_boyama – kişiye özel isimli boyama sayfaları, PDF (sadece balon harfli yazı ve süsler; görsel hakkı HARCAMAZ)
+/uret_custom_boyama – kişiye özel isimli boyama sayfaları, PDF (görsel hakkı HARCAMAZ)
 /uret_custom_boyama_birthday – temayı sen seç: name, birthday, babyshower, christmas
-/uret_tattoo – kişiye özel doğum çiçeği + isim dövme tasarımı (alıcı "İsim - Ay" yazar; ~12 görsel hakkı)
+/uret_coloring – normal boyama kitabı (konu: /uret coloring konu)
+/uret – bu 4 türden sıradaki 1 ürün · /uret_2 – 2 ürün
 /ozel – kişiye özel siparişi elle hazırla: /ozel &lt;sipariş no&gt; İsim
 /kisisel – kişiselleştirme kutusu kapalı kalan kişiye özel ilanlar için Etsy'ye ne yazacağını gönderir
-/uret_sublimation – tişört/kupa PNG tasarımı (8 tasarım + kupa şablonu, ~8 görsel hakkı)
-/uret_sublimation_vintagexmas – vintage Noel tişört paketi: 12 retro tasarım, komik sloganlar, eskitilmiş baskı dokusu, her seferinde farklı renklerde giyilmiş sweatshirt fotoğrafları (~16 görsel hakkı)
-/uret_stickers_migraine – migren sticker paketi (konuyu sen verirsin)
-/uret_planner_migraine – migren planner
 /bekleyen – onay bekleyen ürünleri tekrar gönderir
 /durum – ürün sayıları ve Etsy bağlantısının durumu
 /kota – bugün kaç görsel hakkın kaldığı ve ne zaman yenileneceği
@@ -60,6 +48,21 @@ HELP = """🤖 <b>Etsy Bot komutları</b> (dokun, gönderilsin)
 
 Tek ilan için yazarak: /kapak_konu_4610043051, /kapak_4610043051, /foto_4610043051
 Onaydan sonra: /kod &lt;adres&gt;"""
+
+
+ALLOWED_TEXT = ("• /uret_sublimation_vintagexmas – vintage Noel tişört\n• /uret_custom_xmaskids – xmaskids\n"
+                "• /uret_custom_boyama – isimli boyama\n• /uret_coloring – normal boyama kitabı")
+
+
+def uret_allowed(only, subject=""):
+    """settings "allowed_uret": a type ("coloring") or type:preset ("custom:xmaskids"). Empty list = everything."""
+    allowed = config.settings().get("allowed_uret") or []
+    if not allowed:
+        return True
+    if not only:
+        return False  # an unknown kind word
+    name = (subject or "").split()[0] if (subject or "").split() else ""
+    return only in allowed or f"{only}:{name}" in allowed
 
 
 def _status_line(p):
@@ -312,6 +315,9 @@ def _handle_message(m, meta):
             kinds = {"stickers": "stickers", "sticker": "stickers", "wallpaper": "wallpaper", "scenes": "scenes", "coloring": "coloring", "wall_art": "wall_art", "boyama": "coloring", "poster": "wall_art", "sahne": "scenes", "junk": "junk_journal", "junk_journal": "junk_journal", "jj": "junk_journal", "clipart": "clipart", "png": "clipart", "sublimation": "sublimation", "sublimasyon": "sublimation", "custom": "custom", "tattoo": "tattoo", "dovme": "tattoo", "dövme": "tattoo", "ozel": "custom", "kisiye": "custom", "tshirt": "sublimation", "planner": "planner", "planlayici": "planner", "ajanda": "planner", "journal": "journal", "gunluk": "journal", "günlük": "journal", "bujo": "journal",
                      "pattern": "pattern", "kagit": "pattern", "tumbler": "tumbler"}
             only = kinds.get(a)
+            if a and not a.isdigit() and not uret_allowed(only, subject):
+                telegram.send("⛔ Bu tür kapalı. Şu an yalnızca şunlar üretiliyor:\n" + ALLOWED_TEXT + "\n\nListe: /yardim")
+                return changed
             n = int(a) if a.isdigit() else 1
             _dispatch_generate(n, only, subject if only else "")
             telegram.send(f"🚀 {n} ürünlük ek üretim başlatıldı" + (f" (konu: <b>{esc(subject)}</b>)" if only and subject else "")
