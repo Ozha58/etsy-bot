@@ -76,18 +76,24 @@ LICENSE
 CONTACT
 • We reply to every message within 24 hours."""
 
-MANUAL_STEPS = """📋 <b>Etsy'nin API ile izin vermediği adımlar (Shop Manager'dan elle, ~15 dk)</b>
+MANUAL_STEPS = """📋 <b>Etsy'nin API ile izin vermediği adımlar (~15 dk)</b>
+Hepsini <b>bilgisayardan</b> ya da telefonda tarayıcıdan etsy.com'da yap: Etsy Seller uygulamasında bu ayarların çoğu yok.
 
-1️⃣ <b>Banner</b>: Shop Manager › Settings › Info &amp; Appearance › <i>Big banner</i> → ekteki <code>banner-3360x840.jpg</code>
-   (telefon için <i>Mini banner</i> → <code>banner-mini-1200x300.jpg</code>)
-2️⃣ <b>Logo / mağaza ikonu</b> → ekteki <code>logo-500.jpg</code>
-3️⃣ <b>About (Hakkında)</b> → aşağıdaki hikâye metnini yapıştır, mümkünse kendi fotoğrafını ekle (güven puanını en çok bu artırır)
-4️⃣ <b>Policies (Politikalar)</b> → Settings › Policies › <i>Use Etsy's policy template</i> seç
-   (Etsy bu şablonu kullanan mağazaları aramada destekliyor). İade: "Digital items - no returns" seç.
-5️⃣ <b>FAQ</b>: Policies sayfasında "How do I download?" ve "Can I print at home?" sorularını ekle
-6️⃣ <b>İlk satış indirimi</b>: Marketing › Sales and discounts › %25-30 indirim, 14 gün (API ile yapılamıyor)
-7️⃣ <b>Favori / takip</b>: Pinterest pinleri (/pin) ve TikTok videoları (/sosyal_3) mağazaya dış trafik getirir
-8️⃣ <b>Bölümler</b>: 3-8 bölüm ideal; boş veya 1 ilanlı bölümleri birleştir"""
+1️⃣ <b>Banner</b>: Shop Manager › sol menüde <i>Sales Channels</i> altında mağaza adının yanındaki <b>kalem</b> simgesi ›
+   en üstte <i>Banner to showcase your brand…</i> › <i>Big banner</i> → ekteki <code>banner-3360x840.jpg</code>
+   (küçük bant istersen <i>Mini banner</i> → <code>banner-mini-1200x300.jpg</code>)
+2️⃣ <b>Logo</b>: Shop Manager › <b>Settings</b> › <b>Your shop</b> › <i>Logo</i> › Add / Edit → ekteki <code>logo-500.jpg</code>
+3️⃣ <b>About (Hakkında)</b>: Settings › Your shop › sağ üstte <b>Shop home editor</b> › aşağı kaydır › <i>About</i> →
+   aşağıdaki hikâye metnini yapıştır, mümkünse kendi fotoğrafını ekle
+4️⃣ <b>Politikalar</b>: Shop Manager › <b>Settings</b> › <b>Policy settings</b>. Dijital ürünlerin iade kuralı
+   (<i>Instant downloads</i>) Etsy'de hazır ve değiştirilemez, sen bir şey seçmezsin.
+5️⃣ <b>FAQ</b>: mağaza sayfasındaki FAQ alanına "How do I download?" ve "Can I print at home?" sorularını ekle
+   (Shop home editor › aşağıda <i>FAQs</i>; görünmüyorsa bu adımı atla)
+6️⃣ <b>İlk satış indirimi</b>: Shop Manager › <b>Marketing</b> › <b>Sales and discounts</b> › <i>New special offer</i> ›
+   %25-30, 14 gün
+7️⃣ <b>Dış trafik</b>: Pinterest pinleri (/pin) ve TikTok videoları (/sosyal_3)
+8️⃣ <b>Bölümler</b>: Shop Manager › <b>Listings</b> › sağdaki <i>Sections</i> kutusu; 3-8 bölüm ideal, boş ya da tek ilanlı
+   bölümleri birleştir"""
 
 ABOUT_STORY = f"""Hi, I'm the maker behind {SHOP_NAME}.
 
